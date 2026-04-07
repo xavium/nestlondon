@@ -1,7 +1,22 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'media.rightmove.co.uk',
+      },
+    ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/img/:path*',
+        destination: 'https://media.rightmove.co.uk/:path*',
+      },
+    ]
+  },
+}
 
-export default nextConfig;
+export default nextConfig

@@ -106,8 +106,14 @@ async def scrape_page(page, url, page_num):
                 listing['property_type'] = property_type
                 listing['bedrooms'] = bedrooms
                 listing['bathrooms'] = bathrooms
-                img_el = await card.query_selector('[data-testid="property-img-1"]')
-                listing['image_url'] = await img_el.get_attribute('src') if img_el else None
+                img_els = await card.query_selector_all('[data-testid^="property-img-"]')
+                image_urls = []
+                for img_el in img_els:
+                    src = await img_el.get_attribute('src')
+                    if src and src.startswith('http') and src not in image_urls:
+                        image_urls.append(src)
+                listing['image_url'] = image_urls[0] if image_urls else None
+                listing['image_urls'] = image_urls
                 link_el = await card.query_selector('a[href*="/properties/"]')
                 if link_el:
                     href = await link_el.get_attribute('href')
@@ -138,8 +144,10 @@ async def save_to_supabase(listings):
             source_id = listing.get('source_id') or hashlib.md5(
                 (listing.get('address', '') + str(listing.get('price', ''))).encode()
             ).hexdigest()[:12]
-            image_path = download_image(listing.get('image_url'), source_id)
-            images = [image_path] if image_path else []
+            image_urls = listing.get('image_urls') or []
+            if not image_urls and listing.get('image_url'):
+                image_urls = [listing.get('image_url')]
+            images = [u for u in image_urls if u and u.startswith('http')]
             postcode = None
             address = listing.get('address', '')
             match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', address)
