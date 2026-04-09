@@ -17,6 +17,7 @@ interface SearchParams {
   propertyType?: string
   features?: string
   radius?: string
+  addedWithin?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -31,6 +32,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const propertyType = params.propertyType || null
   const features = params.features ? params.features.split(',') : []
   const radius = params.radius ? parseFloat(params.radius) : null // miles
+  const addedWithin = params.addedWithin ? parseInt(params.addedWithin) : null // days
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -142,6 +144,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (maxPrice) query = query.lte('price', maxPrice)
   if (propertyType) query = query.ilike('property_type', '%' + propertyType + '%')
   if (furnished) query = query.ilike('furnished', '%' + furnished + '%')
+  if (addedWithin) {
+    const since = new Date(Date.now() - addedWithin * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    query = query.gte('listed_at', since)
+  }
 
   const { data: listings, error } = await query
   if (error) console.error(error)
@@ -216,6 +222,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             propertyType={propertyType}
             features={features}
             radius={radius}
+            addedWithin={addedWithin}
           />
         </div>
       </div>

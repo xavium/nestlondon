@@ -106,8 +106,11 @@ async def get_full_description(context, source_url):
             if size_text and size_text not in ['Ask agent', 'None']:
                 result['size_text'] = size_text.strip()
 
+
+
         # Letting details - parse from full page text
         letting = {}
+        lt = ''
         try:
             lt = await page.evaluate('() => document.body.innerText')
             letting_fields = ['Let available date', 'Deposit', 'Min. Tenancy', 'Let type', 'Furnish type', 'Council Tax']
@@ -119,8 +122,28 @@ async def get_full_description(context, source_url):
                             letting[field] = val
         except Exception as le:
             print('  Letting parse error: ' + str(le))
-        if letting:
             result['letting_details'] = letting
+
+        # Listed date from Rightmove
+        try:
+            import re as _re2
+            from datetime import date as _date, timedelta as _td
+            for line_txt in lt.split('\n'):
+                line_s = line_txt.strip()
+                if line_s == 'Added today':
+                    result['listed_at'] = _date.today().isoformat()
+                    break
+                elif line_s == 'Added yesterday':
+                    result['listed_at'] = (_date.today() - _td(days=1)).isoformat()
+                    break
+                else:
+                    m = _re2.search(r'Added on (\d{2}/\d{2}/\d{4})', line_s)
+                    if m:
+                        d, mo, y = m.group(1).split('/')
+                        result['listed_at'] = y + '-' + mo + '-' + d
+                        break
+        except:
+            pass
 
         # Floorplans
         try:
@@ -300,6 +323,7 @@ async def save_to_supabase(listings):
                 'features': json.dumps(listing.get('features') or []),
                 'furnished': listing.get('furnished'),
                 'latitude': listing.get('latitude'),
+                'listed_at': listing.get('listed_at'),
                 'longitude': listing.get('longitude'),
                 'images': json.dumps(images),
                 'is_active': True,
@@ -353,6 +377,8 @@ async def main():
                             listing['latitude'] = full_data['latitude']
                         if full_data.get('longitude'):
                             listing['longitude'] = full_data['longitude']
+                        if full_data.get('listed_at'):
+                            listing['listed_at'] = full_data['listed_at']
                         if full_data.get('floorplans'):
                             listing['floorplans'] = full_data['floorplans']
                     if (i+1) % 5 == 0:

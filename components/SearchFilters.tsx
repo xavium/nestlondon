@@ -14,6 +14,7 @@ interface Props {
   propertyType: string | null
   features: string[]
   radius?: number | null
+  addedWithin?: number | null
 }
 
 export default function SearchFilters(props: Props) {
@@ -26,6 +27,7 @@ export default function SearchFilters(props: Props) {
   const [propertyType, setPropertyType] = useState(props.propertyType)
   const [features, setFeatures] = useState<string[]>(props.features)
   const [radius, setRadius] = useState<number | null>(props.radius || null)
+  const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
   const router = useRouter()
 
   const FEATURE_OPTIONS = ['Garden', 'Balcony', 'Parking', 'Garage', 'Pets allowed', 'Bills included']
@@ -38,6 +40,7 @@ export default function SearchFilters(props: Props) {
   function applyFilters() {
     const p = new URLSearchParams()
     if (radius) p.set('radius', String(radius))
+    if (addedWithin) p.set('addedWithin', String(addedWithin))
     if (props.location) p.set('location', props.location)
     p.set('type', props.listingType)
     if (minBeds) p.set('minBeds', String(minBeds))
@@ -53,16 +56,17 @@ export default function SearchFilters(props: Props) {
 
   function clearFilters() {
     setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null)
-    setFurnished(null); setPropertyType(null); setFeatures([]); setRadius(null)
+    setFurnished(null); setPropertyType(null); setFeatures([]); setRadius(null); setAddedWithin(null)
     const p = new URLSearchParams()
     if (radius) p.set('radius', String(radius))
+    if (addedWithin) p.set('addedWithin', String(addedWithin))
     if (props.location) p.set('location', props.location)
     p.set('type', props.listingType)
     router.push('/search?' + p.toString())
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, furnished, propertyType, radius].filter(Boolean).length + features.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, furnished, propertyType, radius, addedWithin].filter(Boolean).length + features.length
 
   return (
     <div className="relative">
@@ -80,6 +84,17 @@ export default function SearchFilters(props: Props) {
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-medium text-stone-800">Filters</h3>
             <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-stone-600 text-lg leading-none">x</button>
+          </div>
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Added within</label>
+            <div className="flex gap-2 flex-wrap">
+              {[null, 1, 3, 7, 14].map(d => (
+                <button key={String(d)} onClick={() => setAddedWithin(d)}
+                  className={'px-3 py-2 text-xs rounded-lg border transition-colors ' + (addedWithin === d ? 'bg-orange-700 text-white border-orange-700' : 'bg-stone-50 text-stone-600 border-stone-200 hover:border-orange-600')}
+                >{d === null ? 'Any time' : d === 1 ? '24 hours' : d + ' days'}</button>
+              ))}
+            </div>
           </div>
 
           <div className="mb-5">
