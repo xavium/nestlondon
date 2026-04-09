@@ -1,8 +1,11 @@
-import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import Link from 'next/link'
+import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import ImageGallery from '@/components/ImageGallery'
+import PropertyMap from '@/components/PropertyMap'
+import MarkViewed from '@/components/MarkViewed'
+import FloorplanSize from '@/components/FloorplanSize'
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -21,69 +24,254 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
   if (!listing) notFound()
 
+  let nearbyListings: any[] = []
+  if (listing.latitude && listing.longitude) {
+    const { data: nearby } = await supabase
+      .from('listings')
+      .select('id,address,price,latitude,longitude,bedrooms,property_type,images')
+      .eq('is_active', true)
+      .neq('id', id)
+      .not('latitude', 'is', null)
+      .limit(500)
+    nearbyListings = nearby || []
+  }
+
+  const rawData = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data) : (listing.raw_data || {})
+  const keyFeatures: string[] = rawData?.key_features || []
+  const floorplans: string[] = rawData?.floorplans || []
+  const lettingDetails: Record<string, string> = rawData?.letting_details || {}
+
   let images: string[] = []
   try {
-    images = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || [])
+    const raw = listing.images
+    images = typeof raw === 'string' ? JSON.parse(raw) : (raw || [])
+    images = images.filter((u: string) => typeof u === 'string' && u.startsWith('https'))
   } catch {}
-  images = images.filter((u: string) => u && u.startsWith('http'))
+
+  const sizeTextRaw: string | null = rawData?.size_text || null
+  let sizeText: string | null = null
+  if (sizeTextRaw) {
+    const sqftM = sizeTextRaw.match(/([\d,]+)\s*sq\s*ft/i)
+    const sqmM = sizeTextRaw.match(/([\d,]+)\s*sq\s*m(?!ft)/i)
+    if (sqftM) {
+      const sqftVal = parseFloat(sqftM[1].replace(',',''))
+      const sqmVal = Math.round(sqftVal * 0.0929)
+      sizeText = sqftVal.toLocaleString() + ' sq ft / ' + sqmVal + ' sq m'
+    } else if (sqmM) {
+      const sqmVal = parseFloat(sqmM[1].replace(',',''))
+      const sqftVal = Math.round(sqmVal * 10.764)
+      sizeText = sqftVal.toLocaleString() + ' sq ft / ' + sqmVal + ' sq m'
+    } else {
+      sizeText = sizeTextRaw
+    }
+  }
+
+  function extractSqm(text: string): number | null {
+    if (!text) return null
+    const sqmMatch = text.match(/([\d,]+)\s*sq\s*m(?!ft)/i)
+    const sqftMatch = text.match(/([\d,]+)\s*sq(?:uare)?\s*f(?:ee|oo)?t/i)
+    const sqftMatch2 = text.match(/([\d,]+)\s*ft[²2]/i)
+    const sqmMatch2 = text.match(/([\d,]+)\s*m[²2]/i)
+    if (sqmMatch) return parseFloat(sqmMatch[1].replace(',', ''))
+    if (sqmMatch2) return parseFloat(sqmMatch2[1].replace(',', ''))
+    if (sqftMatch) return Math.round(parseFloat(sqftMatch[1].replace(',', '')) * 0.0929)
+    if (sqftMatch2) return Math.round(parseFloat(sqftMatch2[1].replace(',', '')) * 0.0929)
+    return null
+  }
+
+  let rentPerSqm: string = 'Ask agent'
+  let resolvedSize: string | null = sizeText
+
+  if (listing.price) {
+    let sqm: number | null = null
+    if (sizeText) sqm = extractSqm(sizeText)
+    if (!sqm && listing.description) {
+      sqm = extractSqm(listing.description)
+      if (sqm) {
+        const sqftFromDesc = Math.round(sqm * 10.764)
+        resolvedSize = sqftFromDesc.toLocaleString() + ' sq ft / ' + sqm + ' sq m'
+      }
+    }
+    if (!sqm && keyFeatures.length > 0) {
+      for (const f of keyFeatures) {
+        sqm = extractSqm(f)
+        if (sqm) {
+          const sqftFromFeat = Math.round(sqm * 10.764)
+          resolvedSize = sqftFromFeat.toLocaleString() + ' sq ft / ' + sqm + ' sq m'
+          break
+        }
+      }
+    }
+    if (sqm && sqm > 10 && sqm < 1000) {
+      rentPerSqm = '£' + Math.round(listing.price / sqm).toLocaleString()
+    }
+  }
 
   const isDirectListing = !!listing.agent_id
+  const listingPrice: number = typeof listing.price === 'number' ? listing.price : parseInt(String(listing.price || '0'), 10)
+
+  let cleanDescription = listing.description || ''
+  const structuredDetails: Record<string, string> = {}
+  if (cleanDescription) {
+    const markers = ['COUNCIL TAX', 'Read full description', 'Energy performance certificate']
+    let cutoff = cleanDescription.length
+    for (const m of markers) {
+      const idx = cleanDescription.indexOf(m)
+      if (idx > 0 && idx < cutoff) cutoff = idx
+    }
+    const structured = cleanDescription.slice(cutoff)
+    cleanDescription = cleanDescription.slice(0, cutoff).trim()
+    const parkingMatch = structured.match(/Parking[^\n]*[:\-]\s*([^\n]+)/i)
+    if (parkingMatch) structuredDetails['Parking'] = parkingMatch[1].trim()
+    const gardenMatch = structured.match(/Garden[^\n]*[:\-]\s*([^\n]+)/i)
+    if (gardenMatch) structuredDetails['Garden'] = gardenMatch[1].trim()
+    const accessMatch = structured.match(/Accessibility[^\n]*[:\-]\s*([^\n]+)/i)
+    if (accessMatch) structuredDetails['Accessibility'] = accessMatch[1].trim()
+  }
+
+  const epcFromKF = keyFeatures.find((f: string) => /EPC/i.test(f))
+  const epcMatchKF = epcFromKF?.match(/EPC[\s\-:]*([A-G])/i)
+  const epcMatchDesc = (listing.description || '').match(/EPC[\s\-:]*([A-G])/i)
+  structuredDetails['EPC Rating'] = epcMatchKF ? 'Band ' + epcMatchKF[1].toUpperCase()
+    : epcMatchDesc ? 'Band ' + epcMatchDesc[1].toUpperCase()
+    : 'Ask agent'
+
+  const fullDesc = listing.description || ''
+  const ctMatch = fullDesc.match(/[Cc]ouncil\s*[Tt]ax\s*[Bb]and\s*[:\-]?\s*([A-H])/) ||
+                  fullDesc.match(/[Cc]ouncil\s*[Tt]ax\s*[Ii]nformation[^\n]*[Bb]and[:\s]+([A-H])/) ||
+                  fullDesc.match(/[Tt]ax\s*[Bb]and\s*[:\-]?\s*([A-H])\b/) ||
+                  keyFeatures.map((f: string) => f.match(/[Cc]ouncil\s*[Tt]ax[^\n]*([A-H])$/)).find(Boolean)
+  structuredDetails['Council Tax'] = ctMatch ? 'Band ' + ctMatch[1].toUpperCase() : 'Ask agent'
 
   return (
     <main className="min-h-screen bg-stone-50">
-      <nav className="bg-white border-b border-stone-200 px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="text-xl font-light text-stone-800" style={{fontFamily:'Georgia,serif'}}>
-          nest<span className="text-green-800 italic">london</span>
-        </Link>
+      <nav className="bg-white border-b border-stone-200 px-6 py-4">
+        <Link href="/" className="text-lg font-semibold text-stone-800" style={{fontFamily: 'Georgia, serif'}}>NestLondon</Link>
       </nav>
-      <div className="max-w-5xl mx-auto px-6 py-6">
-        <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 flex items-center gap-1 mb-6">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          Back to results
+
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <MarkViewed id={id} />
+        <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 flex items-center gap-1 mb-4">
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Back to search
         </Link>
+
+        <div className="mb-4">
+          <h1 className="text-2xl font-semibold text-stone-800 mb-1" style={{fontFamily: 'Georgia, serif'}}>{listing.address}</h1>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-stone-900" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</span>
+            <span className="text-stone-400 text-sm">per month</span>
+            {listing.price && <span className="text-stone-400 text-sm">£{Math.round(listing.price / 4.33).toLocaleString()} per week</span>}
+          </div>
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {listing.bedrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
+            {listing.bathrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
+            {listing.property_type && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.property_type}</span>}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <ImageGallery images={images} address={listing.address} />
-            <div>
-              <h1 className="text-2xl font-light text-stone-800 mb-1" style={{fontFamily:'Georgia,serif'}}>{listing.address}</h1>
-              {listing.postcode && <p className="text-stone-500 text-sm mb-4">{listing.postcode}</p>}
-              <div className="text-3xl font-light text-stone-800 mb-4" style={{fontFamily:'Georgia,serif'}}>
-                £{listing.price?.toLocaleString()} <span className="text-base text-stone-400">per {listing.price_period}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                {listing.bedrooms && (
-                  <div className="bg-stone-100 rounded-xl p-4 text-center">
-                    <div className="text-xl text-stone-800" style={{fontFamily:'Georgia,serif'}}>{listing.bedrooms}</div>
-                    <div className="text-xs text-stone-400 uppercase tracking-wide mt-1">Bedrooms</div>
-                  </div>
-                )}
-                {listing.bathrooms && (
-                  <div className="bg-stone-100 rounded-xl p-4 text-center">
-                    <div className="text-xl text-stone-800" style={{fontFamily:'Georgia,serif'}}>{listing.bathrooms}</div>
-                    <div className="text-xs text-stone-400 uppercase tracking-wide mt-1">Bathrooms</div>
-                  </div>
-                )}
-                {listing.property_type && (
-                  <div className="bg-stone-100 rounded-xl p-4 text-center">
-                    <div className="text-sm text-stone-800">{listing.property_type}</div>
-                    <div className="text-xs text-stone-400 uppercase tracking-wide mt-1">Type</div>
-                  </div>
-                )}
-              </div>
-              {listing.description && (
-                <div className="mb-6">
-                  <h2 className="text-sm font-medium text-stone-700 mb-2">Description</h2>
-                  <p className="text-sm text-stone-500 leading-relaxed">{listing.description}</p>
+          <div className="lg:col-span-2 flex flex-col gap-5">
+
+            <ImageGallery images={images} address={listing.address} floorplans={floorplans} />
+
+            {Object.keys(lettingDetails).length > 0 && (
+              <div className="bg-white border border-stone-200 rounded-xl p-4">
+                <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Letting details</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Object.entries(lettingDetails).map(([k, v]) => (
+                    <div key={k}>
+                      <div className="text-xs text-stone-400">{k}</div>
+                      <div className="text-sm text-stone-700 font-medium">{v as string}</div>
+                    </div>
+                  ))}
                 </div>
-              )}
-              <div className="text-xs text-stone-400 pt-4 border-t border-stone-200">
-                Listed on {listing.source}
-                {listing.source_url && (
-                  <span> · <a href={listing.source_url} target="_blank" rel="noopener noreferrer" className="text-green-800 hover:underline">View original listing</a></span>
-                )}
               </div>
+            )}
+
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 items-stretch">
+              <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Type</div>
+                <div className="text-sm font-medium text-stone-700">{listing.property_type || '—'}</div>
+              </div>
+              <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bedrooms</div>
+                <div className="text-sm font-medium text-stone-700">{listing.bedrooms ?? '—'}</div>
+              </div>
+              <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bathrooms</div>
+                <div className="text-sm font-medium text-stone-700">{listing.bathrooms ?? '—'}</div>
+              </div>
+              {resolvedSize ? (
+                <>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
+                    <div className="text-sm font-medium text-stone-700">{resolvedSize}</div>
+                  </div>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
+                    <div className="text-sm font-medium text-stone-700">{rentPerSqm}</div>
+                  </div>
+                </>
+              ) : floorplans.length > 0 ? (
+                <FloorplanSize key={floorplans[0]} floorplanUrl={floorplans[0]} price={listingPrice} />
+              ) : (
+                <>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
+                    <div className="text-sm font-medium text-stone-700">Ask agent</div>
+                  </div>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
+                    <div className="text-sm font-medium text-stone-700">Ask agent</div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {keyFeatures.length > 0 && (
+              <KeyFeatures features={keyFeatures} />
+            )}
+
+            {Object.keys(structuredDetails).length > 0 && (
+              <div className="bg-white border border-stone-200 rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-stone-800 mb-3">Property details</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {Object.entries(structuredDetails).map(([k, v]) => (
+                    <div key={k} className="bg-stone-50 rounded-xl p-3 text-center flex flex-col items-center justify-center">
+                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{k}</div>
+                      <div className="text-sm font-medium text-stone-700">{v as string}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cleanDescription && (
+              <div className="bg-white border border-stone-200 rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-stone-800 mb-3">Description</h2>
+                <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-line">{cleanDescription}</div>
+              </div>
+            )}
+
+            {listing.latitude && listing.longitude && (
+              <PropertyMap
+                latitude={listing.latitude}
+                longitude={listing.longitude}
+                address={listing.address}
+                price={listing.price}
+                nearbyListings={nearbyListings}
+              />
+            )}
+
+            <div className="text-xs text-stone-400 pt-2">
+              Listed on {listing.source}
+              {listing.source_url && (
+                <span> · <a href={listing.source_url} target="_blank" rel="noopener noreferrer" className="text-green-800 hover:underline">View original listing</a></span>
+              )}
             </div>
           </div>
+
           <div>
             {isDirectListing ? (
               <EnquiryForm listing={listing} />
@@ -97,31 +285,107 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   )
 }
 
+function KeyFeatures({ features }: { features: string[] }) {
+  const POSITIVE_KEYWORDS = [
+    'view', 'river', 'park', 'garden', 'balcony', 'terrace', 'roof', 'penthouse',
+    'gym', 'pool', 'concierge', 'porter', 'spa', 'lounge', 'cinema', 'storage',
+    'parking', 'garage', 'bike', 'furnished', 'wood floor', 'period', 'victorian',
+    'georgian', 'high ceiling', 'natural light', 'south facing', 'double glazed',
+    'split level', 'duplex', 'mews', 'ground floor', 'top floor', 'new build',
+    'refurb', 'modern', 'contemporary', 'open plan', 'en-suite', 'walk-in',
+  ]
+  const FACT_KEYWORDS = [
+    'epc', 'council tax', 'available', 'deposit', 'tenancy', 'let type',
+    'reference', 'property ref', 'no agent', 'students', 'dss',
+  ]
+  const cleanFeatures: string[] = []
+  features.forEach(raw => {
+    const p1 = raw.split(/(?<=[a-z])(?=[A-Z])/)
+    const p2: string[] = []
+    p1.forEach(p => p.split(/(?<=[0-9])(?=[A-Z])/).forEach((s: string) => p2.push(s)))
+    const p3: string[] = []
+    p2.forEach(p => p.split(/(?<=-[A-Z])(?=[A-Z])/).forEach((s: string) => p3.push(s)))
+    const p4: string[] = []
+    p3.forEach(p => p.split(/(?<=[a-z]{2})(?=[0-9])/).forEach((s: string) => p4.push(s)))
+    p4.forEach(p => { if (p.trim().length > 2) cleanFeatures.push(p.trim()) })
+  })
+  const filteredFeatures = cleanFeatures.filter(f => {
+    const l = f.toLowerCase()
+    return !l.startsWith('epc') && !l.startsWith('council tax') &&
+           !l.includes('property ref') && !l.includes('reference number')
+  })
+  const highlights: string[] = []
+  const facts: string[] = []
+  const other: string[] = []
+  filteredFeatures.forEach(f => {
+    const lower = f.toLowerCase()
+    if (FACT_KEYWORDS.some(k => lower.includes(k))) facts.push(f)
+    else if (POSITIVE_KEYWORDS.some(k => lower.includes(k))) highlights.push(f)
+    else other.push(f)
+  })
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl p-5 space-y-4">
+      {highlights.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Highlights</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
+            {highlights.map((f, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm text-stone-700">
+                <svg className="w-4 h-4 text-green-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {f}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {other.length > 0 && (
+        <div className="pt-3 border-t border-stone-100">
+          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Features</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
+            {other.map((f, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm text-stone-600">
+                <div className="w-1.5 h-1.5 rounded-full bg-stone-300 flex-shrink-0 mt-2" />
+                {f}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {facts.length > 0 && (
+        <div className="border-t border-stone-100 pt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {facts.map((f, i) => (
+              <div key={i} className="bg-stone-50 rounded-lg px-3 py-2 text-xs text-stone-500">{f}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ExternalLinkCard({ listing }: { listing: any }) {
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-6 sticky top-6">
-      <div className="text-2xl font-light text-stone-800 mb-1" style={{fontFamily:'Georgia,serif'}}>£{listing.price?.toLocaleString()}</div>
-      <div className="text-xs text-stone-400 mb-6">per {listing.price_period}</div>
-      <div className="bg-stone-50 rounded-xl p-4 mb-5">
-        <div className="flex gap-3 text-sm text-stone-600">
-          {listing.bedrooms && <span>{listing.bedrooms} bed</span>}
-          {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
-          {listing.property_type && <span>{listing.property_type}</span>}
-        </div>
+      <div className="mb-4">
+        <div className="text-2xl font-bold text-stone-900 mb-0.5" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</div>
+        <div className="text-sm text-stone-400">per month</div>
+        {listing.price && <div className="text-sm text-stone-400">£{Math.round(listing.price / 4.33).toLocaleString()} per week</div>}
+      </div>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {listing.bedrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
+        {listing.bathrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
+        {listing.property_type && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.property_type}</span>}
       </div>
       {listing.source_url ? (
-        <a
-          href={listing.source_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full bg-green-800 text-white text-sm rounded-lg py-3 text-center hover:bg-green-900 transition-colors mb-3"
-        >
-          View on {listing.source}
+        <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
+          className="block w-full bg-green-800 text-white text-sm rounded-lg py-3 text-center hover:bg-green-900 transition-colors mb-3">
+          View on {listing.source} →
         </a>
       ) : (
         <div className="w-full bg-stone-200 text-stone-400 text-sm rounded-lg py-3 text-center">Source unavailable</div>
       )}
-      <p className="text-xs text-stone-400 text-center">You will be taken to {listing.source} to enquire.</p>
+      <p className="text-xs text-stone-400 text-center">Enquire directly on {listing.source}. NestLondon does not charge tenants any fees.</p>
     </div>
   )
 }
@@ -135,9 +399,7 @@ function EnquiryForm({ listing }: { listing: any }) {
       <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-green-700" placeholder="Email address" />
       <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-green-700" placeholder="Phone number" />
       <textarea className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-green-700 min-h-20 resize-none" placeholder="I am interested in arranging a viewing..." />
-      <button className="w-full bg-green-800 text-white rounded-lg py-2.5 text-sm hover:bg-green-900 transition-colors">
-        Send enquiry
-      </button>
+      <button className="w-full bg-green-800 text-white rounded-lg py-2.5 text-sm hover:bg-green-900 transition-colors">Send enquiry</button>
       <p className="text-xs text-stone-400 mt-3 text-center">NestLondon does not charge tenants any fees.</p>
     </div>
   )

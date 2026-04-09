@@ -1,12 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
+import SearchBarClient from '@/components/SearchBarClient'
+import SearchFilters from '@/components/SearchFilters'
+import ListingCard from '@/components/ListingCard'
 
 interface SearchParams {
   location?: string
   type?: string
   minBeds?: string
+  maxBeds?: string
+  minPrice?: string
   maxPrice?: string
+  furnished?: string
+  propertyType?: string
+  features?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -14,7 +22,12 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const location = params.location || ''
   const listingType = params.type || 'rent'
   const minBeds = params.minBeds ? parseInt(params.minBeds) : null
+  const maxBeds = params.maxBeds ? parseInt(params.maxBeds) : null
+  const minPrice = params.minPrice ? parseInt(params.minPrice) : null
   const maxPrice = params.maxPrice ? parseInt(params.maxPrice) : null
+  const furnished = params.furnished || null
+  const propertyType = params.propertyType || null
+  const features = params.features ? params.features.split(',') : []
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -33,18 +46,40 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   if (location) {
     const loc = location.trim().toUpperCase()
-    query = query.or(
-      'address.ilike.%' + location + '%,' +
-      'postcode.ilike.' + loc + ' %,' +
-      'postcode.eq.' + loc + ',' +
-      'borough.ilike.%' + location + '%'
-    )
+    const isPostcode = /^[A-Z]{1,2}[0-9]{1,2}$/.test(loc)
+    if (isPostcode) {
+      query = query.eq('borough', loc)
+    } else {
+      query = query.or('address.ilike.%' + location + '%,borough.ilike.%' + location + '%')
+    }
   }
   if (minBeds) query = query.gte('bedrooms', minBeds)
+  if (maxBeds) query = query.lte('bedrooms', maxBeds)
+  if (minPrice) query = query.gte('price', minPrice)
   if (maxPrice) query = query.lte('price', maxPrice)
+  if (propertyType) query = query.ilike('property_type', '%' + propertyType + '%')
+  if (furnished) query = query.ilike('furnished', '%' + furnished + '%')
 
   const { data: listings, error } = await query
   if (error) console.error(error)
+
+  const mustHaveFeatures = features.filter((f: string) => !f.startsWith('exclude:'))
+  const excludeFeatures = features.filter((f: string) => f.startsWith('exclude:')).map((f: string) => f.replace('exclude:', ''))
+
+  const filtered = (listings || []).filter((listing: any) => {
+    const desc = (listing.description || '').toLowerCase()
+    const feats = JSON.stringify(listing.features || '').toLowerCase()
+    const combined = desc + ' ' + feats
+    for (const f of mustHaveFeatures) {
+      if (!combined.includes(f.toLowerCase())) return false
+    }
+    for (const f of excludeFeatures) {
+      if (f === 'New builds' && combined.includes('new build')) return false
+      if (f === 'Shared ownership' && combined.includes('shared ownership')) return false
+      if (f === 'Retirement homes' && combined.includes('retirement')) return false
+    }
+    return true
+  })
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -54,42 +89,32 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </Link>
       </nav>
       <div className="bg-white border-b border-stone-100 px-6 py-4">
-        <form method="GET" action="/search" className="flex items-center gap-3 max-w-2xl">
-          <input
-            name="location"
-            defaultValue={location}
-            className="flex-1 border border-stone-200 rounded-xl px-4 py-2 text-sm text-stone-800 outline-none focus:border-green-700"
-            placeholder="Area, postcode or station"
+        <div className="flex items-center gap-3 max-w-4xl">
+          <div className="flex-1">
+            <SearchBarClient location={location} listingType={listingType} minBeds={minBeds} maxPrice={maxPrice} />
+          </div>
+          <SearchFilters
+            location={location}
+            listingType={listingType}
+            minBeds={minBeds}
+            maxBeds={maxBeds}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            furnished={furnished}
+            propertyType={propertyType}
+            features={features}
           />
-          <input type="hidden" name="type" value={listingType} />
-          <button type="submit" className="bg-green-800 text-white text-sm px-5 py-2 rounded-xl hover:bg-green-900">
-            Search
-          </button>
-        </form>
+        </div>
       </div>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-stone-500">
-            {listings?.length || 0} properties{location ? ' matching ' + location : ' in London'}
+            {filtered.length} properties{location ? ' in ' + location : ' in London'}
           </p>
-          <div className="flex gap-2 flex-wrap">
-            {[1,2,3,4].map(b => (
-              <a key={b}
-                href={'/search?' + new URLSearchParams({ ...(location && { location }), type: listingType, minBeds: String(b), ...(maxPrice && { maxPrice: String(maxPrice) }) }).toString()}
-                className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (minBeds === b ? 'bg-green-800 text-white border-green-800' : 'bg-white text-stone-500 border-stone-200 hover:border-green-700')}
-              >{b}+ beds</a>
-            ))}
-            {[1000,1500,2000,2500,3000].map(p => (
-              <a key={p}
-                href={'/search?' + new URLSearchParams({ ...(location && { location }), type: listingType, ...(minBeds && { minBeds: String(minBeds) }), maxPrice: String(p) }).toString()}
-                className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (maxPrice === p ? 'bg-green-800 text-white border-green-800' : 'bg-white text-stone-500 border-stone-200 hover:border-green-700')}
-              >Under £{p.toLocaleString()}</a>
-            ))}
-          </div>
         </div>
-        {listings && listings.length > 0 ? (
+        {filtered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {listings.map((listing: any) => (
+            {filtered.map((listing: any) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
@@ -101,56 +126,5 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         )}
       </div>
     </main>
-  )
-}
-
-function ListingCard({ listing }: { listing: any }) {
-  let imgSrc: string | null = null
-  try {
-    const raw = listing.images
-    let arr: string[] = []
-    if (typeof raw === 'string' && raw.length > 2) {
-      arr = JSON.parse(raw)
-    } else if (Array.isArray(raw)) {
-      arr = raw
-    }
-    const found = arr.find((u: string) => typeof u === 'string' && u.startsWith('https')) || null
-    if (found) {
-      imgSrc = found.replace('https://media.rightmove.co.uk/', '/img/')
-    }
-  } catch {}
-
-
-  return (
-    <Link href={'/listings/' + listing.id} className="block bg-white border border-stone-200 rounded-2xl overflow-hidden hover:border-stone-300 transition-colors no-underline">
-      <div className="relative h-48 bg-stone-100 overflow-hidden">
-        {imgSrc ? (
-          <img src={imgSrc} alt={listing.address} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeWidth="1"/>
-            </svg>
-          </div>
-        )}
-        <div className="absolute bottom-2 right-2 bg-white/90 text-stone-500 text-xs px-2 py-0.5 rounded">
-          {listing.source}
-        </div>
-      </div>
-      <div className="p-4">
-        <div className="text-lg text-stone-800 mb-0.5" style={{fontFamily:'Georgia,serif'}}>
-          £{listing.price?.toLocaleString()} <span className="text-xs text-stone-400 font-sans">/{listing.price_period}</span>
-        </div>
-        <div className="text-sm text-stone-500 mb-3 truncate">{listing.address}</div>
-        <div className="flex gap-3 text-xs text-stone-400 mb-4">
-          {listing.bedrooms && <span>{listing.bedrooms} bed</span>}
-          {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
-          {listing.property_type && <span>{listing.property_type}</span>}
-        </div>
-        <div className="w-full bg-green-800 text-white text-xs rounded-lg py-2 text-center">
-          View property
-        </div>
-      </div>
-    </Link>
   )
 }

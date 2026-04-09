@@ -38,7 +38,7 @@ def parse_info(info_text):
     bedrooms = None
     bathrooms = None
     for line in lines[1:]:
-        if line.isdigit():
+        if line.isdigit() and int(line) <= 20:
             if bedrooms is None:
                 bedrooms = int(line)
             elif bathrooms is None:
@@ -68,6 +68,112 @@ def download_image(url, source_id):
         print('  Image download failed: ' + str(e))
         return None
 
+
+async def get_full_description(context, source_url):
+    if not source_url:
+        return None
+    try:
+        page = await context.new_page()
+        await page.goto(source_url, wait_until='domcontentloaded', timeout=20000)
+        await page.wait_for_timeout(2000)
+        result = {}
+
+        # Full description
+        pl = await page.query_selector('[data-testid="primary-layout"]')
+        if pl:
+            full_text = await page.evaluate('el => el.innerText', pl)
+            if 'Description' in full_text:
+                desc = full_text.split('Description', 1)[1].strip()
+                for stop in ['Letting details', 'Key features', 'Agent details', 'Map', 'Floorplan', 'Similar properties', 'More properties', 'Council tax']:
+                    if stop in desc:
+                        desc = desc.split(stop)[0].strip()
+                result['description'] = desc if desc and len(desc) > 50 else None
+
+        # Key features
+        kf_el = await page.query_selector('[data-testid="keyFeatures"]')
+        if kf_el:
+            kf_items = await page.evaluate('el => Array.from(el.querySelectorAll("li")).map(li => li.innerText.trim()).filter(t => t.length > 2)', kf_el)
+            kf_items = await page.evaluate('el => Array.from(el.querySelectorAll("li")).map(li => li.innerText.trim()).filter(t => t.length > 2)', kf_el)
+            features = kf_items if kf_items else []
+            result['key_features'] = features
+
+            result['key_features'] = features
+
+        # Size
+        size_el = await page.query_selector('[data-testid="info-reel-SIZE-text"]')
+        if size_el:
+            size_text = await page.evaluate('el => el.innerText', size_el)
+            if size_text and size_text not in ['Ask agent', 'None']:
+                result['size_text'] = size_text.strip()
+
+        # Letting details - parse from full page text
+        letting = {}
+        try:
+            lt = await page.evaluate('() => document.body.innerText')
+            letting_fields = ['Let available date', 'Deposit', 'Min. Tenancy', 'Let type', 'Furnish type', 'Council Tax']
+            for line_txt in lt.split('\n'):
+                for field in letting_fields:
+                    if line_txt.strip().startswith(field + ':'):
+                        val = line_txt.strip()[len(field)+1:].strip()
+                        if val:
+                            letting[field] = val
+        except Exception as le:
+            print('  Letting parse error: ' + str(le))
+        if letting:
+            result['letting_details'] = letting
+
+        # Floorplans
+        try:
+            floorplan_imgs = await page.evaluate('''() => {
+                const imgs = Array.from(document.querySelectorAll('img'))
+                return imgs.map(img => img.src).filter(src => src.includes('floorplan') || src.includes('floor_plan') || src.includes('floor-plan'))
+            }''')
+            if floorplan_imgs:
+                result['floorplans'] = floorplan_imgs
+        except Exception as fe:
+            print('  Floorplan error: ' + str(fe))
+
+        # Coordinates
+        try:
+            coords = await page.evaluate('''() => {
+                const scripts = Array.from(document.querySelectorAll('script'))
+                for (const s of scripts) {
+                    const text = s.textContent || ''
+                    const latMatch = text.match(/"latitude"\\s*:\\s*(-?\\d+\\.\\d+)/)
+                    const lngMatch = text.match(/"longitude"\\s*:\\s*(-?\\d+\\.\\d+)/)
+                    if (latMatch && lngMatch) return { lat: latMatch[1], lng: lngMatch[1] }
+                }
+                return null
+            }''')
+            if coords:
+                result['latitude'] = float(coords['lat'])
+                result['longitude'] = float(coords['lng'])
+        except Exception as ce:
+            print('  Coords error: ' + str(ce))
+
+        # Additional features (council tax, parking, garden)
+        additional = await page.evaluate('''() => {
+            const result = {}
+            const items = document.querySelectorAll('[class*="utilities"] li, [class*="additionalFeatures"] li')
+            items.forEach(item => {
+                const label = item.querySelector('dt, [class*="label"]')
+                const val = item.querySelector('dd, [class*="value"]')
+                if (label && val) result[label.innerText.trim()] = val.innerText.trim()
+            })
+            return result
+        }''')
+        if additional:
+            result['additional'] = additional
+
+        await page.close()
+        return result if result else None
+    except Exception as e:
+        print('  Full desc error: ' + str(e))
+        try:
+            await page.close()
+        except:
+            pass
+        return None
 
 async def accept_cookies(page):
     try:
@@ -114,6 +220,31 @@ async def scrape_page(page, url, page_num):
                         image_urls.append(src)
                 listing['image_url'] = image_urls[0] if image_urls else None
                 listing['image_urls'] = image_urls
+                desc_el = await card.query_selector('[data-testid="property-description"]')
+                listing['description'] = (await desc_el.inner_text()).strip() if desc_el else None
+                listing['fetch_full_desc'] = True
+
+                features = []
+                info_text_raw = await info_el.inner_text() if info_el else ''
+                info_lower = info_text_raw.lower()
+                if 'furnished' in info_lower: features.append('Furnished')
+                if 'unfurnished' in info_lower: features.append('Unfurnished')
+                if 'part furnished' in info_lower: features.append('Part furnished')
+                if 'parking' in info_lower: features.append('Parking')
+                if 'garage' in info_lower: features.append('Garage')
+                if 'garden' in info_lower: features.append('Garden')
+                if 'balcony' in info_lower: features.append('Balcony')
+                if 'terrace' in info_lower: features.append('Terrace')
+                if 'pet' in info_lower: features.append('Pets allowed')
+                if 'bills included' in info_lower: features.append('Bills included')
+                listing['features'] = features
+
+                furnished = None
+                if 'unfurnished' in info_lower: furnished = 'unfurnished'
+                elif 'part furnished' in info_lower: furnished = 'part furnished'
+                elif 'furnished' in info_lower: furnished = 'furnished'
+                listing['furnished'] = furnished
+
                 link_el = await card.query_selector('a[href*="/properties/"]')
                 if link_el:
                     href = await link_el.get_attribute('href')
@@ -165,8 +296,14 @@ async def save_to_supabase(listings):
                 'bathrooms': listing.get('bathrooms'),
                 'property_type': listing.get('property_type'),
                 'listing_type': 'rent',
+                'description': listing.get('description'),
+                'features': json.dumps(listing.get('features') or []),
+                'furnished': listing.get('furnished'),
+                'latitude': listing.get('latitude'),
+                'longitude': listing.get('longitude'),
                 'images': json.dumps(images),
                 'is_active': True,
+                'raw_data': json.dumps({'key_features': listing.get('key_features'), 'size_text': listing.get('size_text'), 'letting_details': listing.get('letting_details'), 'additional': listing.get('additional'), 'floorplans': listing.get('floorplans') or []}),
                 'scraped_at': datetime.utcnow().isoformat(),
             }
             supabase.table('listings').insert(record).execute()
@@ -192,13 +329,36 @@ async def main():
         await accept_cookies(page)
         await page.wait_for_timeout(2000)
         all_listings = []
-        for page_num in range(5):
+        for page_num in range(1):
             offset = page_num * 24
             url = SEARCH_URL + '&index=' + str(offset) if page_num > 0 else SEARCH_URL
             print('Page ' + str(page_num + 1) + '/5')
             listings = await scrape_page(page, url, page_num)
+            print('  Got ' + str(len(listings)) + ' listings - fetching full descriptions...')
+            for i, listing in enumerate(listings):
+                if listing.get('source_url'):
+                    full_data = await get_full_description(context, listing['source_url'])
+                    if full_data and isinstance(full_data, dict):
+                        if full_data.get('description'):
+                            listing['description'] = full_data['description']
+                        if full_data.get('key_features'):
+                            listing['key_features'] = full_data['key_features']
+                        if full_data.get('size_text'):
+                            listing['size_text'] = full_data['size_text']
+                        if full_data.get('letting_details'):
+                            listing['letting_details'] = full_data['letting_details']
+                        if full_data.get('additional'):
+                            listing['additional'] = full_data['additional']
+                        if full_data.get('latitude'):
+                            listing['latitude'] = full_data['latitude']
+                        if full_data.get('longitude'):
+                            listing['longitude'] = full_data['longitude']
+                        if full_data.get('floorplans'):
+                            listing['floorplans'] = full_data['floorplans']
+                    if (i+1) % 5 == 0:
+                        print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
+                    await asyncio.sleep(0.5)
             all_listings.extend(listings)
-            print('  Got ' + str(len(listings)) + ' listings')
             if page_num < 4:
                 await asyncio.sleep(2)
         await browser.close()
