@@ -102,7 +102,7 @@ export default function SearchBarClient({
             value={value}
             onChange={handleChange}
             onFocus={() => suggestions.length > 0 && setOpen(true)}
-            className="w-full border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-stone-800 outline-none focus:border-green-700"
+            className="w-full border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
             placeholder="Area, postcode or station — e.g. Hackney, E8"
             autoComplete="off"
           />
@@ -113,7 +113,7 @@ export default function SearchBarClient({
                   key={s}
                   type="button"
                   onClick={() => handleSelect(s)}
-                  className="w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-2.5"
+                  className="w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-[#F1EFE8] flex items-center gap-2.5"
                 >
                   <svg className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/>
@@ -127,7 +127,7 @@ export default function SearchBarClient({
         </div>
         <button
           type="submit"
-          className="bg-green-800 text-white text-sm px-5 py-2.5 rounded-xl hover:bg-green-900 transition-colors flex-shrink-0"
+          className="bg-orange-700 text-white text-sm px-5 py-2.5 rounded-xl hover:bg-orange-800 transition-colors flex-shrink-0"
         >
           Search
         </button>

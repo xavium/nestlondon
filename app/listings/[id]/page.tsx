@@ -7,8 +7,10 @@ import PropertyMap from '@/components/PropertyMap'
 import MarkViewed from '@/components/MarkViewed'
 import FloorplanSize from '@/components/FloorplanSize'
 
-export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
+  const sp = await searchParams
+  const fromSearch = sp.from ? decodeURIComponent(sp.from) : null
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,6 +110,33 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   }
 
   const isDirectListing = !!listing.agent_id
+
+  // Fetch listings from the user's search context
+  let searchListings: any[] = []
+  if (fromSearch) {
+    try {
+      const sp2 = new URLSearchParams(fromSearch)
+      const loc = sp2.get('location') || ''
+      const minB = sp2.get('minBeds') ? parseInt(sp2.get('minBeds')!) : null
+      const maxP = sp2.get('maxPrice') ? parseInt(sp2.get('maxPrice')!) : null
+      const minP = sp2.get('minPrice') ? parseInt(sp2.get('minPrice')!) : null
+      const furn = sp2.get('furnished') || null
+      const ptype = sp2.get('propertyType') || null
+      let q = supabase.from('listings').select('id,address,price,images,bedrooms,bathrooms,property_type,borough,latitude,longitude').eq('is_active', true).neq('id', id).limit(6)
+      if (loc) {
+        const locU = loc.trim().toUpperCase()
+        const isPC = /^[A-Z]{1,2}[0-9]{1,2}$/.test(locU)
+        if (isPC) q = q.eq('borough', locU)
+      }
+      if (minB) q = q.gte('bedrooms', minB)
+      if (minP) q = q.gte('price', minP)
+      if (maxP) q = q.lte('price', maxP)
+      if (furn) q = q.ilike('furnished', '%' + furn + '%')
+      if (ptype) q = q.ilike('property_type', '%' + ptype + '%')
+      const { data: sl } = await q
+      searchListings = sl || []
+    } catch {}
+  }
   const listingPrice: number = typeof listing.price === 'number' ? listing.price : parseInt(String(listing.price || '0'), 10)
 
   let cleanDescription = listing.description || ''
@@ -144,7 +173,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   structuredDetails['Council Tax'] = ctMatch ? 'Band ' + ctMatch[1].toUpperCase() : 'Ask agent'
 
   return (
-    <main className="min-h-screen bg-stone-50">
+    <main className="min-h-screen bg-[#F1EFE8]">
       <nav className="bg-white border-b border-stone-200 px-6 py-4">
         <Link href="/" className="text-lg font-semibold text-stone-800" style={{fontFamily: 'Georgia, serif'}}>NestLondon</Link>
       </nav>
@@ -182,7 +211,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   {Object.entries(lettingDetails).map(([k, v]) => (
                     <div key={k}>
                       <div className="text-xs text-stone-400">{k}</div>
-                      <div className="text-sm text-stone-700 font-medium">{v as string}</div>
+                      <div className="text-sm text-stone-800 font-semibold">{v as string}</div>
                     </div>
                   ))}
                 </div>
@@ -238,9 +267,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <h2 className="text-sm font-semibold text-stone-800 mb-3">Property details</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {Object.entries(structuredDetails).map(([k, v]) => (
-                    <div key={k} className="bg-stone-50 rounded-xl p-3 text-center flex flex-col items-center justify-center">
+                    <div key={k} className="bg-[#F1EFE8] rounded-xl p-3 text-center flex flex-col items-center justify-center">
                       <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{k}</div>
-                      <div className="text-sm font-medium text-stone-700">{v as string}</div>
+                      <div className="text-sm font-semibold text-stone-800">{v as string}</div>
                     </div>
                   ))}
                 </div>
@@ -267,16 +296,46 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <div className="text-xs text-stone-400 pt-2">
               Listed on {listing.source}
               {listing.source_url && (
-                <span> · <a href={listing.source_url} target="_blank" rel="noopener noreferrer" className="text-green-800 hover:underline">View original listing</a></span>
+                <span> · <a href={listing.source_url} target="_blank" rel="noopener noreferrer" className="text-orange-700 hover:underline">View original listing</a></span>
               )}
             </div>
           </div>
 
-          <div>
+          <div className="flex flex-col gap-5">
             {isDirectListing ? (
               <EnquiryForm listing={listing} />
             ) : (
               <ExternalLinkCard listing={listing} />
+            )}
+
+            {searchListings.length > 0 && (
+              <div className="bg-white border border-stone-200 rounded-2xl p-5">
+                <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-4">From your search</h3>
+                <div className="flex flex-col gap-3">
+                  {searchListings.map((sl: any) => {
+                    let slImg: string | null = null
+                    try {
+                      const arr = typeof sl.images === 'string' ? JSON.parse(sl.images) : (sl.images || [])
+                      slImg = arr.find((u: string) => u?.startsWith('https')) || null
+                    } catch {}
+                    return (
+                      <a key={sl.id} href={'/listings/' + sl.id + (fromSearch ? '?from=' + encodeURIComponent(fromSearch) : '')} className="flex gap-3 group">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-stone-100 flex-shrink-0">
+                          {slImg ? <img src={slImg} alt="" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" referrerPolicy="no-referrer" /> : <div className="w-full h-full bg-stone-100" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-stone-800 truncate group-hover:text-orange-700 transition-colors">{sl.address}</div>
+                          <div className="text-sm font-semibold text-stone-900 mt-0.5">£{sl.price?.toLocaleString()}<span className="text-xs text-stone-400 font-normal">/mo</span></div>
+                          <div className="text-xs text-stone-400">{sl.bedrooms ? sl.bedrooms + ' bed' : ''}{sl.property_type ? ' · ' + sl.property_type : ''}</div>
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+                {fromSearch && (
+                  <a href={'/search' + fromSearch} className="block text-center text-xs text-orange-700 hover:underline mt-4">Back to search results →</a>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -331,7 +390,7 @@ function KeyFeatures({ features }: { features: string[] }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
             {highlights.map((f, i) => (
               <div key={i} className="flex items-start gap-2 text-sm text-stone-700">
-                <svg className="w-4 h-4 text-green-700 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 {f}
               </div>
             ))}
@@ -355,7 +414,7 @@ function KeyFeatures({ features }: { features: string[] }) {
         <div className="border-t border-stone-100 pt-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {facts.map((f, i) => (
-              <div key={i} className="bg-stone-50 rounded-lg px-3 py-2 text-xs text-stone-500">{f}</div>
+              <div key={i} className="bg-[#F1EFE8] rounded-lg px-3 py-2 text-xs text-stone-500">{f}</div>
             ))}
           </div>
         </div>
@@ -379,7 +438,7 @@ function ExternalLinkCard({ listing }: { listing: any }) {
       </div>
       {listing.source_url ? (
         <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
-          className="block w-full bg-green-800 text-white text-sm rounded-lg py-3 text-center hover:bg-green-900 transition-colors mb-3">
+          className="block w-full bg-orange-700 text-white text-sm rounded-lg py-3 text-center hover:bg-orange-800 transition-colors mb-3">
           View on {listing.source} →
         </a>
       ) : (
@@ -395,11 +454,11 @@ function EnquiryForm({ listing }: { listing: any }) {
     <div className="bg-white border border-stone-200 rounded-2xl p-6 sticky top-6">
       <h3 className="text-sm font-medium text-stone-800 mb-1">Enquire about this property</h3>
       <p className="text-xs text-stone-400 mb-5">Direct listing — no portal fees</p>
-      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-green-700" placeholder="Your name" />
-      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-green-700" placeholder="Email address" />
-      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-green-700" placeholder="Phone number" />
-      <textarea className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-green-700 min-h-20 resize-none" placeholder="I am interested in arranging a viewing..." />
-      <button className="w-full bg-green-800 text-white rounded-lg py-2.5 text-sm hover:bg-green-900 transition-colors">Send enquiry</button>
+      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Your name" />
+      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Email address" />
+      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Phone number" />
+      <textarea className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-orange-600 min-h-20 resize-none" placeholder="I am interested in arranging a viewing..." />
+      <button className="w-full bg-orange-700 text-white rounded-lg py-2.5 text-sm hover:bg-orange-800 transition-colors">Send enquiry</button>
       <p className="text-xs text-stone-400 mt-3 text-center">NestLondon does not charge tenants any fees.</p>
     </div>
   )

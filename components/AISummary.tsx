@@ -51,13 +51,13 @@ export default function AISummary({ description, address, price, bedrooms, bathr
   }
 
   return (
-    <div className="mb-6 bg-green-50 border border-green-100 rounded-2xl p-5">
+    <div className="mb-6 bg-orange-50 border border-green-100 rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-4">
-        <div className="w-5 h-5 rounded-full bg-green-800 flex items-center justify-center flex-shrink-0">
+        <div className="w-5 h-5 rounded-full bg-orange-700 flex items-center justify-center flex-shrink-0">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
         <h2 className="text-sm font-medium text-stone-800">NestLondon analysis</h2>
-        <span className="text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full">AI</span>
+        <span className="text-xs text-orange-600 bg-green-100 px-2 py-0.5 rounded-full">AI</span>
       </div>
 
       {loading ? (
@@ -75,7 +75,7 @@ export default function AISummary({ description, address, price, bedrooms, bathr
           {formatSummary(summary).map(({ heading, body, key }) => (
             <div key={key}>
               {heading && heading !== body && (
-                <div className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-1">{heading}</div>
+                <div className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">{heading}</div>
               )}
               <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">{body || heading}</div>
             </div>

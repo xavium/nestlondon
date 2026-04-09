@@ -451,7 +451,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       // Current listing marker - highest z-index
       const mainIcon = L.divIcon({
         className: '',
-        html: `<div style="background:white;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:#1a472a;box-shadow:0 2px 10px rgba(0,0,0,0.25);border:2px solid #1a472a;white-space:nowrap;font-family:Georgia,serif;position:relative;text-align:center;">£${price.toLocaleString()}/mo<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #1a472a;"></div></div>`,
+        html: `<div style="background:white;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:#D85A30;box-shadow:0 2px 10px rgba(0,0,0,0.25);border:2px solid #D85A30;white-space:nowrap;font-family:Georgia,serif;position:relative;text-align:center;">£${price.toLocaleString()}/mo<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #D85A30;"></div></div>`,
         iconSize: [130, 36],
         iconAnchor: [65, 43],
       })
@@ -488,7 +488,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
             <div style="font-size:14px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${nearby.price.toLocaleString()}<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">/mo</span></div>
             <div style="font-size:11px;color:#6b6b67;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nearby.address}</div>
             <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;">${nearby.bedrooms ? nearby.bedrooms + ' bed' : ''} ${nearby.property_type || ''}</div>
-            <a href="/listings/${nearby.id}" target="_blank" onclick="window.__markViewed && window.__markViewed('${nearby.id}')" style="display:block;background:#1a472a;color:white;text-align:center;padding:7px;border-radius:7px;font-size:12px;text-decoration:none;">View listing</a>
+            <a href="/listings/${nearby.id}" target="_blank" onclick="window.__markViewed && window.__markViewed('${nearby.id}')" style="display:block;background:#D85A30;color:white;text-align:center;padding:7px;border-radius:7px;font-size:12px;text-decoration:none;">View listing</a>
           </div>
         `
 
@@ -529,7 +529,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
             <p className="text-xs text-stone-400 mt-0.5">{nearbyListings.length} other listings on map</p>
           )}
         </div>
-        <a href={'https://www.google.com/maps/search/?api=1&query=' + latitude + ',' + longitude} target="_blank" rel="noopener noreferrer" className="text-xs text-green-800 hover:underline">
+        <a href={'https://www.google.com/maps/search/?api=1&query=' + latitude + ',' + longitude} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-700 hover:underline">
           Open in Google Maps →
         </a>
       </div>

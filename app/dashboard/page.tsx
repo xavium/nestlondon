@@ -25,14 +25,14 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <main className="min-h-screen bg-[#F1EFE8] flex items-center justify-center">
         <div className="text-stone-400 text-sm">Loading...</div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 p-8">
+    <main className="min-h-screen bg-[#F1EFE8] p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-light text-stone-800">

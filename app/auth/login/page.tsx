@@ -27,7 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[#F1EFE8] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-light text-stone-800">
@@ -48,7 +48,7 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-green-700"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
               placeholder="you@agency.co.uk"
             />
           </div>
@@ -59,20 +59,20 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-green-700"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
               placeholder="password"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-green-900 disabled:opacity-50 transition-colors"
+            className="w-full bg-orange-700 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-orange-800 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
           <p className="text-center text-sm text-stone-500 mt-4">
             No account?{' '}
-            <Link href="/auth/signup" className="text-green-800 hover:underline">
+            <Link href="/auth/signup" className="text-orange-700 hover:underline">
               Register your agency
             </Link>
           </p>

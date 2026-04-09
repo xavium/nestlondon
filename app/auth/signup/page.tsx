@@ -32,7 +32,7 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+      <main className="min-h-screen bg-[#F1EFE8] flex items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
           <div className="text-4xl mb-4">&#10003;</div>
           <h2 className="text-xl font-light text-stone-800 mb-2">Check your email</h2>
@@ -45,7 +45,7 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[#F1EFE8] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-light text-stone-800">
@@ -66,7 +66,7 @@ export default function SignupPage() {
               value={agencyName}
               onChange={e => setAgencyName(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-green-700"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
               placeholder="Hackney Lettings Co"
             />
           </div>
@@ -77,7 +77,7 @@ export default function SignupPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-green-700"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
               placeholder="you@agency.co.uk"
             />
           </div>
@@ -88,20 +88,20 @@ export default function SignupPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-green-700"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
               placeholder="Min. 8 characters"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-green-900 disabled:opacity-50 transition-colors"
+            className="w-full bg-orange-700 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-orange-800 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Creating account...' : 'Create account'}
           </button>
           <p className="text-center text-sm text-stone-500 mt-4">
             Already have an account?{' '}
-            <Link href="/auth/login" className="text-green-800 hover:underline">
+            <Link href="/auth/login" className="text-orange-700 hover:underline">
               Sign in
             </Link>
           </p>

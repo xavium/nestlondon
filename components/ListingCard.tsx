@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
 
 interface Props {
@@ -27,6 +28,8 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
 
 export default function ListingCard({ listing }: Props) {
   const [viewed, setViewed] = useState(false)
+  const searchParams = useSearchParams()
+  const fromParam = searchParams.toString() ? '?from=' + encodeURIComponent('?' + searchParams.toString()) : ''
 
   useEffect(() => {
     setViewed(getViewedListings().has(listing.id))
@@ -44,9 +47,9 @@ export default function ListingCard({ listing }: Props) {
 
   return (
     <Link
-      href={'/listings/' + listing.id}
+      href={'/listings/' + listing.id + fromParam}
       onClick={() => markAsViewed(listing.id)}
-      className={'block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-stone-50 border-stone-200 opacity-80' : 'bg-white border-stone-200 hover:shadow-md hover:border-stone-300')}
+      className={'block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-[#F1EFE8] border-stone-200 opacity-80' : 'bg-white border-stone-200 hover:shadow-md hover:border-stone-300')}
     >
       <div className="relative h-48 overflow-hidden">
         {imgSrc ? (
@@ -77,14 +80,14 @@ export default function ListingCard({ listing }: Props) {
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {tags.map(tag => (
-              <span key={tag.label} className={'text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ' + (tag.positive ? 'bg-green-50 text-green-800' : 'bg-stone-100 text-stone-500')}>
+              <span key={tag.label} className={'text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ' + (tag.positive ? 'bg-orange-50 text-orange-700' : 'bg-stone-100 text-stone-500')}>
                 {tag.positive && <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1 5l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                 {tag.label}
               </span>
             ))}
           </div>
         )}
-        <div className={'w-full text-xs rounded-lg py-2 text-center ' + (viewed ? 'bg-stone-100 text-stone-400' : 'bg-green-800 text-white')}>
+        <div className={'w-full text-xs rounded-lg py-2 text-center ' + (viewed ? 'bg-stone-100 text-stone-400' : 'bg-orange-700 text-white')}>
           {viewed ? 'View again' : 'View property'}
         </div>
       </div>
