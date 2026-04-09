@@ -385,7 +385,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       if (mapRef.current) return
       mapRef.current = L.map(mapContainer.current!, {
         center: [latitude, longitude],
-        zoom: 14,
+        zoom: 15,
         zoomControl: true,
         scrollWheelZoom: false,
       })
@@ -438,15 +438,18 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
         stationMarkersLabel.push(labelMarker)
       })
 
-      // Only show station labels when zoomed in to 15+
-      mapRef.current.on('zoomend', () => {
+      // Show station labels based on zoom
+      function updateStationVisibility() {
         const zoom = mapRef.current.getZoom()
         if (zoom >= 15) {
           stationMarkersLabel.forEach(m => m.addTo(mapRef.current))
         } else {
           stationMarkersLabel.forEach(m => { try { mapRef.current.removeLayer(m) } catch {} })
         }
-      })
+      }
+      mapRef.current.on('zoomend', updateStationVisibility)
+      // Apply immediately on load
+      updateStationVisibility()
 
       // Current listing marker - highest z-index
       const mainIcon = L.divIcon({

@@ -6,6 +6,7 @@ import ImageGallery from '@/components/ImageGallery'
 import PropertyMap from '@/components/PropertyMap'
 import MarkViewed from '@/components/MarkViewed'
 import FloorplanSize from '@/components/FloorplanSize'
+import ShareButton from '@/components/ShareButton'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -158,19 +159,19 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     if (accessMatch) structuredDetails['Accessibility'] = accessMatch[1].trim()
   }
 
-  const epcFromKF = keyFeatures.find((f: string) => /EPC/i.test(f))
-  const epcMatchKF = epcFromKF?.match(/EPC[\s\-:]*([A-G])/i)
-  const epcMatchDesc = (listing.description || '').match(/EPC[\s\-:]*([A-G])/i)
-  structuredDetails['EPC Rating'] = epcMatchKF ? 'Band ' + epcMatchKF[1].toUpperCase()
-    : epcMatchDesc ? 'Band ' + epcMatchDesc[1].toUpperCase()
-    : 'Ask agent'
+  // Search ALL text sources for EPC and Council Tax
+  const allText = [listing.description || '', ...keyFeatures, JSON.stringify(rawData?.letting_details || {}), JSON.stringify(rawData?.additional || {})].join(' ')
 
-  const fullDesc = listing.description || ''
-  const ctMatch = fullDesc.match(/[Cc]ouncil\s*[Tt]ax\s*[Bb]and\s*[:\-]?\s*([A-H])/) ||
-                  fullDesc.match(/[Cc]ouncil\s*[Tt]ax\s*[Ii]nformation[^\n]*[Bb]and[:\s]+([A-H])/) ||
-                  fullDesc.match(/[Tt]ax\s*[Bb]and\s*[:\-]?\s*([A-H])\b/) ||
-                  keyFeatures.map((f: string) => f.match(/[Cc]ouncil\s*[Tt]ax[^\n]*([A-H])$/)).find(Boolean)
-  structuredDetails['Council Tax'] = ctMatch ? 'Band ' + ctMatch[1].toUpperCase() : 'Ask agent'
+  // Only match EPC band when letter is clearly isolated e.g. 'EPC-B', 'EPC: C', 'EPC Rating B'
+  const epcMatch = allText.match(/EPC[\s\-:_]+([A-G])\b/i) ||
+                   allText.match(/EPC\s+[Rr]ating[\s:\-]+([A-G])\b/i) ||
+                   allText.match(/[Ee]nergy\s+[Cc]lass[\s:\-]+([A-G])\b/i)
+  structuredDetails['EPC Rating'] = epcMatch ? 'Band ' + epcMatch[1].toUpperCase() : 'Ask agent'
+
+  if (!structuredDetails['Council Tax']) {
+    const ctMatch = allText.match(/council.tax.band.{0,3}([A-H])/i) || allText.match(/tax.band.{0,3}([A-H])/i) || allText.match(/council.tax[^A-H]{0,30}([A-H])/i)
+    structuredDetails['Council Tax'] = ctMatch ? 'Band ' + ctMatch[1].toUpperCase() : 'Ask agent'
+  }
 
   return (
     <main className="min-h-screen bg-[#F1EFE8]">
@@ -178,7 +179,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         <Link href="/" className="text-lg font-semibold text-stone-800" style={{fontFamily: 'Georgia, serif'}}>NestLondon</Link>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 pt-8">
         <MarkViewed id={id} />
         <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 flex items-center gap-1 mb-4">
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -198,11 +199,20 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {listing.property_type && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.property_type}</span>}
           </div>
         </div>
+      </div>
 
+      {/* Full width photos */}
+      <div className="max-w-6xl mx-auto px-4 mb-6">
+        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} shareButton={<ShareButton address={listing.address} price={listing.price} />} />
+        <div className="flex justify-end mt-2">
+          <ShareButton address={listing.address} price={listing.price} />
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 flex flex-col gap-5">
 
-            <ImageGallery images={images} address={listing.address} floorplans={floorplans} />
 
             {Object.keys(lettingDetails).length > 0 && (
               <div className="bg-white border border-stone-200 rounded-xl p-4">
@@ -339,7 +349,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             )}
           </div>
         </div>
-      </div>
+    </div>
     </main>
   )
 }
@@ -414,7 +424,7 @@ function KeyFeatures({ features }: { features: string[] }) {
         <div className="border-t border-stone-100 pt-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {facts.map((f, i) => (
-              <div key={i} className="bg-[#F1EFE8] rounded-lg px-3 py-2 text-xs text-stone-500">{f}</div>
+              <div key={i} className="bg-[#F1EFE8] rounded-lg px-3 py-2 text-xs text-stone-600 text-center font-semibold">{f}</div>
             ))}
           </div>
         </div>

@@ -130,14 +130,14 @@ async def get_full_description(context, source_url):
             from datetime import date as _date, timedelta as _td
             for line_txt in lt.split('\n'):
                 line_s = line_txt.strip()
-                if line_s == 'Added today':
+                if line_s == 'Added today' or line_s == 'Reduced today':
                     result['listed_at'] = _date.today().isoformat()
                     break
-                elif line_s == 'Added yesterday':
+                elif line_s == 'Added yesterday' or line_s == 'Reduced yesterday':
                     result['listed_at'] = (_date.today() - _td(days=1)).isoformat()
                     break
                 else:
-                    m = _re2.search(r'Added on (\d{2}/\d{2}/\d{4})', line_s)
+                    m = _re2.search(r'(?:Added|Reduced) on (\d{2}/\d{2}/\d{4})', line_s)
                     if m:
                         d, mo, y = m.group(1).split('/')
                         result['listed_at'] = y + '-' + mo + '-' + d
