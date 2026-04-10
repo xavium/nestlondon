@@ -89,7 +89,7 @@ export default function SearchBarClient({
   }
 
   return (
-    <div ref={ref} className="relative max-w-2xl">
+    <div ref={ref} className="relative w-full">
       <form onSubmit={handleSubmit} className="flex items-center gap-3">
         <div className="relative flex-1">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">

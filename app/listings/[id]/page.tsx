@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
+import SearchBarClient from '@/components/SearchBarClient'
+import SearchFilters from '@/components/SearchFilters'
 import Link from 'next/link'
 import ImageGallery from '@/components/ImageGallery'
 import PropertyMap from '@/components/PropertyMap'
@@ -12,6 +14,18 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const { id } = await params
   const sp = await searchParams
   const fromSearch = sp.from ? decodeURIComponent(sp.from) : null
+  const navSp = new URLSearchParams(fromSearch || '')
+  const navLocation = navSp.get('location') || ''
+  const navType = navSp.get('type') || 'rent'
+  const navMinBeds = navSp.get('minBeds') ? parseInt(navSp.get('minBeds')!) : null
+  const navMaxBeds = navSp.get('maxBeds') ? parseInt(navSp.get('maxBeds')!) : null
+  const navMinPrice = navSp.get('minPrice') ? parseInt(navSp.get('minPrice')!) : null
+  const navMaxPrice = navSp.get('maxPrice') ? parseInt(navSp.get('maxPrice')!) : null
+  const navFurnished = navSp.get('furnished') || null
+  const navPropertyType = navSp.get('propertyType') || null
+  const navFeatures = navSp.get('features') ? navSp.get('features')!.split(',') : []
+  const navRadius = navSp.get('radius') ? parseInt(navSp.get('radius')!) : null
+  const navAddedWithin = navSp.get('addedWithin') ? parseInt(navSp.get('addedWithin')!) : null
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,9 +54,59 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   }
 
   const rawData = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data) : (listing.raw_data || {})
-  const keyFeatures: string[] = rawData?.key_features || []
+  const keyFeatures: string[] = (() => {
+    const structured = rawData?.key_features || []
+    if (structured.length > 0) return structured
+    // Fallback: extract features from description
+    const desc = listing.description || ''
+    const BLOCKLIST = ['read full description', 'contact us', 'please contact', 'call us', 'click here', 'find out more', 'book a viewing', 'arrange a viewing', 'virtual viewing', 'for more information', 'to find out', 'terms and conditions', 'subject to', 'energy performance', 'utilities', 'rights and', 'council tax', 'epc rating', 'tenure:', 'deposit:', 'local authority', 'total sq', 'ask agent', 'key features', 'accessibility', 'parking', 'garden', 'concierge', 'outside space', 'additional information', 'property information', 'more details']
+    const STOP_WORDS = ['read full description', 'council tax', 'parking', 'garden', 'accessibility', 'energy performance', 'utilities']
+    const lines = desc.split('\n')
+    const bullets: string[] = []
+    // Strategy 1: find 'Key Features:' header and extract lines after it
+    const kfIdx = lines.findIndex((l: string) => /^key features/i.test(l.trim()))
+    if (kfIdx !== -1) {
+      for (let i = kfIdx + 1; i < lines.length; i++) {
+        const trimmed = lines[i].replace(/^[\u2022\u2023\u25E6\u2043\-\*\•]+\s*/, '').trim()
+        const lower = trimmed.toLowerCase()
+        if (STOP_WORDS.some((s: string) => lower.startsWith(s))) break
+        if (trimmed.length < 3) continue
+        if (BLOCKLIST.some((b: string) => lower.startsWith(b) || lower === b)) continue
+        if (trimmed.includes('\u2013') || trimmed.includes('\u2014') || trimmed.length > 80) continue
+        bullets.push(trimmed)
+        if (bullets.length >= 12) break
+      }
+    }
+    // Strategy 2: fall back to bullet-prefixed lines
+    if (bullets.length === 0) {
+      lines.forEach((line: string) => {
+        if (!/^[\u2022\u2023\u25E6\u2043\•]/.test(line.trim())) return
+        const trimmed = line.replace(/^[\u2022\u2023\u25E6\u2043\•]+\s*/, '').trim()
+        const lower = trimmed.toLowerCase()
+        if (trimmed.length < 5 || trimmed.length > 80) return
+        if (BLOCKLIST.some((b: string) => lower.startsWith(b) || lower === b)) return
+        if (trimmed.includes('\u2013') || trimmed.includes('\u2014')) return
+        bullets.push(trimmed)
+      })
+    }
+    return bullets.slice(0, 12)
+  })()
   const floorplans: string[] = rawData?.floorplans || []
   const lettingDetails: Record<string, string> = rawData?.letting_details || {}
+
+
+
+  // Extract availability from lettingDetails or description
+  const availableText: string | null = (() => {
+    // Check lettingDetails for any key containing 'available'
+    const availKey = Object.keys(lettingDetails).find(k => k.toLowerCase().includes('available'))
+    if (availKey) return lettingDetails[availKey]
+    // Scan description for availability phrases
+    const desc = listing.description || ''
+    const m = desc.match(/available\s+(now|immediately|from\s+[\w\s,]+?\d{4}|from\s+\d{1,2}[\s/]\w+|january|february|march|april|may|june|july|august|september|october|november|december)[^.!,]*/i)
+    if (m) return m[0].trim().replace(/^available\s+/i, 'From ').slice(0, 30)
+    return null
+  })()
 
   let images: string[] = []
   try {
@@ -112,6 +176,25 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   const isDirectListing = !!listing.agent_id
 
+  const TILE_ICONS: Record<string, string> = {
+    'Available':    '<path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/>',
+    'Bedrooms':     '<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+    'Bathrooms':    '<rect x="8" y="2" width="8" height="4" rx="1" strokeWidth="1.5"/><path d="M7 6h10v1H7z" strokeWidth="1"/><path d="M7 7c0 6 2.5 9 5 9s5-3 5-9" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 16h6" strokeWidth="1.5" strokeLinecap="round"/><rect x="9" y="17" width="6" height="3" rx="0.5" strokeWidth="1.5"/>',
+    'Size':         '<path d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+    '£/sqm':        '<rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="1.5"/>',
+    'Parking':      '<path d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+    'Outside Space':'<path d="M12 22V12m0 0C12 7 7 4 7 4s1 5 5 8m0-8c0-5 5-8 5-8s-1 5-5 8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+    'EPC Rating':   '<path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+    'Council Tax':  '<path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" strokeWidth="1.5" strokeLinecap="round"/>',
+  }
+  function TileIcon({ name }: { name: string }) {
+    const path = TILE_ICONS[name]
+    if (!path) return null
+    return (
+      <svg className="w-4 h-4 text-[#D85A30] mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" dangerouslySetInnerHTML={{__html: path}} />
+    )
+  }
+
   // Fetch listings from the user's search context
   let searchListings: any[] = []
   if (fromSearch) {
@@ -173,10 +256,46 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     structuredDetails['Council Tax'] = ctMatch ? 'Band ' + ctMatch[1].toUpperCase() : 'Ask agent'
   }
 
+  // Extract parking and concierge into structuredDetails
+  const _descClean = (listing.description || '').replace(/^(PARKING|CONCIERGE|GARDEN|ACCESSIBILITY|COUNCIL TAX|EPC|UTILITIES)[\s\S]*$/im, '').toLowerCase()
+  if (/no[- ]parking|no car park|without parking/.test(_descClean)) structuredDetails['Parking'] = 'No'
+  else if (/parking (space|bay|permit|available|included|provided)|allocated parking|private parking|secure parking|underground parking|off.street parking|residents.{0,5}parking|\bgarage\b/.test(_descClean)) structuredDetails['Parking'] = 'Yes'
+  else structuredDetails['Parking'] = 'Ask agent'
+
+  if (/no garden|without a garden|without garden/.test(_descClean)) {
+    structuredDetails['Outside Space'] = 'No'
+  } else {
+    const _outsideTypes: string[] = []
+    if (/\bgardens?\b/.test(_descClean) && !/no garden|without garden/.test(_descClean)) _outsideTypes.push('Garden')
+    if (/\bbalcon(y|ies)\b/.test(_descClean)) _outsideTypes.push('Balcony')
+    if (/\bterrace\b/.test(_descClean) && !/\bterraced\b/.test(_descClean)) _outsideTypes.push('Terrace')
+    if (/\bpatio\b/.test(_descClean)) _outsideTypes.push('Patio')
+    if (_outsideTypes.length > 0) structuredDetails['Outside Space'] = _outsideTypes.join(', ')
+    else structuredDetails['Outside Space'] = 'Ask agent'
+  }
+
   return (
     <main className="min-h-screen bg-[#F1EFE8]">
-      <nav className="bg-white border-b border-stone-200 px-6 py-4">
-        <Link href="/" className="text-lg font-semibold text-stone-800" style={{fontFamily: 'Georgia, serif'}}>NestLondon</Link>
+      <nav className="bg-white border-b border-stone-200">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
+          <Link href="/" className="text-xl font-light text-stone-800 flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
+          <div className="flex items-center gap-3 flex-1">
+            <SearchBarClient location={navLocation} listingType={navType} minBeds={navMinBeds} maxPrice={navMaxPrice} />
+            <SearchFilters
+              location={navLocation}
+              listingType={navType}
+              minBeds={navMinBeds}
+              maxBeds={navMaxBeds}
+              minPrice={navMinPrice}
+              maxPrice={navMaxPrice}
+              furnished={navFurnished}
+              propertyType={navPropertyType}
+              features={navFeatures}
+              radius={navRadius}
+              addedWithin={navAddedWithin}
+            />
+          </div>
+        </div>
       </nav>
 
       <div className="max-w-6xl mx-auto px-4 pt-8">
@@ -205,7 +324,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       <div className="max-w-6xl mx-auto px-4 mb-6">
         <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} shareButton={<ShareButton address={listing.address} price={listing.price} />} />
         <div className="flex justify-end mt-2">
-          <ShareButton address={listing.address} price={listing.price} />
         </div>
       </div>
 
@@ -230,26 +348,31 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 items-stretch">
               <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
-                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Type</div>
-                <div className="text-sm font-medium text-stone-700">{listing.property_type || '—'}</div>
+                <TileIcon name="Available" />
+                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Available</div>
+                <div className="text-sm font-semibold text-stone-700">{availableText || 'Ask agent'}</div>
               </div>
               <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                <TileIcon name="Bedrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bedrooms</div>
-                <div className="text-sm font-medium text-stone-700">{listing.bedrooms ?? '—'}</div>
+                <div className="text-sm font-semibold text-stone-700">{listing.bedrooms ?? '—'}</div>
               </div>
               <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                <TileIcon name="Bathrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bathrooms</div>
-                <div className="text-sm font-medium text-stone-700">{listing.bathrooms ?? '—'}</div>
+                <div className="text-sm font-semibold text-stone-700">{listing.bathrooms ?? '—'}</div>
               </div>
               {resolvedSize ? (
                 <>
                   <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
-                    <div className="text-sm font-medium text-stone-700">{resolvedSize}</div>
+                    <div className="text-sm font-semibold text-stone-700">{resolvedSize}</div>
                   </div>
                   <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <TileIcon name="£/sqm" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
-                    <div className="text-sm font-medium text-stone-700">{rentPerSqm}</div>
+                    <div className="text-sm font-semibold text-stone-700">{rentPerSqm}</div>
                   </div>
                 </>
               ) : floorplans.length > 0 ? (
@@ -257,15 +380,18 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               ) : (
                 <>
                   <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
-                    <div className="text-sm font-medium text-stone-700">Ask agent</div>
+                    <div className="text-sm font-semibold text-stone-700">Ask agent</div>
                   </div>
                   <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <TileIcon name="£/sqm" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
-                    <div className="text-sm font-medium text-stone-700">Ask agent</div>
+                    <div className="text-sm font-semibold text-stone-700">Ask agent</div>
                   </div>
                 </>
               )}
+
             </div>
 
             {keyFeatures.length > 0 && (
@@ -278,6 +404,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {Object.entries(structuredDetails).map(([k, v]) => (
                     <div key={k} className="bg-[#F1EFE8] rounded-xl p-3 text-center flex flex-col items-center justify-center">
+                      <TileIcon name={k} />
                       <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{k}</div>
                       <div className="text-sm font-semibold text-stone-800">{v as string}</div>
                     </div>
@@ -355,80 +482,24 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 }
 
 function KeyFeatures({ features }: { features: string[] }) {
-  const POSITIVE_KEYWORDS = [
-    'view', 'river', 'park', 'garden', 'balcony', 'terrace', 'roof', 'penthouse',
-    'gym', 'pool', 'concierge', 'porter', 'spa', 'lounge', 'cinema', 'storage',
-    'parking', 'garage', 'bike', 'furnished', 'wood floor', 'period', 'victorian',
-    'georgian', 'high ceiling', 'natural light', 'south facing', 'double glazed',
-    'split level', 'duplex', 'mews', 'ground floor', 'top floor', 'new build',
-    'refurb', 'modern', 'contemporary', 'open plan', 'en-suite', 'walk-in',
-  ]
-  const FACT_KEYWORDS = [
-    'epc', 'council tax', 'available', 'deposit', 'tenancy', 'let type',
-    'reference', 'property ref', 'no agent', 'students', 'dss',
-  ]
-  const cleanFeatures: string[] = []
-  features.forEach(raw => {
-    const p1 = raw.split(/(?<=[a-z])(?=[A-Z])/)
-    const p2: string[] = []
-    p1.forEach(p => p.split(/(?<=[0-9])(?=[A-Z])/).forEach((s: string) => p2.push(s)))
-    const p3: string[] = []
-    p2.forEach(p => p.split(/(?<=-[A-Z])(?=[A-Z])/).forEach((s: string) => p3.push(s)))
-    const p4: string[] = []
-    p3.forEach(p => p.split(/(?<=[a-z]{2})(?=[0-9])/).forEach((s: string) => p4.push(s)))
-    p4.forEach(p => { if (p.trim().length > 2) cleanFeatures.push(p.trim()) })
-  })
-  const filteredFeatures = cleanFeatures.filter(f => {
+  const filtered = Array.from(new Set(features.map(f => f.trim()))).filter(f => {
     const l = f.toLowerCase()
     return !l.startsWith('epc') && !l.startsWith('council tax') &&
-           !l.includes('property ref') && !l.includes('reference number')
+           !l.includes('property ref') && !l.includes('reference number') &&
+           f.trim().length > 2
   })
-  const highlights: string[] = []
-  const facts: string[] = []
-  const other: string[] = []
-  filteredFeatures.forEach(f => {
-    const lower = f.toLowerCase()
-    if (FACT_KEYWORDS.some(k => lower.includes(k))) facts.push(f)
-    else if (POSITIVE_KEYWORDS.some(k => lower.includes(k))) highlights.push(f)
-    else other.push(f)
-  })
+  if (filtered.length === 0) return null
   return (
-    <div className="bg-white border border-stone-200 rounded-xl p-5 space-y-4">
-      {highlights.length > 0 && (
-        <div>
-          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Highlights</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
-            {highlights.map((f, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm text-stone-700">
-                <svg className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                {f}
-              </div>
-            ))}
+    <div className="bg-white border border-stone-200 rounded-xl p-5">
+      <h2 className="text-sm font-semibold text-stone-800 mb-3">Key Features</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6">
+        {filtered.map((f, i) => (
+          <div key={i} className="flex items-start gap-2 text-sm text-stone-700">
+            <svg className="w-4 h-4 text-[#D85A30] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {f}
           </div>
-        </div>
-      )}
-      {other.length > 0 && (
-        <div className="pt-3 border-t border-stone-100">
-          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Features</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
-            {other.map((f, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm text-stone-600">
-                <div className="w-1.5 h-1.5 rounded-full bg-stone-300 flex-shrink-0 mt-2" />
-                {f}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {facts.length > 0 && (
-        <div className="border-t border-stone-100 pt-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {facts.map((f, i) => (
-              <div key={i} className="bg-[#F1EFE8] rounded-lg px-3 py-2 text-xs text-stone-600 text-center font-semibold">{f}</div>
-            ))}
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   )
 }

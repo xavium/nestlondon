@@ -110,12 +110,18 @@ export default function SearchFilters(props: Props) {
 
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Bedrooms</label>
-            <div className="flex gap-2">
-              {[1,2,3,4,5].map(b => (
-                <button key={b} onClick={() => setMinBeds(minBeds === b ? null : b)}
-                  className={'flex-1 py-2 text-xs rounded-lg border transition-colors ' + (minBeds === b ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F1EFE8] text-stone-600 border-stone-200 hover:border-orange-600')}
-                >{b}+</button>
-              ))}
+            <div className="flex gap-2 items-center">
+              <select value={minBeds || ''} onChange={e => setMinBeds(e.target.value ? Number(e.target.value) : null)}
+                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 bg-[#F1EFE8] outline-none">
+                <option value="">No min</option>
+                {[1,2,3,4,5].map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <span className="text-xs text-stone-400">to</span>
+              <select value={maxBeds || ''} onChange={e => setMaxBeds(e.target.value ? Number(e.target.value) : null)}
+                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 bg-[#F1EFE8] outline-none">
+                <option value="">No max</option>
+                {[1,2,3,4,5].map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
             </div>
           </div>
 

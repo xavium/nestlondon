@@ -13,8 +13,11 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
   const tags: {label: string, positive: boolean}[] = []
   const desc = (listing.description || '').toLowerCase()
   const combined = desc
-  if (combined.includes('garden')) tags.push({label: 'Garden', positive: true})
-  if (combined.includes('balcony')) tags.push({label: 'Balcony', positive: true})
+  // Outside space — mutually exclusive, most specific first, no false negatives
+  const noGarden = /no garden|without garden|no private garden/.test(combined)
+  if (/\bbalcon(y|ies)\b/.test(combined)) tags.push({label: 'Balcony', positive: true})
+  else if (/\bterrace\b/.test(combined) && !/\bterraced\b/.test(combined)) tags.push({label: 'Terrace', positive: true})
+  else if (/\bgardens?\b/.test(combined) && !noGarden) tags.push({label: 'Garden', positive: true})
   if (combined.includes('parking') || combined.includes('garage')) tags.push({label: 'Parking', positive: true})
   if (combined.includes('bills included') || combined.includes('bills inc')) tags.push({label: 'Bills incl.', positive: true})
   if (combined.includes('pet')) tags.push({label: 'Pets OK', positive: true})

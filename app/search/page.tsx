@@ -201,31 +201,29 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <main className="min-h-screen bg-[#F1EFE8]">
-      <nav className="bg-white border-b border-stone-200 px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="text-xl font-light text-stone-800 no-underline" style={{fontFamily:'Georgia,serif'}}>
-          nest<span className="text-orange-700 italic">london</span>
-        </Link>
-      </nav>
-      <div className="bg-white border-b border-stone-100 px-6 py-4">
-        <div className="flex items-center gap-3 max-w-4xl">
-          <div className="flex-1">
+      <nav className="bg-white border-b border-stone-200">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
+          <Link href="/" className="text-xl font-light text-stone-800 flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
+            nest<span className="text-orange-700 italic">london</span>
+          </Link>
+          <div className="flex items-center gap-3 flex-1">
             <SearchBarClient location={location} listingType={listingType} minBeds={minBeds} maxPrice={maxPrice} />
+            <SearchFilters
+              location={location}
+              listingType={listingType}
+              minBeds={minBeds}
+              maxBeds={maxBeds}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              furnished={furnished}
+              propertyType={propertyType}
+              features={features}
+              radius={radius}
+              addedWithin={addedWithin}
+            />
           </div>
-          <SearchFilters
-            location={location}
-            listingType={listingType}
-            minBeds={minBeds}
-            maxBeds={maxBeds}
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            furnished={furnished}
-            propertyType={propertyType}
-            features={features}
-            radius={radius}
-            addedWithin={addedWithin}
-          />
         </div>
-      </div>
+      </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
         <SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} />
       </div>

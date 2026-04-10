@@ -5,14 +5,11 @@ import SearchBarClient from '@/components/SearchBarClient'
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#F1EFE8]">
-      <nav className="bg-white border-b border-stone-200 px-6 h-14 flex items-center justify-between">
-        <div className="text-xl font-light text-stone-800" style={{fontFamily:'Georgia,serif'}}>
-          nest<span className="text-orange-700 italic">london</span>
-        </div>
-        <div className="flex gap-6 text-sm text-stone-500">
-          <span className="cursor-pointer hover:text-stone-800">Buy</span>
-          <span className="cursor-pointer hover:text-stone-800">Rent</span>
-          <span className="cursor-pointer hover:text-stone-800">For agents</span>
+      <nav className="bg-white border-b border-stone-200">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
+          <a href="/" className="text-xl font-light text-stone-800 flex-shrink-0" style={{fontFamily:'Georgia,serif'}}>
+            nest<span className="text-orange-700 italic">london</span>
+          </a>
         </div>
       </nav>
       <div className="bg-white border-b border-stone-100 px-6 py-16">
