@@ -65,6 +65,7 @@ export default function SearchFilters(props: Props) {
   }
 
   function clearFilters() {
+    window.dispatchEvent(new Event('nestlondon:clearFilters'))
     setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null); setAvailableFrom(null); setAvailableFrom(null)
     setFurnished(null); setPropertyType(null); setFeatures([]); setRadius(null); setAddedWithin(null)
     const p = new URLSearchParams()

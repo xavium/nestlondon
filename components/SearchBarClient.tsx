@@ -27,29 +27,47 @@ const SUGGESTIONS = [
   'WC1', 'WC2',
 ]
 
+const RADIUS_OPTIONS = [null, 0.5, 1, 2, 3, 5, 10]
+
 export default function SearchBarClient({
   location,
   listingType,
   minBeds,
   maxPrice,
+  radius: initialRadius = null,
+  extraParams = {},
 }: {
   location: string
   listingType: string
   minBeds: number | null
   maxPrice: number | null
+  radius?: number | null
+  extraParams?: Record<string, number | null>
 }) {
   const [value, setValue] = useState(location)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
+  const [radius, setRadius] = useState<number | null>(initialRadius)
+  const [radiusOpen, setRadiusOpen] = useState(false)
   const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setRadiusOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Listen for clear filters event
+  useEffect(() => {
+    function handleClear() { setRadius(null) }
+    window.addEventListener('nestlondon:clearFilters', handleClear)
+    return () => window.removeEventListener('nestlondon:clearFilters', handleClear)
   }, [])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -70,28 +88,34 @@ export default function SearchBarClient({
   function handleSelect(suggestion: string) {
     setValue(suggestion)
     setOpen(false)
-    doSearch(suggestion)
+    doSearch(suggestion, radius)
   }
 
-  function doSearch(loc: string) {
+  function doSearch(loc: string, r: number | null) {
     const params = new URLSearchParams()
     if (loc) params.set('location', loc)
     params.set('type', listingType)
     if (minBeds) params.set('minBeds', String(minBeds))
     if (maxPrice) params.set('maxPrice', String(maxPrice))
+    if (r) params.set('radius', String(r))
+    Object.entries(extraParams).forEach(([k, v]) => { if (v != null) params.set(k, String(v)) })
     router.push('/search?' + params.toString())
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setOpen(false)
-    doSearch(value)
+    setRadiusOpen(false)
+    doSearch(value, radius)
   }
+
+  const radiusLabel = radius ? `${radius} mi` : 'Anywhere'
 
   return (
     <div ref={ref} className="relative w-full">
       <form onSubmit={handleSubmit} className="flex items-center gap-3">
-        <div className="relative flex-1">
+        <div className="relative flex-1 flex items-center border border-stone-200 rounded-xl bg-white focus-within:border-orange-600 transition-colors">
+          {/* Search icon + input */}
           <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
             <svg className="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" strokeWidth="1.5"/>
@@ -102,10 +126,26 @@ export default function SearchBarClient({
             value={value}
             onChange={handleChange}
             onFocus={() => suggestions.length > 0 && setOpen(true)}
-            className="w-full border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
+            className="flex-1 pl-9 pr-3 py-2.5 text-sm text-stone-800 outline-none bg-transparent rounded-l-xl"
             placeholder="Area, postcode or station — e.g. Hackney, E8"
             autoComplete="off"
           />
+
+          {/* Divider + radius dropdown */}
+          <div className="flex items-center border-l border-stone-200 ml-1">
+            <button
+              type="button"
+              onClick={() => { setRadiusOpen(o => !o); setOpen(false) }}
+              className={'flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors rounded-r-xl ' + (radius ? 'text-orange-700 font-medium' : 'text-stone-500 hover:text-stone-700')}
+            >
+              {radiusLabel}
+              <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Suggestions dropdown */}
           {open && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 overflow-hidden">
               {suggestions.map(s => (
@@ -124,7 +164,24 @@ export default function SearchBarClient({
               ))}
             </div>
           )}
+
+          {/* Radius dropdown */}
+          {radiusOpen && (
+            <div className="absolute top-full right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[140px]">
+              {RADIUS_OPTIONS.map(r => (
+                <button
+                  key={String(r)}
+                  type="button"
+                  onClick={() => { setRadius(r); setRadiusOpen(false); doSearch(value, r) }}
+                  className={'w-full text-left px-4 py-2.5 text-sm transition-colors ' + (radius === r ? 'bg-orange-700 text-white' : 'text-stone-700 hover:bg-[#F1EFE8]')}
+                >
+                  {r === null ? 'Anywhere' : `Within ${r} mi`}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
         <button
           type="submit"
           className="bg-orange-700 text-white text-sm px-5 py-2.5 rounded-xl hover:bg-orange-800 transition-colors flex-shrink-0"

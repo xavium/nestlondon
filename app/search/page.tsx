@@ -261,7 +261,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             nest<span className="text-orange-700 italic">london</span>
           </Link>
           <div className="flex items-center gap-3 flex-1">
-            <SearchBarClient location={location} listingType={listingType} minBeds={minBeds} maxPrice={maxPrice} />
+            <SearchBarClient location={location} listingType={listingType} minBeds={minBeds} maxPrice={maxPrice} radius={radius} />
             <NavFilters
               location={location}
               listingType={listingType}
@@ -291,7 +291,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        <SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} />
+        <SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} />
       </div>
     </main>
   )

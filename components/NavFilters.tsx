@@ -57,11 +57,24 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
     window.addEventListener('nestlondon:closeDropdowns', handleCloseAll)
     return () => window.removeEventListener('nestlondon:closeDropdowns', handleCloseAll)
   }, [])
+
+  useEffect(() => {
+    function handleClear() {
+      setLocalRadius(null)
+      setLocalMinBeds(null)
+      setLocalMaxBeds(null)
+      setLocalMinPrice(null)
+      setLocalMaxPrice(null)
+      setLocalAddedWithin(null)
+      setActiveDropdown(null)
+    }
+    window.addEventListener('nestlondon:clearFilters', handleClear)
+    return () => window.removeEventListener('nestlondon:clearFilters', handleClear)
+  }, [])
   const [localMinBeds, setLocalMinBeds] = useState(minBeds)
   const [localMaxBeds, setLocalMaxBeds] = useState(maxBeds)
   const [localMinPrice, setLocalMinPrice] = useState(minPrice)
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice)
-  const [localRadius, setLocalRadius] = useState(radius)
   const router = useRouter()
 
   function push(overrides: Record<string, string | number | null>) {
@@ -85,7 +98,6 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
     router.push('/search?' + p.toString())
   }
 
-  const radiusLabel = localRadius ? `Within ${localRadius} mi` : 'Within distance'
   const addedWithinLabel = localAddedWithin ? (localAddedWithin === 1 ? 'Last 24 hours' : localAddedWithin === 30 ? 'Last month' : localAddedWithin === 90 ? 'Last 3 months' : `Last ${localAddedWithin} days`) : 'Added within'
   const priceLabel = localMinPrice || localMaxPrice
     ? [localMinPrice ? '£' + localMinPrice.toLocaleString() : 'Min', localMaxPrice ? '£' + localMaxPrice.toLocaleString() : 'Max'].join(' – ')
@@ -96,18 +108,6 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
 
   return (
     <div className="flex items-center gap-2">
-
-      {/* Radius */}
-      <Dropdown label={radiusLabel} active={!!localRadius} open={activeDropdown === 'radius'} onToggle={() => (() => { if (activeDropdown !== 'radius') window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActiveDropdown(activeDropdown === 'radius' ? null : 'radius') })()}>
-        <div className="flex flex-col gap-1">
-          {[null, 0.5, 1, 2, 3, 5, 10].map(r => (
-            <button key={String(r)}
-              onClick={() => { setLocalRadius(r); push({ radius: r }) }}
-              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localRadius === r ? 'bg-orange-700 text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
-            >{r === null ? 'Any distance' : `Within ${r} mi`}</button>
-          ))}
-        </div>
-      </Dropdown>
 
       {/* Min Price */}
       <Dropdown label={localMinPrice ? '£' + localMinPrice.toLocaleString() : 'Min Price'} active={!!localMinPrice} open={activeDropdown === 'minPrice'} onToggle={() => { if (activeDropdown !== 'minPrice') window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActiveDropdown(activeDropdown === 'minPrice' ? null : 'minPrice') }}>

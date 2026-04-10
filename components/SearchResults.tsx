@@ -79,10 +79,25 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
       .filter((l: any) => l._dist <= splitMetres)
       .sort((a: any, b: any) => a._dist - b._dist)
 
-    // nearby: ALL listings outside radius sorted by distance
+    // nearby: allListings outside radius, with basic filter criteria applied
     const inRadiusIds = new Set(inRadius.map((l: any) => l.id))
+    const sp = new URLSearchParams(window.location.search)
+    const nbMinBeds = sp.get('minBeds') ? parseInt(sp.get('minBeds')!) : null
+    const nbMaxBeds = sp.get('maxBeds') ? parseInt(sp.get('maxBeds')!) : null
+    const nbMinPrice = sp.get('minPrice') ? parseInt(sp.get('minPrice')!) : null
+    const nbMaxPrice = sp.get('maxPrice') ? parseInt(sp.get('maxPrice')!) : null
     nearby = allListings
-      .filter((l: any) => l.latitude && l.longitude && !inRadiusIds.has(l.id))
+      .filter((l: any) => {
+        if (!l.latitude || !l.longitude) return false
+        if (inRadiusIds.has(l.id)) return false
+        const beds = l.bedrooms != null ? parseInt(l.bedrooms) : null
+        const price = l.price != null ? parseInt(l.price) : null
+        if (nbMinBeds && (beds == null || beds < nbMinBeds)) return false
+        if (nbMaxBeds && (beds == null || beds > nbMaxBeds)) return false
+        if (nbMinPrice && (price == null || price < nbMinPrice)) return false
+        if (nbMaxPrice && (price == null || price > nbMaxPrice)) return false
+        return true
+      })
       .map(withDist)
       .sort((a: any, b: any) => a._dist - b._dist)
       .slice(0, 12)
@@ -136,12 +151,11 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {nearby.map((listing: any) => (
-                  <div key={listing.id} className="relative">
-                    <div className="absolute top-2 left-2 z-10 bg-white/90 text-stone-500 text-xs px-2 py-0.5 rounded-full">
-                      {listing._dist < 1609 ? Math.round(listing._dist) + 'm away' : (Math.round(listing._dist / 160.9) / 10).toFixed(1) + ' mi away'}
-                    </div>
-                    <ListingCard listing={listing} />
-                  </div>
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    distanceLabel={listing._dist < 1609 ? Math.round(listing._dist) + 'm away' : (Math.round(listing._dist / 160.9) / 10).toFixed(1) + ' mi away'}
+                  />
                 ))}
               </div>
             </div>

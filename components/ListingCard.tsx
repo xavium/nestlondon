@@ -7,6 +7,7 @@ import { getViewedListings, markAsViewed } from '@/lib/viewed'
 
 interface Props {
   listing: any
+  distanceLabel?: string
 }
 
 function extractFeatureTags(listing: any): {label: string, positive: boolean}[] {
@@ -29,7 +30,7 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
   return tags.slice(0, 4)
 }
 
-export default function ListingCard({ listing }: Props) {
+export default function ListingCard({ listing, distanceLabel }: Props) {
   const [viewed, setViewed] = useState(false)
   const [imgIndex, setImgIndex] = useState(0)
   const searchParams = useSearchParams()
@@ -67,6 +68,11 @@ export default function ListingCard({ listing }: Props) {
         <div className={'absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium ' + (viewed ? 'bg-stone-200/95 text-stone-500' : 'bg-white/95 text-stone-700')}>
           £{listing.price?.toLocaleString()}<span className="text-stone-400 font-normal">/mo</span>
         </div>
+        {distanceLabel && (
+          <div className={"absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-medium " + (viewed ? "bg-stone-200/95 text-stone-500" : "bg-white/95 text-stone-700")}>
+            {distanceLabel}
+          </div>
+        )}
         {viewed && (
           <div className="absolute top-2 right-2 bg-stone-200/90 text-stone-500 text-xs px-2 py-0.5 rounded-full">Viewed</div>
         )}
