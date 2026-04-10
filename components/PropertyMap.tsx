@@ -524,10 +524,10 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
   }, [latitude, longitude])
 
   return (
-    <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+    <div className="bg-white border border-[#E8E2DA] rounded-xl overflow-hidden">
       <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-stone-800">Location</h2>
+          <h2 className="text-sm font-semibold text-[#1C2B3A]">Location</h2>
           {nearbyListings.length > 0 && (
             <p className="text-xs text-stone-400 mt-0.5">{nearbyListings.length} other listings on map</p>
           )}
@@ -538,7 +538,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       </div>
       <div ref={mapContainer} style={{height: '400px', zIndex: 0}} />
       <div className="px-5 py-4 border-t border-stone-100">
-        <h3 className="text-xs font-semibold text-stone-600 uppercase tracking-wide mb-3">Nearest stations</h3>
+        <h3 className="text-xs font-semibold text-[#4A5568] uppercase tracking-wide mb-3">Nearest stations</h3>
         <div className="grid grid-cols-2 gap-3">
           {nearestStations.map(station => (
             <div key={station.name} className="flex items-start gap-2.5">
@@ -548,7 +548,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-medium text-stone-700 truncate">{station.name}</div>
+                <div className="text-xs font-medium text-[#374151] truncate">{station.name}</div>
                 <div className="text-xs text-stone-400">{station.walkMins} min walk</div>
                 <div className="flex gap-1 mt-1 flex-wrap">
                   {station.lines.map((line: string) => (

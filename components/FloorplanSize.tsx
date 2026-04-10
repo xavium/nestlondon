@@ -70,28 +70,28 @@ export default function FloorplanSize({ floorplanUrl, price }: Props) {
 
   if (!mounted) return (
     <>
-      <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center">
+      <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center">
         <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">SIZE</div>
-        <div className="text-sm font-medium text-stone-700">...</div>
+        <div className="text-sm font-medium text-[#374151]">...</div>
       </div>
-      <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center">
+      <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center">
         <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/SQM</div>
-        <div className="text-sm font-medium text-stone-700">...</div>
+        <div className="text-sm font-medium text-[#374151]">...</div>
       </div>
     </>
   )
 
   return (
     <>
-      <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center">
+      <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center">
         <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">SIZE</div>
-        <div className="text-sm font-medium text-stone-700">
+        <div className="text-sm font-medium text-[#374151]">
           {label}
         </div>
       </div>
-      <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center">
+      <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center">
         <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/SQM</div>
-        <div className="text-sm font-medium text-stone-700">{psm}</div>
+        <div className="text-sm font-medium text-[#374151]">{psm}</div>
       </div>
     </>
   )

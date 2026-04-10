@@ -27,12 +27,12 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   return (
     <div className="flex items-center bg-stone-100 rounded-lg p-1 gap-1">
       <button onClick={() => switchView('grid')}
-        className={'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' + (view === 'grid' ? 'bg-white text-stone-700 shadow-sm' : 'text-stone-500')}>
+        className={'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' + (view === 'grid' ? 'bg-white text-[#374151] shadow-sm' : 'text-stone-500')}>
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         List
       </button>
       <button onClick={() => switchView('map')}
-        className={'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' + (view === 'map' ? 'bg-white text-stone-700 shadow-sm' : 'text-stone-500')}>
+        className={'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' + (view === 'map' ? 'bg-white text-[#374151] shadow-sm' : 'text-stone-500')}>
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 20l-5-2V4l5 2m0 14l6-2m-6 2V6m6 12l5 2V6l-5-2m0 14V4"/></svg>
         Map
       </button>

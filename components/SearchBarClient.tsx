@@ -114,7 +114,7 @@ export default function SearchBarClient({
   return (
     <div ref={ref} className="relative w-full">
       <form onSubmit={handleSubmit} className="flex items-center gap-3">
-        <div className="relative flex-1 flex items-center border border-stone-200 rounded-xl bg-white focus-within:border-orange-600 transition-colors">
+        <div className="relative flex-1 flex items-center border border-[#E8E2DA] rounded-xl bg-white focus-within:border-orange-600 transition-colors">
           {/* Search icon + input */}
           <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
             <svg className="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,17 +126,17 @@ export default function SearchBarClient({
             value={value}
             onChange={handleChange}
             onFocus={() => suggestions.length > 0 && setOpen(true)}
-            className="flex-1 pl-9 pr-3 py-2.5 text-sm text-stone-800 outline-none bg-transparent rounded-l-xl"
+            className="flex-1 pl-9 pr-3 py-2.5 text-sm text-[#1C2B3A] outline-none bg-transparent rounded-l-xl"
             placeholder="Area, postcode or station — e.g. Hackney, E8"
             autoComplete="off"
           />
 
           {/* Divider + radius dropdown */}
-          <div className="flex items-center border-l border-stone-200 ml-1">
+          <div className="flex items-center border-l border-[#E8E2DA] ml-1">
             <button
               type="button"
               onClick={() => { setRadiusOpen(o => !o); setOpen(false) }}
-              className={'flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors rounded-r-xl ' + (radius ? 'text-orange-700 font-medium' : 'text-stone-500 hover:text-stone-700')}
+              className={'flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors rounded-r-xl ' + (radius ? 'text-orange-700 font-medium' : 'text-stone-500 hover:text-[#374151]')}
             >
               {radiusLabel}
               <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,13 +147,13 @@ export default function SearchBarClient({
 
           {/* Suggestions dropdown */}
           {open && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-lg z-50 overflow-hidden">
               {suggestions.map(s => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => handleSelect(s)}
-                  className="w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-[#F1EFE8] flex items-center gap-2.5"
+                  className="w-full text-left px-4 py-2.5 text-sm text-[#374151] hover:bg-[#F5F0EB] flex items-center gap-2.5"
                 >
                   <svg className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/>
@@ -167,13 +167,13 @@ export default function SearchBarClient({
 
           {/* Radius dropdown */}
           {radiusOpen && (
-            <div className="absolute top-full right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[140px]">
+            <div className="absolute top-full right-0 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-lg z-50 overflow-hidden min-w-[140px]">
               {RADIUS_OPTIONS.map(r => (
                 <button
                   key={String(r)}
                   type="button"
                   onClick={() => { setRadius(r); setRadiusOpen(false); doSearch(value, r) }}
-                  className={'w-full text-left px-4 py-2.5 text-sm transition-colors ' + (radius === r ? 'bg-orange-700 text-white' : 'text-stone-700 hover:bg-[#F1EFE8]')}
+                  className={'w-full text-left px-4 py-2.5 text-sm transition-colors ' + (radius === r ? 'bg-orange-700 text-white' : 'text-[#374151] hover:bg-[#F5F0EB]')}
                 >
                   {r === null ? 'Anywhere' : `Within ${r} mi`}
                 </button>

@@ -93,7 +93,7 @@ export default function SearchFilters(props: Props) {
     <div className="relative">
       <button
         onClick={() => { if (!open) window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setOpen(!open) }}
-        className={'flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border transition-colors ' + (activeCount > 0 ? 'bg-orange-700 text-white border-orange-700' : 'bg-white text-stone-600 border-stone-200 hover:border-orange-600')}
+        className={'flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border transition-colors ' + (activeCount > 0 ? 'bg-orange-700 text-white border-orange-700' : 'bg-white text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6" strokeWidth="1.5"/><line x1="8" y1="12" x2="16" y2="12" strokeWidth="1.5"/><line x1="11" y1="18" x2="13" y2="18" strokeWidth="1.5"/></svg>
         Filters
@@ -101,10 +101,10 @@ export default function SearchFilters(props: Props) {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-[200] p-6">
+        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-[#E8E2DA] rounded-2xl shadow-xl z-[200] p-6">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-medium text-stone-800">Filters</h3>
-            <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-stone-600 text-lg leading-none">x</button>
+            <h3 className="text-sm font-medium text-[#1C2B3A]">Filters</h3>
+            <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-[#4A5568] text-lg leading-none">x</button>
           </div>
 
           <div className="mb-5">
@@ -114,10 +114,10 @@ export default function SearchFilters(props: Props) {
                 type="date"
                 value={availableFrom || ''}
                 onChange={e => setAvailableFrom(e.target.value || null)}
-                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 bg-[#F1EFE8] outline-none"
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#374151] bg-[#F5F0EB] outline-none"
               />
               {availableFrom && (
-                <button onClick={() => setAvailableFrom(null)} className="text-stone-400 hover:text-stone-600 text-xs">✕</button>
+                <button onClick={() => setAvailableFrom(null)} className="text-stone-400 hover:text-[#4A5568] text-xs">✕</button>
               )}
             </div>
           </div>
@@ -129,7 +129,7 @@ export default function SearchFilters(props: Props) {
             <div className="flex flex-wrap gap-2">
               {['Flat','House','Studio','Maisonette','Bungalow'].map(t => (
                 <button key={t} onClick={() => setPropertyType(propertyType === t ? null : t)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyType === t ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F1EFE8] text-stone-600 border-stone-200 hover:border-orange-600')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyType === t ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
                 >{t}</button>
               ))}
             </div>
@@ -140,7 +140,7 @@ export default function SearchFilters(props: Props) {
             <div className="flex gap-2">
               {[['Furnished','furnished'],['Unfurnished','unfurnished'],['Part','part furnished']].map(([label, val]) => (
                 <button key={val} onClick={() => setFurnished(furnished === val ? null : val)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors flex-1 ' + (furnished === val ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F1EFE8] text-stone-600 border-stone-200 hover:border-orange-600')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors flex-1 ' + (furnished === val ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
                 >{label}</button>
               ))}
             </div>
@@ -151,7 +151,7 @@ export default function SearchFilters(props: Props) {
             <div className="flex flex-wrap gap-2">
               {FEATURE_OPTIONS.map(f => (
                 <button key={f} onClick={() => toggleFeature(f)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (features.includes(f) ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F1EFE8] text-stone-600 border-stone-200 hover:border-orange-600')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (features.includes(f) ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
                 >{f}</button>
               ))}
             </div>
@@ -162,14 +162,14 @@ export default function SearchFilters(props: Props) {
             <div className="flex flex-wrap gap-2">
               {EXCLUDE_OPTIONS.map(f => (
                 <button key={f} onClick={() => toggleFeature('exclude:' + f)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (features.includes('exclude:' + f) ? 'bg-red-600 text-white border-red-600' : 'bg-[#F1EFE8] text-stone-600 border-stone-200 hover:border-red-400')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (features.includes('exclude:' + f) ? 'bg-red-600 text-white border-red-600' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-red-400')}
                 >{f}</button>
               ))}
             </div>
           </div>
 
           <div className="flex gap-3">
-            <button onClick={clearFilters} className="flex-1 border border-stone-200 text-stone-600 text-sm rounded-xl py-2.5 hover:border-stone-300 transition-colors">Clear all</button>
+            <button onClick={clearFilters} className="flex-1 border border-[#E8E2DA] text-[#4A5568] text-sm rounded-xl py-2.5 hover:border-stone-300 transition-colors">Clear all</button>
             <button onClick={applyFilters} className="flex-1 bg-orange-700 text-white text-sm rounded-xl py-2.5 hover:bg-orange-800 transition-colors">{onApply ? 'Add' : 'Show results'}</button>
           </div>
         </div>

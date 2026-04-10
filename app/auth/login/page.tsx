@@ -27,39 +27,39 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F1EFE8] flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[#F5F0EB] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-light text-stone-800">
+          <h1 className="text-3xl font-light text-[#1C2B3A]">
             nestlondon
           </h1>
           <p className="text-stone-500 text-sm mt-2">Agent login</p>
         </div>
-        <form onSubmit={handleLogin} className="bg-white border border-stone-200 rounded-2xl p-8">
+        <form onSubmit={handleLogin} className="bg-white border border-[#E8E2DA] rounded-2xl p-8">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
               {error}
             </div>
           )}
           <div className="mb-4">
-            <label className="block text-sm text-stone-600 mb-1.5">Email</label>
+            <label className="block text-sm text-[#4A5568] mb-1.5">Email</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
+              className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm text-[#1C2B3A] outline-none focus:border-orange-600"
               placeholder="you@agency.co.uk"
             />
           </div>
           <div className="mb-6">
-            <label className="block text-sm text-stone-600 mb-1.5">Password</label>
+            <label className="block text-sm text-[#4A5568] mb-1.5">Password</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-orange-600"
+              className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm text-[#1C2B3A] outline-none focus:border-orange-600"
               placeholder="password"
             />
           </div>

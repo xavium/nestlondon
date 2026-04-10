@@ -56,7 +56,7 @@ export default function AISummary({ description, address, price, bedrooms, bathr
         <div className="w-5 h-5 rounded-full bg-orange-700 flex items-center justify-center flex-shrink-0">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
-        <h2 className="text-sm font-medium text-stone-800">NestLondon analysis</h2>
+        <h2 className="text-sm font-medium text-[#1C2B3A]">NestLondon analysis</h2>
         <span className="text-xs text-orange-600 bg-green-100 px-2 py-0.5 rounded-full">AI</span>
       </div>
 
@@ -77,14 +77,14 @@ export default function AISummary({ description, address, price, bedrooms, bathr
               {heading && heading !== body && (
                 <div className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">{heading}</div>
               )}
-              <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">{body || heading}</div>
+              <div className="text-sm text-[#374151] leading-relaxed whitespace-pre-line">{body || heading}</div>
             </div>
           ))}
         </div>
       ) : null}
 
       <details className="mt-4 border-t border-green-100 pt-3">
-        <summary className="text-xs text-stone-400 cursor-pointer hover:text-stone-600 select-none">Full agent description</summary>
+        <summary className="text-xs text-stone-400 cursor-pointer hover:text-[#4A5568] select-none">Full agent description</summary>
         <p className="text-xs text-stone-500 leading-relaxed mt-2">{description}</p>
       </details>
     </div>

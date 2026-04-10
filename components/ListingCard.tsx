@@ -55,7 +55,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
     <Link
       href={'/listings/' + listing.id + fromParam}
       onClick={() => markAsViewed(listing.id)}
-      className={'group block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-[#F1EFE8] border-stone-200 opacity-80' : 'bg-white border-stone-200 hover:shadow-md hover:border-stone-300')}
+      className={'group block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-[#F5F0EB] border-[#E8E2DA] opacity-80' : 'bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300')}
     >
       <div className="relative h-48 overflow-hidden">
         {imgSrc ? (
@@ -65,11 +65,11 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
             <svg className="w-8 h-8 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeWidth="1"/></svg>
           </div>
         )}
-        <div className={'absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium ' + (viewed ? 'bg-stone-200/95 text-stone-500' : 'bg-white/95 text-stone-700')}>
+        <div className={'absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium ' + (viewed ? 'bg-stone-200/95 text-stone-500' : 'bg-white/95 text-[#374151]')}>
           £{listing.price?.toLocaleString()}<span className="text-stone-400 font-normal">/mo</span>
         </div>
         {distanceLabel && (
-          <div className={"absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-medium " + (viewed ? "bg-stone-200/95 text-stone-500" : "bg-white/95 text-stone-700")}>
+          <div className={"absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-medium " + (viewed ? "bg-stone-200/95 text-stone-500" : "bg-white/95 text-[#374151]")}>
             {distanceLabel}
           </div>
         )}
@@ -109,7 +109,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
         )}
       </div>
       <div className="p-4">
-        <div className={'text-sm font-medium mb-0.5 truncate ' + (viewed ? 'text-stone-500' : 'text-stone-800')}>{listing.address}</div>
+        <div className={'text-sm font-medium mb-0.5 truncate ' + (viewed ? 'text-stone-500' : 'text-[#1C2B3A]')}>{listing.address}</div>
         <div className="flex gap-3 text-xs text-stone-400 mb-2">
           {listing.bedrooms && <span>{listing.bedrooms} bed</span>}
           {listing.bathrooms && <span>{listing.bathrooms} bath</span>}

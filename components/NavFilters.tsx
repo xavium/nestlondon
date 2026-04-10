@@ -32,7 +32,7 @@ function Dropdown({ label, active, open, onToggle, children }: { label: string, 
       <button
         onClick={onToggle}
         className={'flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl border transition-colors whitespace-nowrap ' +
-          (active ? 'bg-orange-700 text-white border-orange-700' : 'bg-white text-stone-600 border-stone-200 hover:border-orange-600')}
+          (active ? 'bg-orange-700 text-white border-orange-700' : 'bg-white text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
       >
         {label}
         <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,7 +40,7 @@ function Dropdown({ label, active, open, onToggle, children }: { label: string, 
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 bg-white border border-stone-200 rounded-xl shadow-lg z-50 p-3 min-w-[160px]">
+        <div className="absolute top-full left-0 mt-1.5 bg-white border border-[#E8E2DA] rounded-xl shadow-lg z-50 p-3 min-w-[160px]">
           {children}
         </div>
       )}
@@ -114,7 +114,7 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
         <div className="flex flex-col gap-1">
           {([null,500,750,1000,1250,1500,1750,2000,2500,3000,4000,5000] as (number|null)[]).map(p => (
             <button key={String(p)} onClick={() => { setLocalMinPrice(p); push({ minPrice: p }) }}
-              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMinPrice === p ? 'bg-orange-700 text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMinPrice === p ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
             >{p === null ? 'No min' : '£' + p.toLocaleString()}</button>
           ))}
         </div>
@@ -126,7 +126,7 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
         <div className="flex flex-col gap-1">
           {([null,500,750,1000,1250,1500,1750,2000,2500,3000,4000,5000] as (number|null)[]).map(p => (
             <button key={String(p)} onClick={() => { setLocalMaxPrice(p); push({ maxPrice: p }) }}
-              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMaxPrice === p ? 'bg-orange-700 text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMaxPrice === p ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
             >{p === null ? 'No max' : '£' + p.toLocaleString()}</button>
           ))}
         </div>
@@ -137,7 +137,7 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
         <div className="flex flex-col gap-1">
           {([null,1,2,3,4,5] as (number|null)[]).map(b => (
             <button key={String(b)} onClick={() => { setLocalMinBeds(b); push({ minBeds: b }) }}
-              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMinBeds === b ? 'bg-orange-700 text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMinBeds === b ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
             >{b === null ? 'No min' : b + ' bed' + (b > 1 ? 's' : '')}</button>
           ))}
         </div>
@@ -149,7 +149,7 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
         <div className="flex flex-col gap-1">
           {([null,1,2,3,4,5] as (number|null)[]).map(b => (
             <button key={String(b)} onClick={() => { setLocalMaxBeds(b); push({ maxBeds: b }) }}
-              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMaxBeds === b ? 'bg-orange-700 text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMaxBeds === b ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
             >{b === null ? 'No max' : b + ' bed' + (b > 1 ? 's' : '')}</button>
           ))}
         </div>
@@ -164,7 +164,7 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
           {([null, 1, 3, 7, 14, 30, 90] as (number | null)[]).map(d => (
             <button key={String(d)}
               onClick={() => { setLocalAddedWithin(d); push({ addedWithin: d }) }}
-              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localAddedWithin === d ? 'bg-orange-700 text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+              className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localAddedWithin === d ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
             >{d === null ? 'Any time' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : `${d} days`}</button>
           ))}
         </div>

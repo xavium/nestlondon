@@ -284,10 +284,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   }
 
   return (
-    <main className="min-h-screen bg-[#F1EFE8]">
-      <nav className="bg-white border-b border-stone-200">
+    <main className="min-h-screen bg-[#F5F0EB]">
+      <nav className="border-b border-[#1C2B3A]/10 bg-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <Link href="/" className="text-xl font-light text-stone-800 flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
+          <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
           <div className="flex items-center gap-3 flex-1">
             <SearchBarClient location={navLocation} listingType={navType} minBeds={navMinBeds} maxPrice={navMaxPrice} />
             <SearchFilters
@@ -310,22 +310,22 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
       <div className="max-w-6xl mx-auto px-4 pt-8">
         <MarkViewed id={id} />
-        <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 flex items-center gap-1 mb-4">
+        <Link href="/search" className="text-sm text-stone-500 hover:text-[#1C2B3A] flex items-center gap-1 mb-4">
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
           Back to search
         </Link>
 
         <div className="mb-4">
-          <h1 className="text-2xl font-semibold text-stone-800 mb-1" style={{fontFamily: 'Georgia, serif'}}>{listing.address}</h1>
+          <h1 className="text-2xl font-semibold text-[#1C2B3A] mb-1" style={{fontFamily: 'Georgia, serif'}}>{listing.address}</h1>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-stone-900" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</span>
+            <span className="text-3xl font-bold text-[#1C2B3A]" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</span>
             <span className="text-stone-400 text-sm">per month</span>
             {listing.price && <span className="text-stone-400 text-sm">£{Math.round(listing.price / 4.33).toLocaleString()} per week</span>}
           </div>
           <div className="flex gap-2 mt-2 flex-wrap">
-            {listing.bedrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
-            {listing.bathrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
-            {listing.property_type && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.property_type}</span>}
+            {listing.bedrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
+            {listing.bathrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
+            {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
           </div>
         </div>
       </div>
@@ -343,13 +343,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
 
             {Object.keys(lettingDetails).length > 0 && (
-              <div className="bg-white border border-stone-200 rounded-xl p-4">
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
                 <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Letting details</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Object.entries(lettingDetails).map(([k, v]) => (
                     <div key={k}>
                       <div className="text-xs text-stone-400">{k}</div>
-                      <div className="text-sm text-stone-800 font-semibold">{v as string}</div>
+                      <div className="text-sm text-[#1C2B3A] font-semibold">{v as string}</div>
                     </div>
                   ))}
                 </div>
@@ -357,47 +357,47 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             )}
 
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 items-stretch">
-              <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Available" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Available</div>
-                <div className="text-sm font-semibold text-stone-700">{availableText || 'Ask agent'}</div>
+                <div className="text-sm font-semibold text-[#374151]">{availableText || 'Ask agent'}</div>
               </div>
-              <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bedrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bedrooms</div>
-                <div className="text-sm font-semibold text-stone-700">{listing.bedrooms ?? '—'}</div>
+                <div className="text-sm font-semibold text-[#374151]">{listing.bedrooms ?? '—'}</div>
               </div>
-              <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bathrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bathrooms</div>
-                <div className="text-sm font-semibold text-stone-700">{listing.bathrooms ?? '—'}</div>
+                <div className="text-sm font-semibold text-[#374151]">{listing.bathrooms ?? '—'}</div>
               </div>
               {resolvedSize ? (
                 <>
-                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                     <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
-                    <div className="text-sm font-semibold text-stone-700">{resolvedSize}</div>
+                    <div className="text-sm font-semibold text-[#374151]">{resolvedSize}</div>
                   </div>
-                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                     <TileIcon name="£/sqm" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
-                    <div className="text-sm font-semibold text-stone-700">{rentPerSqm}</div>
+                    <div className="text-sm font-semibold text-[#374151]">{rentPerSqm}</div>
                   </div>
                 </>
               ) : floorplans.length > 0 ? (
                 <FloorplanSize key={floorplans[0]} floorplanUrl={floorplans[0]} price={listingPrice} />
               ) : (
                 <>
-                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                     <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
-                    <div className="text-sm font-semibold text-stone-700">Ask agent</div>
+                    <div className="text-sm font-semibold text-[#374151]">Ask agent</div>
                   </div>
-                  <div className="bg-white border border-stone-200 rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                     <TileIcon name="£/sqm" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
-                    <div className="text-sm font-semibold text-stone-700">Ask agent</div>
+                    <div className="text-sm font-semibold text-[#374151]">Ask agent</div>
                   </div>
                 </>
               )}
@@ -409,14 +409,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             )}
 
             {Object.keys(structuredDetails).length > 0 && (
-              <div className="bg-white border border-stone-200 rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-stone-800 mb-3">Property details</h2>
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Property details</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {Object.entries(structuredDetails).map(([k, v]) => (
-                    <div key={k} className="bg-[#F1EFE8] rounded-xl p-3 text-center flex flex-col items-center justify-center">
+                    <div key={k} className="bg-[#F5F0EB] rounded-xl p-3 text-center flex flex-col items-center justify-center">
                       <TileIcon name={k} />
                       <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{k}</div>
-                      <div className="text-sm font-semibold text-stone-800">{v as string}</div>
+                      <div className="text-sm font-semibold text-[#1C2B3A]">{v as string}</div>
                     </div>
                   ))}
                 </div>
@@ -424,9 +424,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             )}
 
             {cleanDescription && (
-              <div className="bg-white border border-stone-200 rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-stone-800 mb-3">Description</h2>
-                <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-line">{cleanDescription}</div>
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Description</h2>
+                <div className="text-sm text-[#4A5568] leading-relaxed whitespace-pre-line">{cleanDescription}</div>
               </div>
             )}
 
@@ -456,7 +456,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             )}
 
             {searchListings.length > 0 && (
-              <div className="bg-white border border-stone-200 rounded-2xl p-5">
+              <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
                 <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-4">From your search</h3>
                 <div className="flex flex-col gap-3">
                   {searchListings.map((sl: any) => {
@@ -471,8 +471,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                           {slImg ? <img src={slImg} alt="" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" referrerPolicy="no-referrer" /> : <div className="w-full h-full bg-stone-100" />}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-stone-800 truncate group-hover:text-orange-700 transition-colors">{sl.address}</div>
-                          <div className="text-sm font-semibold text-stone-900 mt-0.5">£{sl.price?.toLocaleString()}<span className="text-xs text-stone-400 font-normal">/mo</span></div>
+                          <div className="text-sm font-medium text-[#1C2B3A] truncate group-hover:text-orange-700 transition-colors">{sl.address}</div>
+                          <div className="text-sm font-semibold text-[#1C2B3A] mt-0.5">£{sl.price?.toLocaleString()}<span className="text-xs text-stone-400 font-normal">/mo</span></div>
                           <div className="text-xs text-stone-400">{sl.bedrooms ? sl.bedrooms + ' bed' : ''}{sl.property_type ? ' · ' + sl.property_type : ''}</div>
                         </div>
                       </a>
@@ -492,7 +492,23 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 }
 
 function KeyFeatures({ features }: { features: string[] }) {
-  const filtered = Array.from(new Set(features.map(f => f.trim()))).filter(f => {
+  function toSentenceCase(str: string) {
+    // Only convert if mostly uppercase
+    const upper = (str.match(/[A-Z]/g) || []).length
+    const lower = (str.match(/[a-z]/g) || []).length
+    if (upper <= lower) return str
+    // Words that should always be capitalised
+    const ALWAYS_CAPS = new Set(['london', 'uk', 'england', 'epc', 'tv', 'lcd', 'led', 'hd', 'wifi', 'cctv'])
+    // Units and abbreviations to keep lowercase
+    const KEEP_LOWER = new Set(['sq', 'ft', 'mi', 'm', 'km'])
+    const lower_str = str.toLowerCase()
+    return lower_str.charAt(0).toUpperCase() + lower_str.slice(1).replace(/\b([a-z]+)\b/g, (word) => {
+      if (ALWAYS_CAPS.has(word)) return word.toUpperCase()
+      if (KEEP_LOWER.has(word)) return word
+      return word
+    })
+  }
+  const filtered = Array.from(new Set(features.map(f => toSentenceCase(f.trim().replace(/^[-–—•*]+\s*/, ''))))).filter(f => {
     const l = f.toLowerCase()
     return !l.startsWith('epc') && !l.startsWith('council tax') &&
            !l.includes('property ref') && !l.includes('reference number') &&
@@ -500,11 +516,11 @@ function KeyFeatures({ features }: { features: string[] }) {
   })
   if (filtered.length === 0) return null
   return (
-    <div className="bg-white border border-stone-200 rounded-xl p-5">
-      <h2 className="text-sm font-semibold text-stone-800 mb-3">Key Features</h2>
+    <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
+      <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Key Features</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6">
         {filtered.map((f, i) => (
-          <div key={i} className="flex items-start gap-2 text-sm text-stone-700">
+          <div key={i} className="flex items-start gap-2 text-sm text-[#374151]">
             <svg className="w-4 h-4 text-[#D85A30] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             {f}
           </div>
@@ -516,16 +532,16 @@ function KeyFeatures({ features }: { features: string[] }) {
 
 function ExternalLinkCard({ listing }: { listing: any }) {
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-6 sticky top-6">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6">
       <div className="mb-4">
-        <div className="text-2xl font-bold text-stone-900 mb-0.5" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</div>
+        <div className="text-2xl font-bold text-[#1C2B3A] mb-0.5" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</div>
         <div className="text-sm text-stone-400">per month</div>
         {listing.price && <div className="text-sm text-stone-400">£{Math.round(listing.price / 4.33).toLocaleString()} per week</div>}
       </div>
       <div className="flex gap-2 mb-4 flex-wrap">
-        {listing.bedrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
-        {listing.bathrooms && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
-        {listing.property_type && <span className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded-full">{listing.property_type}</span>}
+        {listing.bedrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
+        {listing.bathrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
+        {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
       </div>
       {listing.source_url ? (
         <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
@@ -542,13 +558,13 @@ function ExternalLinkCard({ listing }: { listing: any }) {
 
 function EnquiryForm({ listing }: { listing: any }) {
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-6 sticky top-6">
-      <h3 className="text-sm font-medium text-stone-800 mb-1">Enquire about this property</h3>
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6">
+      <h3 className="text-sm font-medium text-[#1C2B3A] mb-1">Enquire about this property</h3>
       <p className="text-xs text-stone-400 mb-5">Direct listing — no portal fees</p>
-      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Your name" />
-      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Email address" />
-      <input className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Phone number" />
-      <textarea className="w-full border border-stone-200 rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-orange-600 min-h-20 resize-none" placeholder="I am interested in arranging a viewing..." />
+      <input className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Your name" />
+      <input className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Email address" />
+      <input className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Phone number" />
+      <textarea className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-orange-600 min-h-20 resize-none" placeholder="I am interested in arranging a viewing..." />
       <button className="w-full bg-orange-700 text-white rounded-lg py-2.5 text-sm hover:bg-orange-800 transition-colors">Send enquiry</button>
       <p className="text-xs text-stone-400 mt-3 text-center">NestLondon does not charge tenants any fees.</p>
     </div>

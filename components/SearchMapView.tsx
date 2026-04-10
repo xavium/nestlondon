@@ -207,17 +207,17 @@ export default function SearchMapView({ listings, radius, locationCoords }: {
   }
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-stone-200" style={{height: 'calc(100vh - 220px)', minHeight: '500px'}}>
+    <div className="relative rounded-xl overflow-hidden border border-[#E8E2DA]" style={{height: 'calc(100vh - 220px)', minHeight: '500px'}}>
       <div ref={mapContainer} style={{height: '100%', zIndex: 0}} />
 
       {/* Radius selector overlay */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-md border border-stone-200">
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-md border border-[#E8E2DA]">
         <span className="text-xs text-stone-400 mr-1 pl-1">Radius</span>
         {RADIUS_OPTIONS.map(opt => (
           <button
             key={String(opt.value)}
             onClick={() => changeRadius(opt.value)}
-            className={'text-xs px-2.5 py-1 rounded-full transition-colors ' + (radius === opt.value ? 'bg-[#D85A30] text-white font-medium' : 'text-stone-600 hover:bg-stone-100')}
+            className={'text-xs px-2.5 py-1 rounded-full transition-colors ' + (radius === opt.value ? 'bg-[#D85A30] text-white font-medium' : 'text-[#4A5568] hover:bg-stone-100')}
           >
             {opt.label}
           </button>

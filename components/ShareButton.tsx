@@ -37,19 +37,19 @@ export default function ShareButton({ address, price }: { address: string, price
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-stone-200 rounded-lg px-3 py-1.5 hover:border-stone-300 transition-colors"
+        className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 transition-colors"
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         Share
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white border border-stone-200 rounded-xl shadow-lg p-3 w-72">
+        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white border border-[#E8E2DA] rounded-xl shadow-lg p-3 w-72">
 
           {/* Copy link row */}
           <p className="text-xs text-stone-400 mb-1.5">Copy link</p>
           <div className="flex items-center gap-2 mb-3">
-            <div className="flex-1 text-xs text-stone-600 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5 truncate">
+            <div className="flex-1 text-xs text-[#4A5568] bg-stone-50 border border-[#E8E2DA] rounded-lg px-2.5 py-1.5 truncate">
               {url}
             </div>
             <button
@@ -67,7 +67,7 @@ export default function ShareButton({ address, price }: { address: string, price
               <div className="border-t border-stone-100 mb-3" />
               <button
                 onClick={nativeShare}
-                className="w-full flex items-center gap-2 text-xs text-stone-600 hover:text-stone-900 py-1 transition-colors"
+                className="w-full flex items-center gap-2 text-xs text-[#4A5568] hover:text-[#1C2B3A] py-1 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 More sharing options…

@@ -254,10 +254,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   }
 
   return (
-    <main className="min-h-screen bg-[#F1EFE8]">
-      <nav className="bg-white border-b border-stone-200">
+    <main className="min-h-screen bg-[#F5F0EB]">
+      <nav className="border-b border-[#1C2B3A]/10 bg-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <Link href="/" className="text-xl font-light text-stone-800 flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
+          <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
             nest<span className="text-orange-700 italic">london</span>
           </Link>
           <div className="flex items-center gap-3 flex-1">

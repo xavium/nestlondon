@@ -125,15 +125,15 @@ export default function HomePage() {
                   onChange={handleLocationChange}
                   onFocus={() => setActive('location')}
                   placeholder="Where are you looking?"
-                  className="text-sm text-stone-800 bg-transparent outline-none placeholder-stone-300 w-full"
+                  className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full"
                   autoComplete="off"
                 />
                 {active === 'location' && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-stone-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 overflow-hidden">
                     {suggestions.map(s => (
                       <button key={s} type="button"
                         onClick={() => { setLocation(s); setSuggestions([]); setActive(null) }}
-                        className="w-full text-left px-5 py-3 text-sm text-stone-700 hover:bg-[#F1EFE8] flex items-center gap-3"
+                        className="w-full text-left px-5 py-3 text-sm text-[#374151] hover:bg-[#F5F0EB] flex items-center gap-3"
                       >
                         <svg className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/>
@@ -154,16 +154,16 @@ export default function HomePage() {
                 onClick={() => setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Price range</div>
-                <div className={'text-sm ' + (priceLabel ? 'text-stone-800' : 'text-stone-300')}>{priceLabel || 'Any price'}</div>
+                <div className={'text-sm ' + (priceLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{priceLabel || 'Any price'}</div>
                 {(active === 'minPrice' || active === 'maxPrice') && (
-                  <div className="absolute top-full left-1/4 mt-2 bg-white border border-stone-200 rounded-xl shadow-xl z-50 p-4 w-80" onClick={e => e.stopPropagation()}>
+                  <div className="absolute top-full left-1/4 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-80" onClick={e => e.stopPropagation()}>
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
                         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
                           {PRICE_OPTIONS.map(p => (
                             <button key={String(p)} onClick={() => { setMinPrice(p); setActive('maxPrice') }}
-                              className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+                              className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
                             >{p === null ? 'No min' : '£' + p.toLocaleString()}</button>
                           ))}
                         </div>
@@ -174,7 +174,7 @@ export default function HomePage() {
                         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
                           {PRICE_OPTIONS.map(p => (
                             <button key={String(p)} onClick={() => { setMaxPrice(p); setActive(null) }}
-                              className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+                              className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
                             >{p === null ? 'No max' : '£' + p.toLocaleString()}</button>
                           ))}
                         </div>
@@ -192,15 +192,15 @@ export default function HomePage() {
                 onClick={() => setActive(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Bedrooms</div>
-                <div className={'text-sm ' + (bedsLabel ? 'text-stone-800' : 'text-stone-300')}>{bedsLabel || 'Any beds'}</div>
+                <div className={'text-sm ' + (bedsLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{bedsLabel || 'Any beds'}</div>
                 {(active === 'minBeds' || active === 'maxBeds') && (
-                  <div className="absolute top-full right-16 mt-2 bg-white border border-stone-200 rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
+                  <div className="absolute top-full right-16 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
                         {BED_OPTIONS.map(b => (
                           <button key={String(b)} onClick={() => { setMinBeds(b); setActive('maxBeds') }}
-                            className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+                            className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
                           >{b === null ? 'No min' : b + ' bed'}</button>
                         ))}
                       </div>
@@ -209,7 +209,7 @@ export default function HomePage() {
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Max</div>
                         {BED_OPTIONS.map(b => (
                           <button key={String(b)} onClick={() => { setMaxBeds(b); setActive(null) }}
-                            className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F1EFE8] text-stone-700')}
+                            className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
                           >{b === null ? 'No max' : b + ' bed'}</button>
                         ))}
                       </div>
@@ -276,6 +276,85 @@ export default function HomePage() {
 
       {/* ── FEATURED LISTINGS ───────────────────────────────────── */}
       <FeaturedListings />
+
+      {/* ── WHY NEST? ───────────────────────────────────────────── */}
+      <section style={{background: '#1C2B3A'}} className="py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{color: '#D3755A'}}>The Nest Difference</p>
+            <h2 className="text-4xl font-light text-white" style={{fontFamily: 'Georgia, serif'}}>Why search with Nest?</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {[
+              {
+                icon: '<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+                title: 'Every portal, one place',
+                desc: 'We aggregate listings from Rightmove, Zoopla, OnTheMarket and more — so you never miss a home.'
+              },
+              {
+                icon: '<path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+                title: 'Neighbourhood-first search',
+                desc: 'Search by area, postcode or tube station. Filter by radius so you stay in the neighbourhoods you love.'
+              },
+              {
+                icon: '<path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>',
+                title: 'Smart property insights',
+                desc: 'EPC ratings, council tax, outside space, concierge and more — surfaced automatically from every listing.'
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-start gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{background: 'rgba(211,117,90,0.15)'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="#D3755A" viewBox="0 0 24 24" dangerouslySetInnerHTML={{__html: item.icon}} />
+                </div>
+                <h3 className="text-lg font-light text-white" style={{fontFamily: 'Georgia, serif'}}>{item.title}</h3>
+                <p className="text-sm text-white/50 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── JOURNAL SIGNUP ──────────────────────────────────────── */}
+      <section style={{background: '#F5F0EB'}} className="py-20 px-6">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{color: '#D3755A'}}>The Nest Journal</p>
+          <h2 className="text-4xl font-light mb-4" style={{fontFamily: 'Georgia, serif', color: '#1C2B3A'}}>
+            London living, curated
+          </h2>
+          <p className="text-stone-500 text-sm leading-relaxed mb-8">
+            Neighbourhood guides, design inspiration and market insights — delivered to your inbox.
+          </p>
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-[#E8E2DA] p-1.5 shadow-sm max-w-md mx-auto">
+            <input
+              type="email"
+              placeholder="Your email address"
+              className="flex-1 px-4 py-2 text-sm text-[#374151] outline-none bg-transparent placeholder-stone-300"
+            />
+            <button
+              className="px-5 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90 flex-shrink-0"
+              style={{background: '#D3755A'}}
+            >
+              Subscribe
+            </button>
+          </div>
+          <p className="text-xs text-stone-400 mt-4">No spam. Unsubscribe anytime.</p>
+        </div>
+      </section>
+
+      {/* ── FOOTER ──────────────────────────────────────────────── */}
+      <footer style={{background: '#1C2B3A'}} className="py-10 px-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="text-xl font-light text-white" style={{fontFamily: 'Georgia, serif'}}>
+            nest<span style={{color: '#D3755A'}} className="italic">london</span>
+          </div>
+          <p className="text-white/30 text-xs">© 2026 NestLondon. All listings sourced from public portals.</p>
+          <div className="flex gap-6 text-white/40 text-xs">
+            <span className="cursor-pointer hover:text-white/70 transition-colors">Privacy</span>
+            <span className="cursor-pointer hover:text-white/70 transition-colors">Terms</span>
+            <span className="cursor-pointer hover:text-white/70 transition-colors">For agents</span>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }

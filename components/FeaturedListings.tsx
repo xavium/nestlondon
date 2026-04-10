@@ -41,20 +41,20 @@ export default function FeaturedListings() {
   }, [])
 
   if (featured.length === 0) return (
-    <section className="bg-[#F1EFE8] py-16 px-6 min-h-[300px]" />
+    <section className="bg-[#F5F0EB] py-16 px-6 min-h-[300px]" />
   )
 
   const [hero, ...rest] = featured
 
   return (
-    <section className="bg-[#F1EFE8] py-16 px-6">
+    <section className="bg-[#F5F0EB] py-16 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-end justify-between mb-10">
           <div>
             <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{color: '#D85A30'}}>The Selection</p>
-            <h2 className="text-4xl font-light text-stone-800" style={{fontFamily: 'Georgia, serif'}}>Latest Listings</h2>
+            <h2 className="text-4xl font-light text-[#1C2B3A]" style={{fontFamily: 'Georgia, serif'}}>Latest Listings</h2>
           </div>
-          <Link href="/search?type=rent" className="text-sm text-stone-500 hover:text-stone-800 transition-colors border-b border-stone-300 hover:border-stone-600 pb-0.5">
+          <Link href="/search?type=rent" className="text-sm text-stone-500 hover:text-[#1C2B3A] transition-colors border-b border-stone-300 hover:border-stone-600 pb-0.5">
             View all listings →
           </Link>
         </div>
