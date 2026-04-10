@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import SearchBarClient from '@/components/SearchBarClient'
 import SearchFilters from '@/components/SearchFilters'
+import NavFilters from '@/components/NavFilters'
 import ListingCard from '@/components/ListingCard'
 import { SearchResults } from '@/components/SearchResults'
 
@@ -18,6 +19,7 @@ interface SearchParams {
   features?: string
   radius?: string
   addedWithin?: string
+  availableFrom?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -33,6 +35,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const features = params.features ? params.features.split(',') : []
   const radius = params.radius ? parseFloat(params.radius) : null // miles
   const addedWithin = params.addedWithin ? parseInt(params.addedWithin) : null // days
+  const availableFrom = params.availableFrom || null
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -174,8 +177,59 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     const desc = (listing.description || '').toLowerCase()
     const feats = JSON.stringify(listing.features || '').toLowerCase()
     const combined = desc + ' ' + feats
+
+    // Available from filter — match 'available now/immediately' or no specific future date mentioned
+    if (availableFrom) {
+      const af = new Date(availableFrom)
+      const today = new Date()
+      const isNow = af <= today
+      if (isNow) {
+        // Looking for immediate availability
+        if (!/available\s+now|available\s+immediately|available\s+from\s+(?:today|this week|asap)/i.test(combined)) return false
+      } else {
+        // Looking for available by a future date — match 'available now' or a date before/on availableFrom
+        const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december']
+        const afMonth = monthNames[af.getMonth()]
+        const afYear = af.getFullYear()
+        const hasNow = /available\s+now|available\s+immediately/i.test(combined)
+        const hasFutureDate = new RegExp(afMonth + '[\s\S]{0,20}' + afYear, 'i').test(combined)
+        if (!hasNow && !hasFutureDate) return false
+      }
+    }
+
+    // Available from filter — match 'available now/immediately' or no specific future date mentioned
+    if (availableFrom) {
+      const af = new Date(availableFrom)
+      const today = new Date()
+      const isNow = af <= today
+      if (isNow) {
+        // Looking for immediate availability
+        if (!/available\s+now|available\s+immediately|available\s+from\s+(?:today|this week|asap)/i.test(combined)) return false
+      } else {
+        // Looking for available by a future date — match 'available now' or a date before/on availableFrom
+        const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december']
+        const afMonth = monthNames[af.getMonth()]
+        const afYear = af.getFullYear()
+        const hasNow = /available\s+now|available\s+immediately/i.test(combined)
+        const hasFutureDate = new RegExp(afMonth + '[\s\S]{0,20}' + afYear, 'i').test(combined)
+        if (!hasNow && !hasFutureDate) return false
+      }
+    }
     for (const f of mustHaveFeatures) {
-      if (!combined.includes(f.toLowerCase())) return false
+      const fl = f.toLowerCase()
+      if (fl === 'pets allowed') {
+        if (!/\bpets?\b|pet friendly|pets considered|pets welcome|pets negotiable/.test(combined)) return false
+      } else if (fl === 'garden') {
+        if (!/\bgardens?\b/.test(combined) || /no garden|without garden/.test(combined)) return false
+      } else if (fl === 'balcony') {
+        if (!/\bbalcon(y|ies)\b/.test(combined)) return false
+      } else if (fl === 'parking') {
+        if (!/\bparking\b|\bgarage\b/.test(combined)) return false
+      } else if (fl === 'bills included') {
+        if (!/bills? included|bills? inc/.test(combined)) return false
+      } else {
+        if (!combined.includes(fl)) return false
+      }
     }
     for (const f of excludeFeatures) {
       if (f === 'New builds' && combined.includes('new build')) return false
@@ -208,7 +262,18 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           </Link>
           <div className="flex items-center gap-3 flex-1">
             <SearchBarClient location={location} listingType={listingType} minBeds={minBeds} maxPrice={maxPrice} />
+            <NavFilters
+              location={location}
+              listingType={listingType}
+              minBeds={minBeds}
+              maxBeds={maxBeds}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              radius={radius}
+              addedWithin={addedWithin}
+            />
             <SearchFilters
+              key={[minBeds,maxBeds,minPrice,maxPrice,radius].join('-')}
               location={location}
               listingType={listingType}
               minBeds={minBeds}
@@ -220,6 +285,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               features={features}
               radius={radius}
               addedWithin={addedWithin}
+              availableFrom={availableFrom}
             />
           </div>
         </div>

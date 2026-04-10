@@ -1,8 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import SearchBarClient from '@/components/SearchBarClient'
+import NavFilters from '@/components/NavFilters'
+import SearchFilters from '@/components/SearchFilters'
 
 export default function HomePage() {
+  const [homeFilters, setHomeFilters] = useState<Record<string, number | null>>({})
+
   return (
     <main className="min-h-screen bg-[#F1EFE8]">
       <nav className="bg-white border-b border-stone-200">
@@ -19,7 +24,41 @@ export default function HomePage() {
             Find your next home<br/>across <em className="text-orange-700">all of London</em>
           </h1>
           <p className="text-stone-500 text-sm mb-8">Listings from every major portal, in one place.</p>
-          <SearchBarClient location="" listingType="rent" minBeds={null} maxPrice={null} />
+          <SearchBarClient
+            location=""
+            listingType="rent"
+            minBeds={homeFilters.minBeds ?? null}
+            maxPrice={homeFilters.maxPrice ?? null}
+            extraParams={homeFilters}
+          />
+          <div className="mt-3 flex items-center gap-2">
+            <NavFilters
+              location=""
+              listingType="rent"
+              minBeds={homeFilters.minBeds ?? null}
+              maxBeds={homeFilters.maxBeds ?? null}
+              minPrice={homeFilters.minPrice ?? null}
+              maxPrice={homeFilters.maxPrice ?? null}
+              radius={homeFilters.radius ?? null}
+              addedWithin={homeFilters.addedWithin ?? null}
+              immediate={false}
+              onFilterChange={setHomeFilters}
+            />
+            <SearchFilters
+              location=""
+              listingType="rent"
+              minBeds={null}
+              maxBeds={null}
+              minPrice={null}
+              maxPrice={null}
+              furnished={null}
+              propertyType={null}
+              features={[]}
+              radius={null}
+              addedWithin={null}
+              availableFrom={null}
+            />
+          </div>
         </div>
       </div>
       <div className="max-w-2xl mx-auto px-6 py-10">

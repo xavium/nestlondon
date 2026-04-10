@@ -26,6 +26,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const navFeatures = navSp.get('features') ? navSp.get('features')!.split(',') : []
   const navRadius = navSp.get('radius') ? parseInt(navSp.get('radius')!) : null
   const navAddedWithin = navSp.get('addedWithin') ? parseInt(navSp.get('addedWithin')!) : null
+  const navAvailableFrom = navSp.get('availableFrom') || null
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,7 +105,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     // Scan description for availability phrases
     const desc = listing.description || ''
     const m = desc.match(/available\s+(now|immediately|from\s+[\w\s,]+?\d{4}|from\s+\d{1,2}[\s/]\w+|january|february|march|april|may|june|july|august|september|october|november|december)[^.!,]*/i)
-    if (m) return m[0].trim().replace(/^available\s+/i, 'From ').slice(0, 30)
+    if (m) {
+      const val = m[1].trim().replace(/[^a-zA-Z0-9\s]/g, '').trim()
+      if (/^(now|immediately)$/i.test(val)) return 'Now'
+      return ('From ' + val).slice(0, 30)
+    }
     return null
   })()
 
@@ -248,7 +253,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   // Only match EPC band when letter is clearly isolated e.g. 'EPC-B', 'EPC: C', 'EPC Rating B'
   const epcMatch = allText.match(/EPC[\s\-:_]+([A-G])\b/i) ||
                    allText.match(/EPC\s+[Rr]ating[\s:\-]+([A-G])\b/i) ||
-                   allText.match(/[Ee]nergy\s+[Cc]lass[\s:\-]+([A-G])\b/i)
+                   allText.match(/[Ee]nergy\s+[Cc]lass[\s:\-]+([A-G])\b/i) ||
+                   allText.match(/[Ee]nergy\s+[Ee]fficiency\s+[Rr]ating\s+([A-G])\b/i) ||
+                   allText.match(/[Ee]nergy\s+[Rr]ating\s+([A-G])\b/i) ||
+                   allText.match(/[Ee]nergy\s+[Ee]fficiency\s+[Rr]ating\s+([A-G])\b/i) ||
+                   allText.match(/[Ee]nergy\s+[Rr]ating\s+([A-G])\b/i)
   structuredDetails['EPC Rating'] = epcMatch ? 'Band ' + epcMatch[1].toUpperCase() : 'Ask agent'
 
   if (!structuredDetails['Council Tax']) {
@@ -293,6 +302,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               features={navFeatures}
               radius={navRadius}
               addedWithin={navAddedWithin}
+              availableFrom={navAvailableFrom}
             />
           </div>
         </div>

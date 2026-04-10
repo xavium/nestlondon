@@ -31,6 +31,7 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
 
 export default function ListingCard({ listing }: Props) {
   const [viewed, setViewed] = useState(false)
+  const [imgIndex, setImgIndex] = useState(0)
   const searchParams = useSearchParams()
   const fromParam = searchParams.toString() ? '?from=' + encodeURIComponent('?' + searchParams.toString()) : ''
 
@@ -38,12 +39,13 @@ export default function ListingCard({ listing }: Props) {
     setViewed(getViewedListings().has(listing.id))
   }, [listing.id])
 
-  let imgSrc: string | null = null
+  let images: string[] = []
   try {
     const raw = listing.images
     const arr: string[] = typeof raw === 'string' ? JSON.parse(raw) : (raw || [])
-    imgSrc = arr.find((u: string) => typeof u === 'string' && u.startsWith('https')) || null
+    images = arr.filter((u: string) => typeof u === 'string' && u.startsWith('https'))
   } catch {}
+  const imgSrc = images[imgIndex] || null
 
   const tags = extractFeatureTags(listing)
   const desc = listing.description ? listing.description.slice(0, 100) + (listing.description.length > 100 ? '…' : '') : null
@@ -52,11 +54,11 @@ export default function ListingCard({ listing }: Props) {
     <Link
       href={'/listings/' + listing.id + fromParam}
       onClick={() => markAsViewed(listing.id)}
-      className={'block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-[#F1EFE8] border-stone-200 opacity-80' : 'bg-white border-stone-200 hover:shadow-md hover:border-stone-300')}
+      className={'group block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-[#F1EFE8] border-stone-200 opacity-80' : 'bg-white border-stone-200 hover:shadow-md hover:border-stone-300')}
     >
       <div className="relative h-48 overflow-hidden">
         {imgSrc ? (
-          <img src={imgSrc} alt={listing.address} className={'w-full h-full object-cover ' + (viewed ? 'grayscale-[30%]' : '')} referrerPolicy="no-referrer" />
+          <img src={imgSrc} alt={listing.address} className={'w-full h-full object-cover transition-opacity duration-200 ' + (viewed ? 'grayscale-[30%]' : '')} referrerPolicy="no-referrer" />
         ) : (
           <div className="w-full h-full bg-stone-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeWidth="1"/></svg>
@@ -70,6 +72,34 @@ export default function ListingCard({ listing }: Props) {
         )}
         {!viewed && (
           <div className="absolute bottom-2 right-2 bg-white/90 text-stone-500 text-xs px-2 py-0.5 rounded">{listing.source}</div>
+        )}
+        {images.length > 1 && (
+          <>
+            {/* Invisible hit zones on left/right 25% of image */}
+            <div onClick={e => { e.preventDefault(); e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length) }}
+              className="absolute left-0 top-0 w-1/4 h-full z-10 cursor-pointer" />
+            <div onClick={e => { e.preventDefault(); e.stopPropagation(); setImgIndex(i => (i + 1) % images.length) }}
+              className="absolute right-0 top-0 w-1/4 h-full z-10 cursor-pointer" />
+            {/* Arrow buttons — visible on hover */}
+            <button
+              onClick={e => { e.preventDefault(); e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length) }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center transition-all z-20 opacity-0 group-hover:opacity-100"
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 3L4 7l5 4"/></svg>
+            </button>
+            <button
+              onClick={e => { e.preventDefault(); e.stopPropagation(); setImgIndex(i => (i + 1) % images.length) }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center transition-all z-20 opacity-0 group-hover:opacity-100"
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 3l5 4-5 4"/></svg>
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-20">
+              {images.map((_, i) => (
+                <button key={i} onClick={e => { e.preventDefault(); e.stopPropagation(); setImgIndex(i) }}
+                  className={'w-1 h-1 rounded-full transition-colors ' + (i === imgIndex ? 'bg-white' : 'bg-white/40')} />
+              ))}
+            </div>
+          </>
         )}
       </div>
       <div className="p-4">

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Props {
   location: string
@@ -15,19 +15,27 @@ interface Props {
   features: string[]
   radius?: number | null
   addedWithin?: number | null
+  availableFrom?: string | null
 }
 
 export default function SearchFilters(props: Props) {
   const [open, setOpen] = useState(false)
-  const [minBeds, setMinBeds] = useState(props.minBeds)
-  const [maxBeds, setMaxBeds] = useState(props.maxBeds)
-  const [minPrice, setMinPrice] = useState(props.minPrice)
-  const [maxPrice, setMaxPrice] = useState(props.maxPrice)
+  const sp = useSearchParams()
+  const [minBeds, setMinBeds] = useState<number | null>(sp.get('minBeds') ? parseInt(sp.get('minBeds')!) : null)
+  const [maxBeds, setMaxBeds] = useState<number | null>(sp.get('maxBeds') ? parseInt(sp.get('maxBeds')!) : null)
+  const [minPrice, setMinPrice] = useState<number | null>(sp.get('minPrice') ? parseInt(sp.get('minPrice')!) : null)
+  const [maxPrice, setMaxPrice] = useState<number | null>(sp.get('maxPrice') ? parseInt(sp.get('maxPrice')!) : null)
   const [furnished, setFurnished] = useState(props.furnished)
   const [propertyType, setPropertyType] = useState(props.propertyType)
   const [features, setFeatures] = useState<string[]>(props.features)
-  const [radius, setRadius] = useState<number | null>(props.radius || null)
+  const [radius, setRadius] = useState<number | null>(sp.get('radius') ? parseFloat(sp.get('radius')!) : null)
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
+  const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
+
+  // Sync with URL params when they change (e.g. NavFilters updates URL)
+  useEffect(() => { setRadius(props.radius || null) }, [props.radius])
+  useEffect(() => { setAddedWithin(props.addedWithin || null) }, [props.addedWithin])
+  useEffect(() => { setAvailableFrom(props.availableFrom || null) }, [props.availableFrom])
   const router = useRouter()
 
   const FEATURE_OPTIONS = ['Garden', 'Balcony', 'Parking', 'Garage', 'Pets allowed', 'Bills included']
@@ -41,6 +49,8 @@ export default function SearchFilters(props: Props) {
     const p = new URLSearchParams()
     if (radius) p.set('radius', String(radius))
     if (addedWithin) p.set('addedWithin', String(addedWithin))
+    if (availableFrom) p.set('availableFrom', availableFrom)
+    if (availableFrom) p.set('availableFrom', availableFrom)
     if (props.location) p.set('location', props.location)
     p.set('type', props.listingType)
     if (minBeds) p.set('minBeds', String(minBeds))
@@ -55,23 +65,31 @@ export default function SearchFilters(props: Props) {
   }
 
   function clearFilters() {
-    setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null)
+    setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null); setAvailableFrom(null); setAvailableFrom(null)
     setFurnished(null); setPropertyType(null); setFeatures([]); setRadius(null); setAddedWithin(null)
     const p = new URLSearchParams()
     if (radius) p.set('radius', String(radius))
     if (addedWithin) p.set('addedWithin', String(addedWithin))
+    if (availableFrom) p.set('availableFrom', availableFrom)
+    if (availableFrom) p.set('availableFrom', availableFrom)
     if (props.location) p.set('location', props.location)
     p.set('type', props.listingType)
     router.push('/search?' + p.toString())
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, furnished, propertyType, radius, addedWithin].filter(Boolean).length + features.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom].filter(Boolean).length + features.length
+
+  useEffect(() => {
+    function handleCloseAll() { setOpen(false) }
+    window.addEventListener('nestlondon:closeDropdowns', handleCloseAll)
+    return () => window.removeEventListener('nestlondon:closeDropdowns', handleCloseAll)
+  }, [])
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => { if (!open) window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setOpen(!open) }}
         className={'flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border transition-colors ' + (activeCount > 0 ? 'bg-orange-700 text-white border-orange-700' : 'bg-white text-stone-600 border-stone-200 hover:border-orange-600')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6" strokeWidth="1.5"/><line x1="8" y1="12" x2="16" y2="12" strokeWidth="1.5"/><line x1="11" y1="18" x2="13" y2="18" strokeWidth="1.5"/></svg>
@@ -87,64 +105,21 @@ export default function SearchFilters(props: Props) {
           </div>
 
           <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Added within</label>
-            <div className="flex gap-2 flex-wrap">
-              {[null, 1, 3, 7, 14].map(d => (
-                <button key={String(d)} onClick={() => setAddedWithin(d)}
-                  className={'px-3 py-2 text-xs rounded-lg border transition-colors ' + (addedWithin === d ? 'bg-orange-700 text-white border-orange-700' : 'bg-stone-50 text-stone-600 border-stone-200 hover:border-orange-600')}
-                >{d === null ? 'Any time' : d === 1 ? '24 hours' : d + ' days'}</button>
-              ))}
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Available from</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={availableFrom || ''}
+                onChange={e => setAvailableFrom(e.target.value || null)}
+                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 bg-[#F1EFE8] outline-none"
+              />
+              {availableFrom && (
+                <button onClick={() => setAvailableFrom(null)} className="text-stone-400 hover:text-stone-600 text-xs">✕</button>
+              )}
             </div>
           </div>
 
-          <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Within distance</label>
-            <div className="flex gap-2 flex-wrap">
-              {[null, 0.5, 1, 2, 5, 10].map(r => (
-                <button key={String(r)} onClick={() => setRadius(r)}
-                  className={'px-3 py-2 text-xs rounded-lg border transition-colors ' + (radius === r ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F1EFE8] text-stone-600 border-stone-200 hover:border-orange-600')}
-                >{r === null ? 'Any' : r + ' mi'}</button>
-              ))}
-            </div>
-          </div>
 
-          <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Bedrooms</label>
-            <div className="flex gap-2 items-center">
-              <select value={minBeds || ''} onChange={e => setMinBeds(e.target.value ? Number(e.target.value) : null)}
-                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 bg-[#F1EFE8] outline-none">
-                <option value="">No min</option>
-                {[1,2,3,4,5].map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-              <span className="text-xs text-stone-400">to</span>
-              <select value={maxBeds || ''} onChange={e => setMaxBeds(e.target.value ? Number(e.target.value) : null)}
-                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 bg-[#F1EFE8] outline-none">
-                <option value="">No max</option>
-                {[1,2,3,4,5].map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Monthly rent</label>
-            <div className="flex gap-2 items-center">
-              <select value={minPrice || ''} onChange={e => setMinPrice(e.target.value ? Number(e.target.value) : null)}
-                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 outline-none">
-                <option value="">No min</option>
-                {[500,750,1000,1250,1500,1750,2000,2500,3000,4000,5000].map(p => (
-                  <option key={p} value={p}>£{p.toLocaleString()}</option>
-                ))}
-              </select>
-              <span className="text-stone-400 text-xs">to</span>
-              <select value={maxPrice || ''} onChange={e => setMaxPrice(e.target.value ? Number(e.target.value) : null)}
-                className="flex-1 border border-stone-200 rounded-lg px-2 py-2 text-xs text-stone-700 outline-none">
-                <option value="">No max</option>
-                {[750,1000,1250,1500,1750,2000,2500,3000,4000,5000,7500,10000].map(p => (
-                  <option key={p} value={p}>£{p.toLocaleString()}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Property type</label>
