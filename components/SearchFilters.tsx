@@ -16,9 +16,11 @@ interface Props {
   radius?: number | null
   addedWithin?: number | null
   availableFrom?: string | null
+  onApply?: (params: URLSearchParams) => void
 }
 
 export default function SearchFilters(props: Props) {
+  const { onApply } = props
   const [open, setOpen] = useState(false)
   const sp = useSearchParams()
   const [minBeds, setMinBeds] = useState<number | null>(sp.get('minBeds') ? parseInt(sp.get('minBeds')!) : null)
@@ -61,7 +63,7 @@ export default function SearchFilters(props: Props) {
     if (propertyType) p.set('propertyType', propertyType)
     if (features.length > 0) p.set('features', features.join(','))
     setOpen(false)
-    router.push('/search?' + p.toString())
+    if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
 
   function clearFilters() {
@@ -99,7 +101,7 @@ export default function SearchFilters(props: Props) {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 p-6">
+        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-[200] p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-medium text-stone-800">Filters</h3>
             <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-stone-600 text-lg leading-none">x</button>
@@ -168,7 +170,7 @@ export default function SearchFilters(props: Props) {
 
           <div className="flex gap-3">
             <button onClick={clearFilters} className="flex-1 border border-stone-200 text-stone-600 text-sm rounded-xl py-2.5 hover:border-stone-300 transition-colors">Clear all</button>
-            <button onClick={applyFilters} className="flex-1 bg-orange-700 text-white text-sm rounded-xl py-2.5 hover:bg-orange-800 transition-colors">Show results</button>
+            <button onClick={applyFilters} className="flex-1 bg-orange-700 text-white text-sm rounded-xl py-2.5 hover:bg-orange-800 transition-colors">{onApply ? 'Add' : 'Show results'}</button>
           </div>
         </div>
       )}
