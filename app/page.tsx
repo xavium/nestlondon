@@ -18,9 +18,9 @@ const SUGGESTIONS = [
 ]
 
 const PRICE_OPTIONS = [null, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
-const BED_OPTIONS = [null, 1, 2, 3, 4, 5]
+const BED_OPTIONS = [null, 0, 1, 2, 3, 4, 5]
 
-type ActivePanel = 'location' | 'minPrice' | 'maxPrice' | 'minBeds' | 'maxBeds' | null
+type ActivePanel = 'location' | 'minPrice' | 'maxPrice' | 'minBeds' | 'maxBeds' | 'addedWithin' | null
 
 export default function HomePage() {
   const [location, setLocation] = useState('')
@@ -30,10 +30,10 @@ export default function HomePage() {
   const [minBeds, setMinBeds] = useState<number | null>(null)
   const [maxBeds, setMaxBeds] = useState<number | null>(null)
   const [active, setActive] = useState<ActivePanel>(null)
+  const [addedWithin, setAddedWithin] = useState<number | null>(null)
   const [furnished, setFurnished] = useState<string | null>(null)
   const [propertyType, setPropertyType] = useState<string | null>(null)
   const [features, setFeatures] = useState<string[]>([])
-  const [addedWithin, setAddedWithin] = useState<number | null>(null)
   const [availableFrom, setAvailableFrom] = useState<string | null>(null)
   const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
@@ -64,10 +64,10 @@ export default function HomePage() {
     if (maxBeds) p.set('maxBeds', String(maxBeds))
     if (minPrice) p.set('minPrice', String(minPrice))
     if (maxPrice) p.set('maxPrice', String(maxPrice))
+    if (addedWithin) p.set('addedWithin', String(addedWithin))
     if (furnished) p.set('furnished', furnished)
     if (propertyType) p.set('propertyType', propertyType)
     if (features.length > 0) p.set('features', features.join(','))
-    if (addedWithin) p.set('addedWithin', String(addedWithin))
     if (availableFrom) p.set('availableFrom', availableFrom)
     router.push('/search?' + p.toString())
   }
@@ -76,7 +76,8 @@ export default function HomePage() {
     ? [minPrice ? '£' + minPrice.toLocaleString() : 'Min', maxPrice ? '£' + maxPrice.toLocaleString() : 'Max'].join(' – ')
     : null
   const bedsLabel = minBeds || maxBeds
-    ? [minBeds ?? 'Min', maxBeds ?? 'Max'].join(' – ') + ' bed'
+  const addedWithinLabel = addedWithin ? (addedWithin === 1 ? '24 hours' : addedWithin === 30 ? '1 month' : addedWithin === 90 ? '3 months' : addedWithin + ' days') : null
+    ? [(minBeds === 0 ? 'Studio' : minBeds ?? 'Min'), (maxBeds === 0 ? 'Studio' : maxBeds ?? 'Max')].join(' – ') + (minBeds === 0 && maxBeds === 0 ? '' : ' bed')
     : null
 
   return (
@@ -111,7 +112,7 @@ export default function HomePage() {
           </h1>
 
           {/* Unified search bar */}
-          <div ref={ref} className="w-full max-w-4xl">
+          <div ref={ref} className="w-full max-w-4xl" style={{fontFamily: "var(--font-sans, Manrope, system-ui)"}}>
             <div className="bg-white rounded-2xl shadow-2xl flex items-stretch overflow-visible relative">
 
               {/* Location */}
@@ -201,7 +202,7 @@ export default function HomePage() {
                         {BED_OPTIONS.map(b => (
                           <button key={String(b)} onClick={() => { setMinBeds(b); setActive('maxBeds') }}
                             className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
-                          >{b === null ? 'No min' : b + ' bed'}</button>
+                          >{b === null ? 'No min' : b === 0 ? 'Studio' : b + ' bed'}</button>
                         ))}
                       </div>
                       <div className="w-px bg-stone-100" />
@@ -210,7 +211,7 @@ export default function HomePage() {
                         {BED_OPTIONS.map(b => (
                           <button key={String(b)} onClick={() => { setMaxBeds(b); setActive(null) }}
                             className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
-                          >{b === null ? 'No max' : b + ' bed'}</button>
+                          >{b === null ? 'No max' : b === 0 ? 'Studio' : b + ' bed'}</button>
                         ))}
                       </div>
                     </div>
@@ -219,6 +220,25 @@ export default function HomePage() {
               </div>
 
               <div className="w-px bg-stone-200 self-stretch my-3" />
+
+              {/* Added within */}
+              <div
+                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[120px] ' + (active === 'addedWithin' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                onClick={() => setActive(active === 'addedWithin' ? null : 'addedWithin')}
+              >
+                <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-widest mb-0.5">Added</div>
+                <div className={'text-sm ' + (addedWithinLabel ? 'text-[#3D3A38]' : 'text-stone-300')}>{addedWithinLabel || 'Any time'}</div>
+                {active === 'addedWithin' && (
+                  <div className="absolute top-full right-16 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44" onClick={e => e.stopPropagation()}>
+                    {([null, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
+                      <button key={String(d)} onClick={() => { setAddedWithin(d); setActive(null) }}
+                        className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (addedWithin === d ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                        style={addedWithin === d ? {background: '#D3755A'} : {}}
+                      >{d === null ? 'Any time' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : d + ' days'}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* More filters */}
               <div className="flex items-center px-2">
@@ -244,6 +264,9 @@ export default function HomePage() {
                   }}
                 />
               </div>
+
+              <div className="w-px bg-stone-200 self-stretch my-3" />
+
 
               {/* Search button */}
               <button

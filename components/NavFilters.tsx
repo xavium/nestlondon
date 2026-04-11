@@ -60,7 +60,6 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
 
   useEffect(() => {
     function handleClear() {
-      setLocalRadius(null)
       setLocalMinBeds(null)
       setLocalMaxBeds(null)
       setLocalMinPrice(null)
@@ -77,19 +76,17 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice)
   const router = useRouter()
 
-  function push(overrides: Record<string, string | number | null>) {
-    const r = overrides.radius !== undefined ? overrides.radius : localRadius
+  function push(overrides: Record<string, number | null>) {
     const aw = overrides.addedWithin !== undefined ? overrides.addedWithin : localAddedWithin
     const minB = overrides.minBeds !== undefined ? overrides.minBeds : localMinBeds
     const maxB = overrides.maxBeds !== undefined ? overrides.maxBeds : localMaxBeds
     const minP = overrides.minPrice !== undefined ? overrides.minPrice : localMinPrice
     const maxP = overrides.maxPrice !== undefined ? overrides.maxPrice : localMaxPrice
-    if (onFilterChange) onFilterChange({ radius: r, minBeds: minB, maxBeds: maxB, minPrice: minP, maxPrice: maxP, addedWithin: aw })
+    if (onFilterChange) onFilterChange({ minBeds: minB, maxBeds: maxB, minPrice: minP, maxPrice: maxP, addedWithin: aw })
     if (!immediate) return
     const p = new URLSearchParams()
     p.set('type', listingType)
     if (location) p.set('location', location)
-    if (r) p.set('radius', String(r))
     if (aw) p.set('addedWithin', String(aw))
     if (minB) p.set('minBeds', String(minB))
     if (maxB) p.set('maxBeds', String(maxB))
@@ -133,24 +130,24 @@ export default function NavFilters({ location, listingType, minBeds, maxBeds, mi
       </Dropdown>
 
       {/* Min Beds */}
-      <Dropdown label={localMinBeds ? localMinBeds + ' Beds' : 'Min Beds'} active={!!localMinBeds} open={activeDropdown === 'minBeds'} onToggle={() => { if (activeDropdown !== 'minBeds') window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActiveDropdown(activeDropdown === 'minBeds' ? null : 'minBeds') }}>
+      <Dropdown label={localMinBeds === 0 ? 'Studio' : localMinBeds ? localMinBeds + ' Beds' : 'Min Beds'} active={localMinBeds !== null} open={activeDropdown === 'minBeds'} onToggle={() => { if (activeDropdown !== 'minBeds') window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActiveDropdown(activeDropdown === 'minBeds' ? null : 'minBeds') }}>
         <div className="flex flex-col gap-1">
-          {([null,1,2,3,4,5] as (number|null)[]).map(b => (
+          {([null,0,1,2,3,4,5] as (number|null)[]).map(b => (
             <button key={String(b)} onClick={() => { setLocalMinBeds(b); push({ minBeds: b }) }}
               className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMinBeds === b ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
-            >{b === null ? 'No min' : b + ' bed' + (b > 1 ? 's' : '')}</button>
+            >{b === null ? 'No min' : b === 0 ? 'Studio' : b + ' bed' + (b > 1 ? 's' : '')}</button>
           ))}
         </div>
       </Dropdown>
 
       <span className="text-xs text-stone-400">to</span>
       {/* Max Beds */}
-      <Dropdown label={localMaxBeds ? localMaxBeds + ' Beds' : 'Max Beds'} active={!!localMaxBeds} open={activeDropdown === 'maxBeds'} onToggle={() => { if (activeDropdown !== 'maxBeds') window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActiveDropdown(activeDropdown === 'maxBeds' ? null : 'maxBeds') }}>
+      <Dropdown label={localMaxBeds === 0 ? 'Studio' : localMaxBeds ? localMaxBeds + ' Beds' : 'Max Beds'} active={localMaxBeds !== null} open={activeDropdown === 'maxBeds'} onToggle={() => { if (activeDropdown !== 'maxBeds') window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActiveDropdown(activeDropdown === 'maxBeds' ? null : 'maxBeds') }}>
         <div className="flex flex-col gap-1">
-          {([null,1,2,3,4,5] as (number|null)[]).map(b => (
+          {([null,0,1,2,3,4,5] as (number|null)[]).map(b => (
             <button key={String(b)} onClick={() => { setLocalMaxBeds(b); push({ maxBeds: b }) }}
               className={'text-left text-sm px-2 py-1.5 rounded-lg transition-colors ' + (localMaxBeds === b ? 'bg-orange-700 text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
-            >{b === null ? 'No max' : b + ' bed' + (b > 1 ? 's' : '')}</button>
+            >{b === null ? 'No max' : b === 0 ? 'Studio' : b + ' bed' + (b > 1 ? 's' : '')}</button>
           ))}
         </div>
       </Dropdown>

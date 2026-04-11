@@ -16,10 +16,11 @@ interface Listing {
 
 interface Coords { lat: number, lng: number }
 
-export default function SearchMapView({ listings, radius, locationCoords }: {
+export default function SearchMapView({ listings, radius, locationCoords, location }: {
   listings: Listing[]
   radius?: number | null
   locationCoords?: Coords | null
+  location?: string
 }) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -172,6 +173,28 @@ export default function SearchMapView({ listings, radius, locationCoords }: {
         )
       }
 
+      // Highlight road/street if location looks like a street name
+      if (location && locationCoords) {
+        const isStreet = /\b(road|street|avenue|lane|close|grove|place|way|drive|crescent|terrace|gardens?|mews|square|row|walk|path|hill|rise|parade|court|broadway)\b/i.test(location)
+        if (isStreet) {
+          try {
+            const encoded = encodeURIComponent(location + ', London, UK')
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=geojson&limit=1&polygon_geojson=1`, {
+              headers: { 'User-Agent': 'NestLondon/1.0' }
+            })
+            const gj = await resp.json()
+            if (gj.features?.length > 0) {
+              const feature = gj.features[0]
+              if (feature.geometry?.type === 'LineString' || feature.geometry?.type === 'MultiLineString') {
+                L.geoJSON(feature, {
+                  style: { color: '#D3755A', weight: 5, opacity: 0.8 }
+                }).addTo(mapRef.current)
+              }
+            }
+          } catch {}
+        }
+      }
+
       // Fit to location or markers
       if (!radius && locationCoords) {
         // Have a location but no radius - zoom to it at street level
@@ -186,7 +209,7 @@ export default function SearchMapView({ listings, radius, locationCoords }: {
     return () => {
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-  }, [radius, locationCoords])
+  }, [radius, locationCoords, location])
 
   const RADIUS_OPTIONS = [
     { label: 'Any', value: null },

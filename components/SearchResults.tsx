@@ -40,13 +40,17 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   )
 }
 
-export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location }: {
+export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, minBeds, maxBeds, minPrice, maxPrice }: {
   filtered: any[]
   allListings: any[]
   allListingsForMap: any[]
   radius?: number | null
   locationCoords?: Coords | null
   location?: string
+  minBeds?: number | null
+  maxBeds?: number | null
+  minPrice?: number | null
+  maxPrice?: number | null
 }) {
   const [view, setView] = useState<'grid' | 'map'>('grid')
   const [viewReady, setViewReady] = useState(false)
@@ -124,6 +128,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
             : allListings.filter((l: any) => l.latitude && l.longitude)}
           radius={radius ? radius : (locationCoords ? 0.5 : null)}
           locationCoords={locationCoords}
+          location={location}
         />
       ) : (
         <>

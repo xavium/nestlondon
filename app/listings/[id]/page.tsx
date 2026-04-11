@@ -1,8 +1,7 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
-import SearchBarClient from '@/components/SearchBarClient'
-import SearchFilters from '@/components/SearchFilters'
+import NavSearchBar from '@/components/NavSearchBar'
 import Link from 'next/link'
 import ImageGallery from '@/components/ImageGallery'
 import PropertyMap from '@/components/PropertyMap'
@@ -265,6 +264,51 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     structuredDetails['Council Tax'] = ctMatch ? 'Band ' + ctMatch[1].toUpperCase() : 'Ask agent'
   }
 
+  // Extract which floor the property is on
+  const floorText: string | null = (() => {
+    const src = (listing.description || '').toLowerCase()
+    // Top floor
+    if (/\btop floor\b/.test(src)) return 'Top floor'
+    // Ground floor
+    if (/\bground floor\b/.test(src)) return 'Ground floor'
+    // Named ordinals: first, second, third ... twentieth
+    const ordinals: Record<string, string> = {
+      'first': '1st', 'second': '2nd', 'third': '3rd', 'fourth': '4th',
+      'fifth': '5th', 'sixth': '6th', 'seventh': '7th', 'eighth': '8th',
+      'ninth': '9th', 'tenth': '10th', 'eleventh': '11th', 'twelfth': '12th',
+      'thirteenth': '13th', 'fourteenth': '14th', 'fifteenth': '15th',
+      'sixteenth': '16th', 'seventeenth': '17th', 'eighteenth': '18th',
+      'nineteenth': '19th', 'twentieth': '20th', 'twenty-first': '21st',
+    }
+    for (const [word, num] of Object.entries(ordinals)) {
+      if (src.includes(word + ' floor')) return num + ' floor'
+    }
+    // Numeric: 1st, 2nd, 3rd, 21st etc.
+    const numMatch = src.match(/\b(\d+(?:st|nd|rd|th))\s+floor\b/)
+    if (numMatch) return numMatch[1].charAt(0).toUpperCase() + numMatch[1].slice(1) + ' floor'
+    return null
+  })()
+
+  // Extract number of floors/levels the property spans
+  const floorsText: string | null = (() => {
+    const src = (listing.description || '').toLowerCase()
+    const kf = keyFeatures.join(' ').toLowerCase()
+    const combined = src + ' ' + kf
+    // Explicit multi-floor mentions
+    if (/split.?level|over two floors|set over 2 floors|two.storey|2.storey|duplex|maisonette/.test(combined)) return '2 floors'
+    if (/over three floors|set over 3 floors|three.storey|3.storey|triplex/.test(combined)) return '3 floors'
+    // "set over X floors"
+    const wordNums: Record<string, string> = { 'two': '2', 'three': '3', 'four': '4' }
+    for (const [word, num] of Object.entries(wordNums)) {
+      if (combined.includes('over ' + word + ' floor') || combined.includes('across ' + word + ' floor')) return num + ' floors'
+    }
+    const numMatch = combined.match(/over\s+(\d+)\s+floors?/)
+    if (numMatch) return numMatch[1] + ' floors'
+    // Single level — flat/apartment/studio with no mention of spanning multiple floors
+    if (/\b(flat|apartment|studio)\b/.test(combined) && !/split.?level|over (?:two|three|\d+) floors?|set over|maisonette|duplex|two.storey|three.storey/.test(combined)) return '1 floor'
+    return null
+  })()
+
   // Extract parking and concierge into structuredDetails
   const _descClean = (listing.description || '').replace(/^(PARKING|CONCIERGE|GARDEN|ACCESSIBILITY|COUNCIL TAX|EPC|UTILITIES)[\s\S]*$/im, '').toLowerCase()
   if (/no[- ]parking|no car park|without parking/.test(_descClean)) structuredDetails['Parking'] = 'No'
@@ -288,19 +332,18 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       <nav className="border-b border-[#1C2B3A]/10 bg-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
           <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
-          <div className="flex items-center gap-3 flex-1">
-            <SearchBarClient location={navLocation} listingType={navType} minBeds={navMinBeds} maxPrice={navMaxPrice} />
-            <SearchFilters
+          <div className="flex items-center flex-1">
+            <NavSearchBar
               location={navLocation}
               listingType={navType}
               minBeds={navMinBeds}
               maxBeds={navMaxBeds}
               minPrice={navMinPrice}
               maxPrice={navMaxPrice}
+              radius={navRadius}
               furnished={navFurnished}
               propertyType={navPropertyType}
               features={navFeatures}
-              radius={navRadius}
               addedWithin={navAddedWithin}
               availableFrom={navAvailableFrom}
             />
@@ -326,6 +369,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {listing.bedrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
             {listing.bathrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
             {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
+            {floorText && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{floorText}</span>}
+            {floorsText && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{floorsText}</span>}
           </div>
         </div>
       </div>
@@ -365,7 +410,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bedrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bedrooms</div>
-                <div className="text-sm font-semibold text-[#374151]">{listing.bedrooms ?? '—'}</div>
+                <div className="text-sm font-semibold text-[#374151]">{(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? 'Studio' : (listing.bedrooms ?? '—')}</div>
               </div>
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bathrooms" />

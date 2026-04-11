@@ -32,6 +32,10 @@ export default function SearchFilters(props: Props) {
   const [features, setFeatures] = useState<string[]>(props.features)
   const [radius, setRadius] = useState<number | null>(sp.get('radius') ? parseFloat(sp.get('radius')!) : null)
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
+  const [minSize, setMinSize] = useState<number | null>(null)
+  const [maxSize, setMaxSize] = useState<number | null>(null)
+  const [minFloors, setMinFloors] = useState<number | null>(null)
+  const [maxFloors, setMaxFloors] = useState<number | null>(null)
   const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
 
   // Sync with URL params when they change (e.g. NavFilters updates URL)
@@ -41,7 +45,7 @@ export default function SearchFilters(props: Props) {
   const router = useRouter()
 
   const FEATURE_OPTIONS = ['Garden', 'Balcony', 'Parking', 'Garage', 'Pets allowed', 'Bills included']
-  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes']
+  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor']
 
   function toggleFeature(f: string) {
     setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])
@@ -62,6 +66,10 @@ export default function SearchFilters(props: Props) {
     if (furnished) p.set('furnished', furnished)
     if (propertyType) p.set('propertyType', propertyType)
     if (features.length > 0) p.set('features', features.join(','))
+    if (minSize) p.set('minSize', String(minSize))
+    if (maxSize) p.set('maxSize', String(maxSize))
+    if (minFloors) p.set('minFloors', String(minFloors))
+    if (maxFloors) p.set('maxFloors', String(maxFloors))
     setOpen(false)
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
@@ -81,7 +89,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom].filter(Boolean).length + features.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, minFloors, maxFloors].filter(Boolean).length + features.length
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -123,6 +131,44 @@ export default function SearchFilters(props: Props) {
           </div>
 
 
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Size (sq ft)</label>
+            <div className="flex gap-2 items-center">
+              <select value={minSize || ''} onChange={e => { setMinSize(e.target.value ? Number(e.target.value) : null) }}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No min</option>
+                {[200,300,400,500,600,700,800,900,1000,1250,1500,2000].map(s => (
+                  <option key={s} value={s}>{s.toLocaleString()} sq ft</option>
+                ))}
+              </select>
+              <span className="text-xs text-[#9B928E]">to</span>
+              <select value={maxSize || ''} onChange={e => { setMaxSize(e.target.value ? Number(e.target.value) : null) }}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No max</option>
+                {[200,300,400,500,600,700,800,900,1000,1250,1500,2000].map(s => (
+                  <option key={s} value={s}>{s.toLocaleString()} sq ft</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Number of floors</label>
+            <div className="flex gap-2 items-center">
+              <select value={minFloors || ''} onChange={e => { setMinFloors(e.target.value ? Number(e.target.value) : null) }}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No min</option>
+                {[1,2,3,4,5].map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <span className="text-xs text-[#9B928E]">to</span>
+              <select value={maxFloors || ''} onChange={e => { setMaxFloors(e.target.value ? Number(e.target.value) : null) }}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No max</option>
+                {[1,2,3,4,5].map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          </div>
 
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Property type</label>

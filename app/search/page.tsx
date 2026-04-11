@@ -1,9 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
-import SearchBarClient from '@/components/SearchBarClient'
+import NavSearchBar from '@/components/NavSearchBar'
 import SearchFilters from '@/components/SearchFilters'
-import NavFilters from '@/components/NavFilters'
 import ListingCard from '@/components/ListingCard'
 import { SearchResults } from '@/components/SearchResults'
 
@@ -20,6 +19,10 @@ interface SearchParams {
   radius?: string
   addedWithin?: string
   availableFrom?: string
+  minSize?: string
+  maxSize?: string
+  minFloors?: string
+  maxFloors?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -36,6 +39,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const radius = params.radius ? parseFloat(params.radius) : null // miles
   const addedWithin = params.addedWithin ? parseInt(params.addedWithin) : null // days
   const availableFrom = params.availableFrom || null
+  const minSize = params.minSize ? parseInt(params.minSize) : null
+  const maxSize = params.maxSize ? parseInt(params.maxSize) : null
+  const minFloors = params.minFloors ? parseInt(params.minFloors) : null
+  const maxFloors = params.maxFloors ? parseInt(params.maxFloors) : null
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -178,6 +185,40 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     const feats = JSON.stringify(listing.features || '').toLowerCase()
     const combined = desc + ' ' + feats
 
+    // Floors filter
+    if (minFloors || maxFloors) {
+      const descLower = (listing.description || '').toLowerCase()
+      const wordNums: Record<string, number> = { 'one': 1, 'two': 2, 'three': 3, 'four': 4 }
+      let floors: number | null = null
+      if (/split.?level|over two floors|two.storey|maisonette|duplex/.test(descLower)) floors = 2
+      else if (/over three floors|three.storey|triplex/.test(descLower)) floors = 3
+      else {
+        for (const [word, num] of Object.entries(wordNums)) {
+          if (descLower.includes('over ' + word + ' floor') || descLower.includes('across ' + word + ' floor')) { floors = num; break }
+        }
+        const numMatch = descLower.match(/over\s+(\d+)\s+floors?/)
+        if (numMatch) floors = parseInt(numMatch[1])
+        if (!floors && /\b(flat|apartment|studio)\b/.test(descLower) && !/split.?level|over (?:two|three|\d+) floors?|maisonette|duplex|two.storey/.test(descLower)) floors = 1
+      }
+      if (!floors) return false
+      if (minFloors && floors < minFloors) return false
+      if (maxFloors && floors > maxFloors) return false
+    }
+
+    // Size filter
+    if (minSize || maxSize) {
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const sizeRaw = rd?.size_text || ''
+      const sqftM = sizeRaw.match(/([\d,]+)\s*sq\s*ft/i) || desc.match(/([\d,]+)\s*sq\s*ft/i)
+      const sqmM = sizeRaw.match(/([\d,]+)\s*sq\s*m(?!ft)/i) || desc.match(/([\d,]+)\s*sq\s*m(?!ft)/i)
+      let sqft: number | null = null
+      if (sqftM) sqft = parseFloat(sqftM[1].replace(',', ''))
+      else if (sqmM) sqft = Math.round(parseFloat(sqmM[1].replace(',', '')) * 10.764)
+      if (!sqft) return false  // exclude listings with no size info when size filter is active
+      if (minSize && sqft < minSize) return false
+      if (maxSize && sqft > maxSize) return false
+    }
+
     // Available from filter — match 'available now/immediately' or no specific future date mentioned
     if (availableFrom) {
       const af = new Date(availableFrom)
@@ -235,6 +276,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       if (f === 'New builds' && combined.includes('new build')) return false
       if (f === 'Shared ownership' && combined.includes('shared ownership')) return false
       if (f === 'Retirement homes' && combined.includes('retirement')) return false
+      if (f === 'Lower ground floor' && /lower ground floor|lower ground level|basement/.test(combined)) return false
     }
     return true
   })
@@ -260,9 +302,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
             nest<span className="text-orange-700 italic">london</span>
           </Link>
-          <div className="flex items-center gap-3 flex-1">
-            <SearchBarClient location={location} listingType={listingType} minBeds={minBeds} maxPrice={maxPrice} radius={radius} />
-            <NavFilters
+          <div className="flex items-center flex-1">
+            <NavSearchBar
               location={location}
               listingType={listingType}
               minBeds={minBeds}
@@ -270,20 +311,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               minPrice={minPrice}
               maxPrice={maxPrice}
               radius={radius}
-              addedWithin={addedWithin}
-            />
-            <SearchFilters
-              key={[minBeds,maxBeds,minPrice,maxPrice,radius].join('-')}
-              location={location}
-              listingType={listingType}
-              minBeds={minBeds}
-              maxBeds={maxBeds}
-              minPrice={minPrice}
-              maxPrice={maxPrice}
               furnished={furnished}
               propertyType={propertyType}
               features={features}
-              radius={radius}
               addedWithin={addedWithin}
               availableFrom={availableFrom}
             />

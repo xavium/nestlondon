@@ -111,7 +111,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
       <div className="p-4">
         <div className={'text-sm font-medium mb-0.5 truncate ' + (viewed ? 'text-stone-500' : 'text-[#1C2B3A]')}>{listing.address}</div>
         <div className="flex gap-3 text-xs text-stone-400 mb-2">
-          {listing.bedrooms && <span>{listing.bedrooms} bed</span>}
+          {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span>Studio</span> : listing.bedrooms ? <span>{listing.bedrooms} bed</span> : null}
           {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
           {listing.property_type && <span>{listing.property_type}</span>}
         </div>
