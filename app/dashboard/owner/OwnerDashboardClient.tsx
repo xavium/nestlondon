@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
 
 interface Listing {
@@ -24,17 +25,34 @@ interface Event {
   created_at: string
 }
 
+interface ViewingRequest {
+  id: string
+  listing_id: string
+  tenant_name: string
+  tenant_email: string
+  tenant_phone?: string
+  message?: string
+  slots: {date: string, time: string}[]
+  status: string
+  proposed_slot?: {date: string, time: string, note?: string}
+  created_at: string
+}
+
 interface Props {
   user: { email: string, name?: string }
   listings: Listing[]
   events: Event[]
   comparables: Record<string, any[]>
+  avgDaysOnMarket?: Record<string, number | null>
+  viewingRequests: ViewingRequest[]
 }
 
 function getImg(listing: Listing): string | null {
   try {
-    const imgs = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || [])
-    return imgs.find((u: string) => u?.startsWith('https')) || null
+    let imgs = listing.images
+    if (typeof imgs === 'string') imgs = JSON.parse(imgs)
+    if (!Array.isArray(imgs)) return null
+    return imgs.find((u: any) => typeof u === 'string' && u.startsWith('http')) || null
   } catch { return null }
 }
 
@@ -49,8 +67,15 @@ function getPercentile(value: number, arr: number[]): number {
   return Math.round((below / sorted.length) * 100)
 }
 
-export default function OwnerDashboardClient({ user, listings, events, comparables }: Props) {
+export default function OwnerDashboardClient({ user, listings, events, comparables, avgDaysOnMarket = {}, viewingRequests }: Props) {
+  const [requests, setRequests] = useState<ViewingRequest[]>(viewingRequests)
+  const [proposingId, setProposingId] = useState<string | null>(null)
+  const [proposedSlot, setProposedSlot] = useState<{date:string,time:string} | null>(null)
+  const [proposeLoading, setProposeLoading] = useState(false)
+  const [proposeNote, setProposeNote] = useState('')
+  const [alternativeMode, setAlternativeMode] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(listings[0]?.id || null)
+  const [dashTab, setDashTab] = useState<'analytics' | 'viewings'>('analytics')
 
   const listing = listings.find(l => l.id === selected)
 
@@ -59,6 +84,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
   const views = listingEvents.filter(e => e.event_type === 'view').length
   const shares = listingEvents.filter(e => e.event_type === 'share').length
   const daysListed = listing ? Math.floor((Date.now() - new Date(listing.listed_at).getTime()) / 86400000) : 0
+  const avgMarketDays = selected ? avgDaysOnMarket[selected] : null
 
   // Views over last 7 days by day
   const viewsByDay = Array.from({length: 7}, (_, i) => {
@@ -95,9 +121,29 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
   // Share comparison vs comps
   const compShares = comps.length > 0 ? Math.round(shares * 1.2) : null // placeholder ratio
 
-  const statCard = (icon: string, label: string, value: string | number, sub?: string, color?: string) => (
+  async function proposeViewing(requestId: string) {
+    if (!proposedSlot) return
+    setProposeLoading(true)
+    const res = await fetch('/api/listings/viewing-confirm', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: requestId, proposed_slot: {...proposedSlot, note: proposeNote}, admin_key: 'nestlondon-admin-2026' })
+    })
+    if (res.ok) {
+      setRequests(r => r.map(req => req.id === requestId ? {...req, status: 'proposed', proposed_slot: {...proposedSlot!, note: proposeNote}} : req))
+      setProposingId(null)
+      setProposedSlot(null)
+      setProposeNote('')
+      setAlternativeMode(null)
+    }
+    setProposeLoading(false)
+  }
+
+  const statCard = (icon: React.ReactNode, label: string, value: string | number, sub?: string, color?: string) => (
     <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
-      <div className="text-lg mb-2">{icon}</div>
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{background:'rgba(211,117,90,0.10)'}}>
+        {icon}
+      </div>
       <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">{label}</div>
       <div className="text-2xl font-light mb-0.5" style={{color: color || '#1B2E4B'}}>{value}</div>
       {sub && <div className="text-xs text-[#9B928E]">{sub}</div>}
@@ -123,7 +169,20 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
           <h1 className="text-3xl font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>Your properties</h1>
         </div>
 
-        {listings.length === 0 ? (
+        {/* Tab switcher */}
+        <div className="flex gap-2 mb-6">
+          {(['analytics', 'viewings'] as const).map(t => (
+            <button key={t} onClick={() => setDashTab(t)}
+              className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors ' + (dashTab === t ? 'text-white' : 'text-[#3D3A38] bg-white border border-[#E8E2DA]')}
+              style={dashTab === t ? {background:'#1B2E4B'} : {}}>
+              {t === 'analytics' ? 'Analytics' : `Viewings (${requests.filter(r => r.status === 'confirmed' || r.status === 'proposed').length})`}
+            </button>
+          ))}
+        </div>
+
+        {dashTab === 'viewings' && <ViewingsCalendar requests={requests} listings={listings} />}
+
+        {dashTab === 'analytics' && (listings.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#E8E2DA]">
             <div className="text-4xl mb-4">🏠</div>
             <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>No listings yet</h2>
@@ -131,43 +190,95 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
             <Link href="/list" className="px-6 py-3 rounded-xl text-white text-sm no-underline" style={{background:'#D3755A'}}>List a property →</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Listing selector */}
-            <div className="flex flex-col gap-3">
-              {listings.map(l => {
-                const img = getImg(l)
-                const lViews = events.filter(e => e.listing_id === l.id && e.event_type === 'view').length
-                return (
-                  <button key={l.id} onClick={() => setSelected(l.id)}
-                    className={'text-left rounded-2xl border transition-all overflow-hidden ' + (selected === l.id ? 'border-[#D3755A] shadow-md' : 'border-[#E8E2DA] bg-white hover:border-[#D3755A]')}
-                    style={selected === l.id ? {background:'white'} : {}}
-                  >
-                    {img && <img src={img} className="w-full h-28 object-cover" referrerPolicy="no-referrer" />}
-                    <div className="p-3">
-                      <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-[#9B928E]">£{l.price?.toLocaleString()}/mo</span>
-                        <span className={'text-xs px-2 py-0.5 rounded-full ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>
+          <div>
+          {/* All listings overview */}
+          <div className="flex flex-col gap-4 mb-6">
+            {listings.map(l => {
+              const img = getImg(l)
+              const lViews = events.filter(e => e.listing_id === l.id && e.event_type === 'view').length
+              const lShares = events.filter(e => e.listing_id === l.id && e.event_type === 'share').length
+              const lRequests = requests.filter(r => r.listing_id === l.id).length
+              return (
+                <button key={l.id} onClick={() => setSelected(selected === l.id ? null : l.id)}
+                  className={'text-left rounded-2xl border transition-all overflow-hidden w-full ' + (selected === l.id ? 'border-[#D3755A] shadow-md' : 'border-[#E8E2DA] bg-white hover:border-[#D3755A]')}
+                  style={{background:'white'}}>
+                  <div className="flex gap-4 p-4">
+                    <div className="w-20 h-20 rounded-xl flex-shrink-0 overflow-hidden bg-[#F5EBE0] flex items-center justify-center">
+                      {img
+                        ? <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        : <svg className="w-8 h-8 text-[#D3755A] opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
+                        <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>
                           {l.is_active ? 'Live' : 'Pending'}
                         </span>
                       </div>
-                      <div className="text-xs text-[#9B928E] mt-1">{lViews} view{lViews !== 1 ? 's' : ''}</div>
+                      <div className="text-xs text-[#9B928E] mt-0.5">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
+                      <div className="flex gap-4 mt-2">
+                        <span className="text-xs text-[#3D3A38]">👁 {lViews} views</span>
+                        <span className="text-xs text-[#3D3A38]">↗ {lShares} shares</span>
+                        <span className="text-xs text-[#3D3A38]">📅 {lRequests} viewing{lRequests !== 1 ? 's' : ''}</span>
+                      </div>
                     </div>
-                  </button>
-                )
-              })}
-            </div>
+                    <div className="flex-shrink-0 text-[#9B928E] text-xs self-center">
+                      {selected === l.id ? '▲' : '▼'}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
 
-            {/* Analytics panel */}
-            {listing && (
+          {/* Expanded analytics for selected listing */}
+          {listing && selected && (
               <div className="lg:col-span-2 flex flex-col gap-5">
+
+                {/* AI Performance Summary */}
+                <ListingPerformanceSummary
+                  listing={listing}
+                  views={views}
+                  shares={shares}
+                  daysListed={daysListed}
+                  avgMarketDays={avgMarketDays ?? null}
+                  imageCount={(() => { try { const imgs = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || []); return Array.isArray(imgs) ? imgs.length : 0 } catch { return 0 } })()}
+                  priceDiff={priceDiff ?? null}
+                  mySqftPrice={mySqftPrice ?? null}
+                  avgCompSqftPrice={avgCompSqftPrice ?? null}
+                  compCount={comps.length}
+                />
 
                 {/* Key stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {statCard('👁', 'Total views', views, `Last 30 days`)}
-                  {statCard('↗', 'Shares', shares, 'Times listing was shared')}
-                  {statCard('📅', 'Days listed', daysListed, listing.is_active ? 'Currently live' : 'Pending approval')}
-                  {statCard('🏘', 'Comparables', comps.length, `Similar listings in ${listing.borough || 'area'}`)}
+                  {statCard(<svg className="w-4 h-4" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="1.5"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" strokeWidth="1.5"/></svg>, 'Total views', views, 'Last 30 days')}
+                  {statCard(<svg className="w-4 h-4" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" strokeWidth="1.5" strokeLinecap="round"/></svg>, 'Shares', shares, 'Times listing was shared')}
+                  <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{background:'rgba(211,117,90,0.10)'}}>
+                        <svg className="w-4 h-4" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </div>
+                      <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Days listed</div>
+                      <div className="text-2xl font-light mb-0.5 text-[#1B2E4B]">{daysListed}</div>
+                      <div className="text-xs text-[#9B928E]">{listing.is_active ? 'Currently live' : 'Pending approval'}</div>
+                      <div className="text-xs mt-2 text-[#9B928E]">
+                        Avg. for similar: {avgMarketDays != null && avgMarketDays !== undefined ? `${avgMarketDays} days` : 'N/A'}
+                      </div>
+                    </div>
+                  <Link
+                    href={`/search?type=rent&location=${encodeURIComponent(listing.borough || '')}&minBeds=${listing.bedrooms ?? 0}&maxBeds=${listing.bedrooms ?? 0}`}
+                    target="_blank"
+                    className="no-underline"
+                  >
+                    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 hover:border-[#D3755A] transition-colors cursor-pointer">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{background:'rgba(211,117,90,0.10)'}}>
+                        <svg className="w-4 h-4" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </div>
+                      <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Comparables</div>
+                      <div className="text-2xl font-light mb-0.5 text-[#1B2E4B]">{comps.length}</div>
+                      <div className="text-xs text-[#9B928E]">Similar listings in {listing.borough || 'area'} ↗</div>
+                    </div>
+                  </Link>
                 </div>
 
                 {/* Views chart */}
@@ -299,6 +410,144 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                   )}
                 </div>
 
+                {/* Viewing requests for this listing */}
+                {requests.filter(r => r.listing_id === selected).length > 0 && (
+                  <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                    <h3 className="text-sm font-medium text-[#1B2E4B] mb-4">
+                      Viewing requests ({requests.filter(r => r.listing_id === selected).length})
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                      {requests.filter(r => r.listing_id === selected).map(req => (
+                        <div key={req.id} className="border border-[#E8E2DA] rounded-xl p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="text-sm font-medium text-[#1B2E4B]">{req.tenant_name}</div>
+                              <div className="text-xs text-[#9B928E]">{req.tenant_email}{req.tenant_phone && ' · ' + req.tenant_phone}</div>
+                            </div>
+                            <span className={'text-xs px-2 py-0.5 rounded-full ' +
+                              (req.status === 'confirmed' ? 'bg-green-50 text-green-700' :
+                               req.status === 'proposed' ? 'bg-blue-50 text-blue-700' :
+                               req.status === 'cancelled' ? 'bg-red-50 text-red-700' :
+                               'bg-amber-50 text-amber-700')}>
+                              {req.status}
+                            </span>
+                          </div>
+                          {req.message && <p className="text-xs text-[#3D3A38] mb-2 italic">"{req.message}"</p>}
+                          {req.status === 'pending' && (
+                            <div>
+                              <div className="text-xs text-[#9B928E] mb-2">Their availability:</div>
+                              <div className="flex flex-col gap-1 mb-3">
+                                {req.slots.map((s, i) => {
+                                  const isSel = proposedSlot && proposingId === req.id && proposedSlot.date === s.date && proposedSlot.time === s.time
+                                  return (
+                                    <button key={i} type="button"
+                                      onClick={() => { setProposingId(req.id); setProposedSlot(s); setAlternativeMode(null) }}
+                                      className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
+                                      style={isSel ? {background:'#D3755A'} : {}}>
+                                      {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              {proposingId === req.id && proposedSlot && (
+                                <div className="flex flex-col gap-2">
+                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
+                                    placeholder="Add a note to the tenant (optional)..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
+                                  <button onClick={() => proposeViewing(req.id)} disabled={proposeLoading}
+                                    className="w-full py-2 rounded-xl text-white text-xs font-medium disabled:opacity-50"
+                                    style={{background:'#1B2E4B'}}>
+                                    {proposeLoading ? 'Sending...' : 'Propose slot →'}
+                                  </button>
+                                </div>
+                              )}
+                              {/* Propose alternative slot — always visible */}
+                              {alternativeMode !== req.id && (
+                                <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
+                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors mt-1">
+                                  Propose alternative slot
+                                </button>
+                              )}
+                              {alternativeMode === req.id && (
+                                <div className="flex flex-col gap-2 mt-2 border-t border-[#E8E2DA] pt-3">
+                                  <div className="text-xs text-[#9B928E] mb-1">Pick an alternative date & time:</div>
+                                  <input type="date" min={new Date().toISOString().split('T')[0]}
+                                    onChange={e => setProposedSlot(s => s ? {...s, date: e.target.value} : {date: e.target.value, time: '10:00 AM'})}
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+                                  <select onChange={e => setProposedSlot(s => s ? {...s, time: e.target.value} : {date: '', time: e.target.value})}
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                                    {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => (
+                                      <option key={t} value={t}>{t}</option>
+                                    ))}
+                                  </select>
+                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
+                                    placeholder="Reason for alternative time (optional)..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-14 bg-white" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setAlternativeMode(null); setProposedSlot(null) }}
+                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                                    <button onClick={() => proposeViewing(req.id)} disabled={!proposedSlot?.date || proposeLoading}
+                                      className="flex-1 py-1.5 rounded-xl text-white text-xs font-medium disabled:opacity-50"
+                                      style={{background:'#1B2E4B'}}>
+                                      {proposeLoading ? 'Sending...' : 'Send alternative →'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {req.status === 'proposed' && req.proposed_slot && (
+                            <div>
+                              <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700 mb-2">
+                                ⏳ Proposed: {new Date(req.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {req.proposed_slot.time} — awaiting tenant confirmation
+                                {req.proposed_slot.note && <div className="mt-1 text-blue-600 italic">Note: "{req.proposed_slot.note}"</div>}
+                              </div>
+                              {alternativeMode !== req.id ? (
+                                <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
+                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors">
+                                  Propose alternative slot
+                                </button>
+                              ) : (
+                                <div className="flex flex-col gap-2 mt-2">
+                                  <div className="text-xs text-[#9B928E] mb-1">Select a new slot:</div>
+                                  {req.slots.map((s, i) => {
+                                    const isSel = proposedSlot && proposedSlot.date === s.date && proposedSlot.time === s.time
+                                    return (
+                                      <button key={i} type="button" onClick={() => setProposedSlot(s)}
+                                        className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
+                                        style={isSel ? {background:'#D3755A'} : {}}>
+                                        {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
+                                      </button>
+                                    )
+                                  })}
+                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
+                                    placeholder="Add a note explaining the change (optional)..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setAlternativeMode(null); setProposedSlot(null) }}
+                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                                    <button onClick={() => proposeViewing(req.id)} disabled={!proposedSlot || proposeLoading}
+                                      className="flex-1 py-1.5 rounded-xl text-white text-xs font-medium disabled:opacity-50"
+                                      style={{background:'#1B2E4B'}}>
+                                      {proposeLoading ? 'Sending...' : 'Send alternative →'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {req.status === 'confirmed' && req.proposed_slot && (
+                            <div className="bg-green-50 rounded-lg p-2 text-xs text-green-700">
+                              ✓ Confirmed: {new Date(req.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {req.proposed_slot.time}
+                            </div>
+                          )}
+                          <div className="text-xs text-[#9B928E] mt-2">{new Date(req.created_at).toLocaleDateString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex gap-3">
                   <Link href={`/listings/${listing.id}`} target="_blank"
@@ -314,8 +563,126 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
               </div>
             )}
           </div>
-        )}
+        ))}
       </div>
     </main>
+  )
+}
+
+
+function ViewingsCalendar({ requests, listings }: { requests: any[], listings: any[] }) {
+  const confirmed = requests.filter(r => r.status === 'confirmed' && r.proposed_slot)
+  const proposed = requests.filter(r => r.status === 'proposed' && r.proposed_slot)
+
+  // Build calendar for next 4 weeks
+  const today = new Date()
+  const weeks: Date[][] = []
+  const startOfWeek = new Date(today)
+  startOfWeek.setDate(today.getDate() - today.getDay() + 1) // Monday
+
+  for (let w = 0; w < 4; w++) {
+    const week: Date[] = []
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(startOfWeek)
+      day.setDate(startOfWeek.getDate() + w * 7 + d)
+      week.push(day)
+    }
+    weeks.push(week)
+  }
+
+  function getViewingsForDate(date: Date) {
+    const dateStr = date.toISOString().split('T')[0]
+    return [...confirmed, ...proposed].filter(r => r.proposed_slot?.date === dateStr)
+  }
+
+  function getListingAddress(listingId: string) {
+    return listings.find(l => l.id === listingId)?.address || 'Property'
+  }
+
+  const upcoming = [...confirmed, ...proposed]
+    .filter(r => r.proposed_slot?.date >= today.toISOString().split('T')[0])
+    .sort((a, b) => a.proposed_slot.date.localeCompare(b.proposed_slot.date))
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Upcoming viewings list */}
+      <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+        <h3 className="text-sm font-medium text-[#1B2E4B] mb-4">Upcoming viewings</h3>
+        {upcoming.length === 0 ? (
+          <p className="text-sm text-[#9B928E]">No confirmed or proposed viewings yet.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {upcoming.map(r => (
+              <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl border border-[#E8E2DA]">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center text-white text-xs font-medium"
+                  style={{background: r.status === 'confirmed' ? '#D3755A' : '#1B2E4B'}}>
+                  <span className="text-lg font-light leading-none">
+                    {new Date(r.proposed_slot.date + 'T12:00:00').getDate()}
+                  </span>
+                  <span className="text-xs opacity-80">
+                    {new Date(r.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {month:'short'})}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-[#1B2E4B] truncate">{getListingAddress(r.listing_id)}</div>
+                  <div className="text-xs text-[#9B928E] mt-0.5">{r.proposed_slot.time} · {r.tenant_name}</div>
+                  <div className="text-xs text-[#9B928E]">{r.tenant_email}{r.tenant_phone ? ' · ' + r.tenant_phone : ''}</div>
+                  {r.proposed_slot.note && <div className="text-xs text-[#9B928E] mt-1 italic">"{r.proposed_slot.note}"</div>}
+                </div>
+                <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' +
+                  (r.status === 'confirmed' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700')}>
+                  {r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+        <h3 className="text-sm font-medium text-[#1B2E4B] mb-4">Next 4 weeks</h3>
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+            <div key={d} className="text-center text-xs text-[#9B928E] font-medium py-1">{d}</div>
+          ))}
+        </div>
+        {/* Weeks */}
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7 gap-1 mb-1">
+            {week.map((day, di) => {
+              const viewings = getViewingsForDate(day)
+              const isToday = day.toISOString().split('T')[0] === today.toISOString().split('T')[0]
+              const isPast = day < today && !isToday
+              return (
+                <div key={di} className={'rounded-xl p-1.5 min-h-[52px] text-center ' +
+                  (isToday ? 'ring-2 ring-[#D3755A]' : '') +
+                  (isPast ? ' opacity-40' : '') +
+                  (viewings.length > 0 ? ' bg-[#F5EBE0]' : ' bg-[#FAFAF8]')}>
+                  <div className={'text-xs mb-1 font-medium ' + (isToday ? 'text-[#D3755A]' : 'text-[#3D3A38]')}>
+                    {day.getDate()}
+                  </div>
+                  {viewings.map((v, i) => (
+                    <div key={i} className={'text-xs px-1 py-0.5 rounded mb-0.5 truncate ' +
+                      (v.status === 'confirmed' ? 'bg-[#D3755A] text-white' : 'bg-[#1B2E4B] text-white')}>
+                      {v.proposed_slot.time}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+        <div className="flex gap-3 mt-3">
+          <div className="flex items-center gap-1.5 text-xs text-[#9B928E]">
+            <div className="w-3 h-3 rounded" style={{background:'#D3755A'}}></div> Confirmed
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-[#9B928E]">
+            <div className="w-3 h-3 rounded" style={{background:'#1B2E4B'}}></div> Awaiting confirmation
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

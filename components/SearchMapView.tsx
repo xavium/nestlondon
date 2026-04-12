@@ -29,6 +29,16 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
 
   const mapped = listings.filter(l => l.latitude && l.longitude)
 
+  function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 3958.8
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) ** 2
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  }
+
+
+
   useEffect(() => {
     if (!mapContainer.current) return
     if (mapRef.current) { try { mapRef.current.remove() } catch {} mapRef.current = null }
@@ -41,6 +51,10 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       const L = (await import('leaflet')).default
       await import('leaflet/dist/leaflet.css')
       const viewed = getViewedListings()
+      const effectiveRadius = radius ?? (locationCoords ? 0.25 : null)
+      const filteredMapped = (effectiveRadius && locationCoords)
+        ? mapped.filter(l => distanceMiles(locationCoords.lat, locationCoords.lng, Number(l.latitude), Number(l.longitude)) <= effectiveRadius)
+        : mapped
 
       // Centre on London
       mapRef.current = L.map(mapContainer.current!, {
@@ -161,8 +175,8 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       ;(window as any).__markViewed = (id: string) => markAsViewed(id)
 
       // Draw radius circle and zoom to it
-      if (radius && locationCoords) {
-        const radiusMetres = radius * 1609.34
+      if (effectiveRadius && locationCoords) {
+        const radiusMetres = effectiveRadius * 1609.34
         L.circle([locationCoords.lat, locationCoords.lng], {
           radius: radiusMetres,
           color: '#D85A30',
@@ -200,11 +214,11 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       }
 
       // Fit to location or markers
-      if (!radius && locationCoords) {
+      if (!effectiveRadius && locationCoords) {
         // Have a location but no radius - zoom to it at street level
         mapRef.current.setView([locationCoords.lat, locationCoords.lng], 15, { animate: false })
-      } else if (!radius && mapped.length > 0) {
-        const bounds = L.latLngBounds(mapped.map((l: any) => [parseFloat(String(l.latitude)), parseFloat(String(l.longitude))] as [number, number]))
+      } else if (!effectiveRadius && filteredMapped.length > 0) {
+        const bounds = L.latLngBounds(filteredMapped.map((l: any) => [parseFloat(String(l.latitude)), parseFloat(String(l.longitude))] as [number, number]))
         mapRef.current.fitBounds(bounds, { padding: [40, 40], animate: false })
       }
     }
@@ -216,7 +230,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
   }, [radius, locationCoords, location])
 
   const RADIUS_OPTIONS = [
-    { label: 'Any', value: null },
+    { label: 'This area only', value: null },
     { label: '0.5 mi', value: 0.5 },
     { label: '1 mi', value: 1 },
     { label: '2 mi', value: 2 },
@@ -227,7 +241,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
   function changeRadius(r: number | null) {
     if (typeof window === 'undefined') return
     const sp = new URLSearchParams(window.location.search)
-    if (r === null) sp.delete('radius')
+    if (r === null) sp.set('radius', '0.25')  // 'This area only' = 0.25mi
     else sp.set('radius', String(r))
     sp.set('view', 'map') // preserve map view
     window.location.href = '/search?' + sp.toString()

@@ -25,8 +25,10 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
   if (combined.includes('top floor') || combined.includes('penthouse')) tags.push({label: 'Top floor', positive: true})
   if (combined.includes('period') || combined.includes('victorian') || combined.includes('georgian')) tags.push({label: 'Period', positive: true})
   if (combined.includes('newly') || combined.includes('refurb') || combined.includes('modern kitchen')) tags.push({label: 'Refurbed', positive: true})
-  if (listing.furnished === 'furnished') tags.push({label: 'Furnished', positive: true})
-  if (listing.furnished === 'unfurnished') tags.push({label: 'Unfurnished', positive: false})
+  const furnishedVal = (listing.furnished || '').toLowerCase()
+  if (furnishedVal.includes('furnished') && !furnishedVal.includes('unfurnished')) tags.push({label: 'Furnished', positive: true})
+  else if (furnishedVal.includes('unfurnished') && !furnishedVal.includes('furnished')) tags.push({label: 'Unfurnished', positive: false})
+  else if (furnishedVal.includes('part furnished') || (furnishedVal.includes('furnished') && furnishedVal.includes('unfurnished'))) tags.push({label: 'Part furnished', positive: true})
   return tags.slice(0, 4)
 }
 
@@ -114,6 +116,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
           {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span>Studio</span> : listing.bedrooms ? <span>{listing.bedrooms} bed</span> : null}
           {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
           {listing.property_type && <span>{listing.property_type}</span>}
+          {listing.furnished && <span>{(listing.furnished as string).split(',')[0].trim().charAt(0).toUpperCase() + (listing.furnished as string).split(',')[0].trim().slice(1)}</span>}
         </div>
         {desc && <p className="text-xs text-stone-500 leading-relaxed mb-3">{desc}</p>}
         {tags.length > 0 && (

@@ -34,8 +34,7 @@ export default function SearchFilters(props: Props) {
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
   const [minSize, setMinSize] = useState<number | null>(null)
   const [maxSize, setMaxSize] = useState<number | null>(null)
-  const [minFloors, setMinFloors] = useState<number | null>(null)
-  const [maxFloors, setMaxFloors] = useState<number | null>(null)
+  const [floorLayout, setFloorLayout] = useState<string | null>(null)
   const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
 
   // Sync with URL params when they change (e.g. NavFilters updates URL)
@@ -68,8 +67,7 @@ export default function SearchFilters(props: Props) {
     if (features.length > 0) p.set('features', features.join(','))
     if (minSize) p.set('minSize', String(minSize))
     if (maxSize) p.set('maxSize', String(maxSize))
-    if (minFloors) p.set('minFloors', String(minFloors))
-    if (maxFloors) p.set('maxFloors', String(maxFloors))
+    if (floorLayout) p.set('floorLayout', floorLayout)
     setOpen(false)
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
@@ -89,7 +87,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, minFloors, maxFloors].filter(Boolean).length + features.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + features.length
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -154,23 +152,6 @@ export default function SearchFilters(props: Props) {
           </div>
 
           <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Number of floors</label>
-            <div className="flex gap-2 items-center">
-              <select value={minFloors || ''} onChange={e => { setMinFloors(e.target.value ? Number(e.target.value) : null) }}
-                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
-                <option value="">No min</option>
-                {[1,2,3,4,5].map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-              <span className="text-xs text-[#9B928E]">to</span>
-              <select value={maxFloors || ''} onChange={e => { setMaxFloors(e.target.value ? Number(e.target.value) : null) }}
-                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
-                <option value="">No max</option>
-                {[1,2,3,4,5].map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Property type</label>
             <div className="flex flex-wrap gap-2">
               {['Flat','House','Studio','Maisonette','Bungalow'].map(t => (
@@ -188,6 +169,19 @@ export default function SearchFilters(props: Props) {
                 <button key={val} onClick={() => setFurnished(furnished === val ? null : val)}
                   className={'text-xs px-3 py-1.5 rounded-full border transition-colors flex-1 ' + (furnished === val ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
                 >{label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Floor layout</label>
+            <div className="flex flex-wrap gap-2">
+              {['Single level', 'Split-level', 'Multiple floors'].map(opt => (
+                <button key={opt} type="button" onClick={() => setFloorLayout(floorLayout === opt ? null : opt)}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (floorLayout === opt ? 'text-white border-transparent' : 'bg-[#F5EBE0] text-[#4A5568] border-[#E8E2DA] hover:border-[#D3755A]')}
+                  style={floorLayout === opt ? {background:'#D3755A'} : {}}>
+                  {opt}
+                </button>
               ))}
             </div>
           </div>

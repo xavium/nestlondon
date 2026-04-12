@@ -57,11 +57,12 @@ export default async function OwnerDashboardPage() {
 
   // Get comparable listings for pricing analysis
   const comparables: Record<string, any[]> = {}
+  const avgDaysOnMarket: Record<string, number | null> = {}
   for (const listing of allListings) {
     if (!listing.borough || !listing.price) continue
     const { data: comps } = await adminClient
       .from('listings')
-      .select('id,price,bedrooms,square_feet,borough')
+      .select('id,price,bedrooms,square_feet,borough,listed_at')
       .eq('is_active', true)
       .eq('borough', listing.borough)
       .not('id', 'eq', listing.id)
@@ -69,6 +70,29 @@ export default async function OwnerDashboardPage() {
       .lte('bedrooms', (listing.bedrooms || 1) + 1)
       .limit(50)
     comparables[listing.id] = comps || []
+    // Calculate avg days on market for similar listings
+    const withDates = (comps || []).filter((c: any) => c.listed_at)
+    if (withDates.length > 0) {
+      const avgDays = Math.round(
+        withDates.reduce((sum: number, c: any) => {
+          return sum + Math.floor((Date.now() - new Date(c.listed_at).getTime()) / 86400000)
+        }, 0) / withDates.length
+      )
+      avgDaysOnMarket[listing.id] = avgDays
+    } else {
+      avgDaysOnMarket[listing.id] = null
+    }
+  }
+
+  // Get viewing requests for all listings
+  let viewingRequests: any[] = []
+  if (ids.length > 0) {
+    const { data: vr } = await adminClient
+      .from('viewing_requests')
+      .select('*')
+      .in('listing_id', ids)
+      .order('created_at', { ascending: false })
+    viewingRequests = vr || []
   }
 
   return (
@@ -77,6 +101,8 @@ export default async function OwnerDashboardPage() {
       listings={allListings}
       events={events}
       comparables={comparables}
+      avgDaysOnMarket={avgDaysOnMarket}
+      viewingRequests={viewingRequests}
     />
   )
 }

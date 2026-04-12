@@ -90,6 +90,7 @@ export default function NavSearchBar({
     const maxP = overrides.maxP !== undefined ? overrides.maxP : maxPrice
     if (loc) p.set('location', loc)
     if (r) p.set('radius', String(r))
+    else if (loc) p.set('radius', '0.25')
     if (minB !== null) p.set('minBeds', String(minB))
     if (maxB !== null) p.set('maxBeds', String(maxB))
     if (minP) p.set('minPrice', String(minP))
@@ -117,7 +118,7 @@ export default function NavSearchBar({
     ? [(minBeds === 0 ? 'Studio' : minBeds ?? 'Min'), (maxBeds === 0 ? 'Studio' : maxBeds ?? 'Max')].join(' – ') + (minBeds === 0 && maxBeds === 0 ? '' : ' bed')
     : 'Beds'
 
-  const radiusLabel = radius ? `${radius} mi` : 'Anywhere'
+  const radiusLabel = radius ? `Within ${radius} mi` : 'This area only'
   const addedWithinLabel = localAddedWithin ? (localAddedWithin === 1 ? '24h' : localAddedWithin === 30 ? '1 month' : localAddedWithin === 90 ? '3 months' : localAddedWithin + 'd') : 'Added'
   const priceActive = !!(minPrice || maxPrice)
   const bedsActive = minBeds !== null || maxBeds !== null
@@ -237,7 +238,7 @@ export default function NavSearchBar({
             <button key={String(r)} onClick={() => { setRadius(r); setActive(null); doSearch({r}) }}
               className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (radius === r ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
               style={radius === r ? {background: '#D3755A'} : {}}
-            >{r === null ? 'Anywhere' : `Within ${r} mi`}</button>
+            >{r === null ? 'This area only' : `Within ${r} mi`}</button>
           ))}
         </div>
       )}

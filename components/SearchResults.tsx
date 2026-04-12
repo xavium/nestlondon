@@ -63,7 +63,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 
   // Split: inRadius = within selected radius (or 0.5mi default)
   //        nearby   = everything else sorted by distance
-  const splitRadius = radius ?? (locationCoords ? 0.5 : null)
+  const splitRadius = radius ?? (locationCoords ? 0.25 : null)
   let inRadius = filtered
   let nearby: any[] = []
 
@@ -126,7 +126,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
           listings={radius
             ? inRadius.filter((l: any) => l.latitude && l.longitude)
             : allListings.filter((l: any) => l.latitude && l.longitude)}
-          radius={radius ? radius : (locationCoords ? 0.5 : null)}
+          radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}
         />

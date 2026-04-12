@@ -1,3 +1,4 @@
+import ContactOwnerPanel from '@/components/ContactOwnerPanel'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
@@ -507,7 +508,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
           <div className="flex flex-col gap-5">
             {isDirectListing ? (
-              <EnquiryForm listing={listing} />
+              <ContactOwnerPanel listingId={listing.id} address={listing.address} />
             ) : (
               <ExternalLinkCard listing={listing} />
             )}
@@ -600,30 +601,23 @@ function ExternalLinkCard({ listing }: { listing: any }) {
         {listing.bathrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
         {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
       </div>
-      {listing.source_url ? (
-        <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
-          className="block w-full bg-orange-700 text-white text-sm rounded-lg py-3 text-center hover:bg-orange-800 transition-colors mb-3">
-          View on {listing.source} →
-        </a>
+      {['Private owner', 'Landlord'].includes(listing.source) ? (
+        <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+      ) : listing.source_url ? (
+        <>
+          <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
+            className="block w-full text-white text-sm rounded-xl py-3 text-center transition-opacity hover:opacity-90 mb-3"
+            style={{background:'#D3755A'}}>
+            View on {listing.source} →
+          </a>
+          <p className="text-xs text-[#9B928E] text-center">Enquire directly on {listing.source}. NestLondon does not charge tenants any fees.</p>
+        </>
       ) : (
-        <div className="w-full bg-stone-200 text-stone-400 text-sm rounded-lg py-3 text-center">Source unavailable</div>
+        <div className="w-full bg-stone-100 text-[#9B928E] text-sm rounded-xl py-3 text-center">Source unavailable</div>
       )}
-      <p className="text-xs text-stone-400 text-center">Enquire directly on {listing.source}. NestLondon does not charge tenants any fees.</p>
     </div>
   )
 }
 
-function EnquiryForm({ listing }: { listing: any }) {
-  return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6">
-      <h3 className="text-sm font-medium text-[#1C2B3A] mb-1">Enquire about this property</h3>
-      <p className="text-xs text-stone-400 mb-5">Direct listing — no portal fees</p>
-      <input className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Your name" />
-      <input className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Email address" />
-      <input className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-3 outline-none focus:border-orange-600" placeholder="Phone number" />
-      <textarea className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-orange-600 min-h-20 resize-none" placeholder="I am interested in arranging a viewing..." />
-      <button className="w-full bg-orange-700 text-white rounded-lg py-2.5 text-sm hover:bg-orange-800 transition-colors">Send enquiry</button>
-      <p className="text-xs text-stone-400 mt-3 text-center">NestLondon does not charge tenants any fees.</p>
-    </div>
-  )
-}
+// EnquiryForm moved to separate client component — see below
+function EnquiryFormPlaceholder() { return null }

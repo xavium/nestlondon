@@ -1,4 +1,5 @@
 'use client'
+import NavAuthButton from '@/components/NavAuthButton'
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -20,10 +21,19 @@ const SUGGESTIONS = [
 const PRICE_OPTIONS = [null, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
 const BED_OPTIONS = [null, 0, 1, 2, 3, 4, 5]
 
-type ActivePanel = 'location' | 'minPrice' | 'maxPrice' | 'minBeds' | 'maxBeds' | 'addedWithin' | null
+type ActivePanel = 'location' | 'minPrice' | 'maxPrice' | 'minBeds' | 'maxBeds' | 'addedWithin' | 'radius' | null
 
 export default function HomePage() {
+  const [listingMode, setListingMode] = useState<'rent' | 'buy'>('rent')
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
+
+  function switchMode(mode: 'rent' | 'buy') {
+    if (mode === listingMode) return
+    setSlideDir(mode === 'buy' ? 'left' : 'right')
+    setTimeout(() => { setListingMode(mode); setSlideDir(null) }, 200)
+  }
   const [location, setLocation] = useState('')
+  const [radius, setRadius] = useState<number | null>(null)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState<number | null>(null)
   const [maxPrice, setMaxPrice] = useState<number | null>(null)
@@ -107,7 +117,7 @@ export default function HomePage() {
           <div className="flex gap-6 text-sm text-white/70 items-center">
             <span className="cursor-pointer hover:text-white transition-colors">Buy</span>
             <span className="cursor-pointer hover:text-white transition-colors">Rent</span>
-            <a href="/auth/login" className="hover:text-white transition-colors text-white/70 no-underline">Login</a>
+            <NavAuthButton />
             <a href="/list" className="px-4 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90 no-underline flex-shrink-0" style={{background:'#D3755A'}}>
               List your property
             </a>
@@ -121,12 +131,36 @@ export default function HomePage() {
           </h1>
 
           {/* Unified search bar */}
-          <div ref={ref} className="w-full max-w-4xl" style={{fontFamily: "var(--font-sans, Manrope, system-ui)"}}>
+          <div className="flex justify-center mb-4">
+            <div className="flex bg-white/15 backdrop-blur-sm rounded-full p-1 gap-1">
+              {(['rent', 'buy'] as const).map(mode => (
+                <button key={mode} type="button" onClick={() => switchMode(mode)}
+                  className={'px-6 py-2 rounded-full text-sm font-medium transition-all ' + (listingMode === mode ? 'bg-white text-[#1B2E4B] shadow-sm' : 'text-white/80 hover:text-white')}>
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div ref={ref} className="w-full max-w-5xl" style={{fontFamily: "var(--font-sans, Manrope, system-ui)"}}>
             <div className="bg-white rounded-2xl shadow-2xl flex items-stretch overflow-visible relative">
+              {listingMode === 'buy' && (
+                <div className="flex flex-1 items-stretch" style={{animation: 'fadeSlide 0.25s ease'}}>
+                  <div className="flex-[3] flex flex-col justify-center px-5 py-3 cursor-text rounded-l-2xl">
+                    <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Location</div>
+                    <input value={location} onChange={handleLocationChange} placeholder="Where are you looking to buy?" className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full" autoComplete="off" />
+                  </div>
+                  <button type="button" className="flex items-center gap-2 px-7 m-2 rounded-xl text-white font-medium text-sm" style={{background:'#D3755A'}}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth="2"/><path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round"/></svg>
+                    Search
+                  </button>
+                </div>
+              )}
+              {listingMode === 'rent' && (
+                <div className="flex flex-1 items-stretch" style={{animation: 'fadeSlide 0.25s ease'}}>
 
               {/* Location */}
               <div
-                className={'flex-1 flex flex-col justify-center px-5 py-3 cursor-text rounded-l-2xl transition-colors ' + (active === 'location' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                className={'flex-[3] flex flex-col justify-center px-5 py-3 cursor-text rounded-l-2xl transition-colors ' + (active === 'location' ? 'bg-stone-50' : 'hover:bg-stone-50')}
                 onClick={() => setActive('location')}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Location</div>
@@ -158,15 +192,41 @@ export default function HomePage() {
 
               <div className="w-px bg-stone-200 self-stretch my-3" />
 
+              {/* Distance */}
+              <div className="relative">
+                <button
+                  onClick={() => setActive(active === 'radius' ? null : 'radius')}
+                  className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors ' + (active === 'radius' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                >
+                  <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Distance</div>
+                  <div className={'text-sm ' + (radius ? 'text-[#1C2B3A]' : 'text-stone-300')}>{radius ? `Within ${radius} mi` : 'This area only'}</div>
+                </button>
+                {active === 'radius' && (
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44" onClick={e => e.stopPropagation()}>
+                    {([null, 0.5, 1, 2, 3, 5, 10] as (number|null)[]).map(r => (
+                      <button key={String(r)} type="button"
+                        onClick={() => { setRadius(r); setActive(null) }}
+                        className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (radius === r ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                        style={radius === r ? {background:'#D3755A'} : {}}>
+                        {r === null ? 'This area only' : `Within ${r} mi`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="w-px bg-stone-200 self-stretch my-3" />
+
               {/* Price range */}
+              <div className="relative">
               <div
-                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[160px] ' + (active === 'minPrice' || active === 'maxPrice' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[130px] ' + (active === 'minPrice' || active === 'maxPrice' ? 'bg-stone-50' : 'hover:bg-stone-50')}
                 onClick={() => setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Price range</div>
                 <div className={'text-sm ' + (priceLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{priceLabel || 'Any price'}</div>
                 {(active === 'minPrice' || active === 'maxPrice') && (
-                  <div className="absolute top-full left-1/4 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-80" onClick={e => e.stopPropagation()}>
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-80" onClick={e => e.stopPropagation()}>
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
@@ -193,18 +253,20 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+              </div>
 
               <div className="w-px bg-stone-200 self-stretch my-3" />
 
               {/* Bedrooms */}
+              <div className="relative">
               <div
-                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[140px] ' + (active === 'minBeds' || active === 'maxBeds' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'minBeds' || active === 'maxBeds' ? 'bg-stone-50' : 'hover:bg-stone-50')}
                 onClick={() => setActive(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Bedrooms</div>
                 <div className={'text-sm ' + (bedsLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{bedsLabel || 'Any beds'}</div>
                 {(active === 'minBeds' || active === 'maxBeds') && (
-                  <div className="absolute top-full right-16 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
@@ -228,17 +290,19 @@ export default function HomePage() {
                 )}
               </div>
 
+              </div>
               <div className="w-px bg-stone-200 self-stretch my-3" />
 
               {/* Added within */}
+              <div className="relative">
               <div
-                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[120px] ' + (active === 'addedWithin' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'addedWithin' ? 'bg-stone-50' : 'hover:bg-stone-50')}
                 onClick={() => setActive(active === 'addedWithin' ? null : 'addedWithin')}
               >
                 <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-widest mb-0.5">Added</div>
                 <div className={'text-sm ' + (addedWithinLabel ? 'text-[#3D3A38]' : 'text-stone-300')}>{addedWithinLabel || 'Any time'}</div>
                 {active === 'addedWithin' && (
-                  <div className="absolute top-full right-16 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44" onClick={e => e.stopPropagation()}>
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44" onClick={e => e.stopPropagation()}>
                     {([null, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
                       <button key={String(d)} onClick={() => { setAddedWithin(d); setActive(null) }}
                         className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (addedWithin === d ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
@@ -249,6 +313,7 @@ export default function HomePage() {
                 )}
               </div>
 
+              </div>
               {/* More filters */}
               <div className="flex items-center px-2">
                 <SearchFilters
@@ -289,6 +354,8 @@ export default function HomePage() {
                 </svg>
                 Search
               </button>
+              </div>
+              )}
             </div>
 
             <p className="text-center text-white/50 text-xs mt-4">

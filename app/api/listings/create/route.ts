@@ -6,9 +6,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const {
       name, email, phone, address, borough, postcode,
-      property_type, bedrooms, bathrooms, price, deposit,
-      available_from, furnished, description, images,
-      has_garden, has_balcony, has_parking, has_bills_included, pets_allowed,
+      property_type, bedrooms, bathrooms, square_feet,
+      which_floor, total_floors, floor_layout, epc_rating, council_tax_band,
+      price, deposit, available_from, furnished, description, images,
+      has_garden, has_balcony, has_terrace, has_parking, has_garage,
+      has_concierge, has_lift, has_porter, pets_allowed, bills_included,
+      new_build, shared_ownership,
       company_name, company_reg, listing_type
     } = body
 
@@ -24,14 +27,26 @@ export async function POST(req: NextRequest) {
     const features: string[] = []
     if (has_garden) features.push('Garden')
     if (has_balcony) features.push('Balcony')
+    if (has_terrace) features.push('Terrace')
     if (has_parking) features.push('Parking')
-    if (has_bills_included) features.push('Bills included')
+    if (has_garage) features.push('Garage')
+    if (has_concierge) features.push('Concierge')
+    if (has_lift) features.push('Lift')
+    if (has_porter) features.push('Porter')
     if (pets_allowed) features.push('Pets allowed')
+    if (bills_included) features.push('Bills included')
+    if (new_build) features.push('New build')
+    if (shared_ownership) features.push('Shared ownership')
 
     const letting_details: Record<string, string> = {}
     if (deposit) letting_details['Deposit'] = '£' + parseInt(deposit).toLocaleString()
     if (available_from) letting_details['Available'] = available_from
-    if (furnished) letting_details['Furnished'] = furnished
+    if (furnished) letting_details['Furnished'] = Array.isArray(furnished) ? furnished.join(', ') : furnished
+    if (epc_rating) letting_details['EPC Rating'] = epc_rating
+    if (council_tax_band) letting_details['Council Tax'] = 'Band ' + council_tax_band
+    if (which_floor) letting_details['Floor'] = which_floor
+    if (total_floors) letting_details['Building floors'] = total_floors
+    if (floor_layout) letting_details['Layout'] = floor_layout
 
     const raw_data = {
       key_features: features,
@@ -49,12 +64,13 @@ export async function POST(req: NextRequest) {
       property_type,
       description,
       images: JSON.stringify(images || []),
+      square_feet: square_feet ? parseInt(square_feet) : null,
       source: listing_type === 'private' ? 'Private owner' : 'Landlord',
       source_url: null,
       is_active: false,
       listed_at: new Date().toISOString(),
       raw_data,
-      furnished: furnished?.toLowerCase(),
+      furnished: Array.isArray(furnished) ? furnished.map((f: string) => f.toLowerCase()).join(', ') : furnished?.toLowerCase(),
     }).select('id').single()
 
     if (error) throw error

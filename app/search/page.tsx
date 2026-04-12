@@ -21,8 +21,7 @@ interface SearchParams {
   availableFrom?: string
   minSize?: string
   maxSize?: string
-  minFloors?: string
-  maxFloors?: string
+  floorLayout?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -41,8 +40,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const availableFrom = params.availableFrom || null
   const minSize = params.minSize ? parseInt(params.minSize) : null
   const maxSize = params.maxSize ? parseInt(params.maxSize) : null
-  const minFloors = params.minFloors ? parseInt(params.minFloors) : null
-  const maxFloors = params.maxFloors ? parseInt(params.maxFloors) : null
+  const floorLayout = params.floorLayout || null
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -185,24 +183,21 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     const feats = JSON.stringify(listing.features || '').toLowerCase()
     const combined = desc + ' ' + feats
 
-    // Floors filter
-    if (minFloors || maxFloors) {
+    // Floor layout filter
+    if (floorLayout) {
       const descLower = (listing.description || '').toLowerCase()
-      const wordNums: Record<string, number> = { 'one': 1, 'two': 2, 'three': 3, 'four': 4 }
-      let floors: number | null = null
-      if (/split.?level|over two floors|two.storey|maisonette|duplex/.test(descLower)) floors = 2
-      else if (/over three floors|three.storey|triplex/.test(descLower)) floors = 3
-      else {
-        for (const [word, num] of Object.entries(wordNums)) {
-          if (descLower.includes('over ' + word + ' floor') || descLower.includes('across ' + word + ' floor')) { floors = num; break }
-        }
-        const numMatch = descLower.match(/over\s+(\d+)\s+floors?/)
-        if (numMatch) floors = parseInt(numMatch[1])
-        if (!floors && /\b(flat|apartment|studio)\b/.test(descLower) && !/split.?level|over (?:two|three|\d+) floors?|maisonette|duplex|two.storey/.test(descLower)) floors = 1
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const layout = (rd?.letting_details?.Layout || '').toLowerCase()
+      const combined = descLower + ' ' + layout
+      if (floorLayout === 'Single level') {
+        if (!/single.level|single level/.test(combined) && !/(flat|apartment|studio)/.test(combined)) return false
+        if (/split.level|over two floors|maisonette|duplex/.test(combined)) return false
+      } else if (floorLayout === 'Split-level') {
+        if (!/split[- ]?level/.test(combined)) return false
+        if (!/split.level|split level/.test(combined)) return false
+      } else if (floorLayout === 'Multiple floors') {
+        if (!/multiple floors|over two floors|over three floors|two.storey|three.storey|maisonette/.test(combined) && !/multiple floors/i.test(layout)) return false
       }
-      if (!floors) return false
-      if (minFloors && floors < minFloors) return false
-      if (maxFloors && floors > maxFloors) return false
     }
 
     // Size filter
