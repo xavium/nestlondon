@@ -55,7 +55,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
     <Link
       href={'/listings/' + listing.id + fromParam}
       onClick={() => markAsViewed(listing.id)}
-      className={'group block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-[#F5F0EB] border-[#E8E2DA] opacity-80' : 'bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300')}
+      className={'group block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-white border-[#E8E2DA] opacity-75' : 'bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300')}
     >
       <div className="relative h-48 overflow-hidden">
         {imgSrc ? (

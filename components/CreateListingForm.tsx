@@ -1,0 +1,334 @@
+'use client'
+
+import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+
+interface Props {
+  type: 'private' | 'landlord'
+}
+
+const PROPERTY_TYPES = ['Flat', 'House', 'Studio', 'Maisonette', 'Bungalow', 'Room']
+const FURNISHED_OPTIONS = ['Furnished', 'Unfurnished', 'Part furnished']
+
+export default function CreateListingForm({ type }: Props) {
+  const router = useRouter()
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const [form, setForm] = useState({
+    // Contact
+    name: '', email: '', phone: '',
+    // Property
+    address: '', borough: '', postcode: '',
+    property_type: 'Flat', bedrooms: '', bathrooms: '',
+    // Price
+    price: '', deposit: '', available_from: '',
+    // Details
+    furnished: 'Furnished', description: '',
+    // Features
+    has_garden: false, has_balcony: false, has_parking: false,
+    has_bills_included: false, pets_allowed: false,
+    // Landlord extras
+    company_name: '', company_reg: '',
+  })
+
+  function set(k: string, v: any) { setForm(f => ({...f, [k]: v})) }
+
+  function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    setImageFiles(prev => [...prev, ...files].slice(0, 10))
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = ev => setImagePreviews(prev => [...prev, ev.target?.result as string].slice(0, 10))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  function removeImage(i: number) {
+    setImageFiles(prev => prev.filter((_, idx) => idx !== i))
+    setImagePreviews(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  async function handleSubmit() {
+    setLoading(true)
+    setError('')
+    try {
+      // Upload images to Supabase storage via our API
+      const imageUrls: string[] = []
+      for (const file of imageFiles) {
+        try {
+          const fd = new FormData()
+          fd.append('file', file)
+          const r = await fetch('/api/listings/upload-image', { method: 'POST', body: fd })
+          if (r.ok) {
+            const d = await r.json()
+            if (d.url) imageUrls.push(d.url)
+          }
+        } catch {}
+      }
+
+      // Submit listing
+      const res = await fetch('/api/listings/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, images: imageUrls, listing_type: type })
+      })
+      const text = await res.text()
+      console.log('API response:', res.status, text)
+      let data: any = {}
+      try { data = JSON.parse(text) } catch { throw new Error('Server error: ' + text.slice(0, 200)) }
+      if (!res.ok) throw new Error(data.error || 'Failed to create listing')
+      setSuccess(true)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{background:'rgba(211,117,90,0.12)'}}>
+          <svg className="w-8 h-8" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <h2 className="text-2xl font-light text-[#1B2E4B] mb-3" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Listing submitted!</h2>
+        <p className="text-[#3D3A38] text-sm mb-8">Your property will be reviewed and published within 24 hours. We'll email you at {form.email}.</p>
+        <button onClick={() => router.push('/')} className="px-6 py-3 rounded-xl text-white text-sm" style={{background:'#D3755A'}}>Back to home</button>
+      </div>
+    )
+  }
+
+  const inputClass = "w-full border border-[#E8E2DA] rounded-xl px-4 py-3 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white transition-colors"
+  const labelClass = "block text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-1.5"
+
+  return (
+    <div>
+      {/* Progress */}
+      <div className="flex items-center gap-2 mb-8">
+        {[1,2,3,4].map(s => (
+          <div key={s} className="flex items-center gap-2 flex-1">
+            <div className={'flex-1 h-1 rounded-full transition-colors ' + (step >= s ? 'opacity-100' : 'opacity-20')} style={{background: step >= s ? '#D3755A' : '#E8E2DA'}} />
+          </div>
+        ))}
+      </div>
+
+      {/* Step 1: Contact details */}
+      {step === 1 && (
+        <div>
+          <h2 className="text-xl font-light text-[#1B2E4B] mb-6" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Your contact details</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className={labelClass}>Full name *</label>
+              <input className={inputClass} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Jane Smith" />
+            </div>
+            <div>
+              <label className={labelClass}>Email address *</label>
+              <input type="email" className={inputClass} value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@example.com" />
+            </div>
+            <div>
+              <label className={labelClass}>Phone number</label>
+              <input type="tel" className={inputClass} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+44 7700 900000" />
+            </div>
+            {type === 'landlord' && (
+              <>
+                <div>
+                  <label className={labelClass}>Company name (optional)</label>
+                  <input className={inputClass} value={form.company_name} onChange={e => set('company_name', e.target.value)} placeholder="Smith Properties Ltd" />
+                </div>
+                <div>
+                  <label className={labelClass}>Company registration number (optional)</label>
+                  <input className={inputClass} value={form.company_reg} onChange={e => set('company_reg', e.target.value)} placeholder="12345678" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Property details */}
+      {step === 2 && (
+        <div>
+          <h2 className="text-xl font-light text-[#1B2E4B] mb-6" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Property details</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className={labelClass}>Full address *</label>
+              <input className={inputClass} value={form.address} onChange={e => set('address', e.target.value)} placeholder="12 Acacia Avenue, Hackney" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Borough</label>
+                <input className={inputClass} value={form.borough} onChange={e => set('borough', e.target.value)} placeholder="Hackney" />
+              </div>
+              <div>
+                <label className={labelClass}>Postcode *</label>
+                <input className={inputClass} value={form.postcode} onChange={e => set('postcode', e.target.value)} placeholder="E8 1AB" />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Property type *</label>
+              <div className="flex flex-wrap gap-2">
+                {PROPERTY_TYPES.map(t => (
+                  <button key={t} type="button" onClick={() => set('property_type', t)}
+                    className={'text-sm px-4 py-2 rounded-xl border transition-colors ' + (form.property_type === t ? 'text-white border-transparent' : 'text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
+                    style={form.property_type === t ? {background:'#D3755A'} : {}}
+                  >{t}</button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Bedrooms *</label>
+                <select className={inputClass} value={form.bedrooms} onChange={e => set('bedrooms', e.target.value)}>
+                  <option value="">Select</option>
+                  <option value="0">Studio</option>
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Bathrooms</label>
+                <select className={inputClass} value={form.bathrooms} onChange={e => set('bathrooms', e.target.value)}>
+                  <option value="">Select</option>
+                  {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Price & availability */}
+      {step === 3 && (
+        <div>
+          <h2 className="text-xl font-light text-[#1B2E4B] mb-6" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Price & availability</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className={labelClass}>Monthly rent (£) *</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9B928E] text-sm">£</span>
+                <input type="number" className={inputClass + " pl-8"} value={form.price} onChange={e => set('price', e.target.value)} placeholder="1800" />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Deposit (£)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9B928E] text-sm">£</span>
+                <input type="number" className={inputClass + " pl-8"} value={form.deposit} onChange={e => set('deposit', e.target.value)} placeholder="2076" />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Available from *</label>
+              <input type="date" className={inputClass} value={form.available_from} onChange={e => set('available_from', e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>Furnished status</label>
+              <div className="flex gap-2">
+                {FURNISHED_OPTIONS.map(f => (
+                  <button key={f} type="button" onClick={() => set('furnished', f)}
+                    className={'text-sm px-4 py-2 rounded-xl border transition-colors flex-1 ' + (form.furnished === f ? 'text-white border-transparent' : 'text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
+                    style={form.furnished === f ? {background:'#D3755A'} : {}}
+                  >{f}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: Description, features & photos */}
+      {step === 4 && (
+        <div>
+          <h2 className="text-xl font-light text-[#1B2E4B] mb-6" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Description & photos</h2>
+          <div className="grid grid-cols-1 gap-5">
+            <div>
+              <label className={labelClass}>Description *</label>
+              <textarea
+                className={inputClass + " resize-none h-32"}
+                value={form.description}
+                onChange={e => set('description', e.target.value)}
+                placeholder="Describe the property — layout, condition, local amenities, transport links..."
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Features</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  {key:'has_garden', label:'Garden'},
+                  {key:'has_balcony', label:'Balcony'},
+                  {key:'has_parking', label:'Parking'},
+                  {key:'has_bills_included', label:'Bills included'},
+                  {key:'pets_allowed', label:'Pets allowed'},
+                ].map(({key, label}) => (
+                  <button key={key} type="button" onClick={() => set(key, !(form as any)[key])}
+                    className={'text-sm px-4 py-2 rounded-xl border transition-colors ' + ((form as any)[key] ? 'text-white border-transparent' : 'text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
+                    style={(form as any)[key] ? {background:'#D3755A'} : {}}
+                  >
+                    {(form as any)[key] ? '✓ ' : ''}{label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Photos (up to 10)</label>
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="border-2 border-dashed border-[#E8E2DA] rounded-xl p-8 text-center cursor-pointer hover:border-[#D3755A] transition-colors"
+              >
+                <svg className="w-8 h-8 mx-auto mb-2 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <p className="text-sm text-[#9B928E]">Click to upload photos</p>
+                <p className="text-xs text-[#9B928E] mt-1">JPG, PNG up to 10MB each</p>
+                <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImages} />
+              </div>
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mt-3">
+                  {imagePreviews.map((src, i) => (
+                    <div key={i} className="relative rounded-lg overflow-hidden aspect-square">
+                      <img src={src} className="w-full h-full object-cover" />
+                      <button onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
+
+      {/* Navigation */}
+      <div className="flex gap-3 mt-8">
+        {step > 1 && (
+          <button onClick={() => setStep(s => s-1)}
+            className="flex-1 py-3 rounded-xl border border-[#E8E2DA] text-sm text-[#3D3A38] hover:border-[#D3755A] transition-colors">
+            ← Back
+          </button>
+        )}
+        {step < 4 ? (
+          <button onClick={() => setStep(s => s+1)}
+            className="flex-1 py-3 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90"
+            style={{background:'#D3755A'}}>
+            Continue →
+          </button>
+        ) : (
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex-1 py-3 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{background:'#1B2E4B'}}>
+            {loading ? 'Submitting...' : 'Submit listing'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}

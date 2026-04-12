@@ -32,6 +32,10 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
   useEffect(() => {
     if (!mapContainer.current) return
     if (mapRef.current) { try { mapRef.current.remove() } catch {} mapRef.current = null }
+    if (mapContainer.current) {
+      // Clear Leaflet's internal container ID to allow re-initialisation
+      delete (mapContainer.current as any)._leaflet_id
+    }
 
     async function initMap() {
       const L = (await import('leaflet')).default

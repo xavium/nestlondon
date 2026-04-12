@@ -33,13 +33,25 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     { cookies: { getAll() { return cookieStore.getAll() } } }
   )
 
-  const { data: listing } = await supabase
+  // Use service role key for admin preview to bypass RLS
+  const isAdminPreviewEarly = sp.preview === 'true'
+  const queryClient = isAdminPreviewEarly
+    ? (await import('@supabase/supabase-js')).createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+    : supabase
+
+  const { data: listing } = await queryClient
     .from('listings')
     .select('*')
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
-  if (!listing) notFound()
+  if (!listing) { console.log('404: listing not found', id); notFound() }
+  const isAdminPreview = isAdminPreviewEarly
+  console.log('Listing found:', id, 'is_active:', listing.is_active, 'isAdminPreview:', isAdminPreview, 'agent_id:', listing.agent_id)
+  if (!listing.is_active && !isAdminPreview && !listing.agent_id) { console.log('404: inactive listing, no preview'); notFound() }
 
   let nearbyListings: any[] = []
   if (listing.latitude && listing.longitude) {

@@ -33,7 +33,7 @@ export default function LoginPage() {
           <h1 className="text-3xl font-light text-[#1C2B3A]">
             nestlondon
           </h1>
-          <p className="text-stone-500 text-sm mt-2">Agent login</p>
+          <p className="text-stone-500 text-sm mt-2">Sign in to your account</p>
         </div>
         <form onSubmit={handleLogin} className="bg-white border border-[#E8E2DA] rounded-2xl p-8">
           {error && (
@@ -49,7 +49,7 @@ export default function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               required
               className="w-full border border-[#E8E2DA] rounded-lg px-3 py-2.5 text-sm text-[#1C2B3A] outline-none focus:border-orange-600"
-              placeholder="you@agency.co.uk"
+              placeholder="you@example.co.uk"
             />
           </div>
           <div className="mb-6">
@@ -72,8 +72,8 @@ export default function LoginPage() {
           </button>
           <p className="text-center text-sm text-stone-500 mt-4">
             No account?{' '}
-            <Link href="/auth/signup" className="text-orange-700 hover:underline">
-              Register your agency
+            <Link href="/auth/register" className="text-orange-700 hover:underline">
+              Register
             </Link>
           </p>
         </form>

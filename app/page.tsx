@@ -76,7 +76,13 @@ export default function HomePage() {
     ? [minPrice ? '£' + minPrice.toLocaleString() : 'Min', maxPrice ? '£' + maxPrice.toLocaleString() : 'Max'].join(' – ')
     : null
   const bedsLabel = minBeds || maxBeds
-  const addedWithinLabel = addedWithin ? (addedWithin === 1 ? '24 hours' : addedWithin === 30 ? '1 month' : addedWithin === 90 ? '3 months' : addedWithin + ' days') : null
+  const addedWithinLabel = (() => {
+    if (!addedWithin) return null
+    if (addedWithin === 1) return '24 hours'
+    if (addedWithin === 30) return '1 month'
+    if (addedWithin === 90) return '3 months'
+    return `${addedWithin} days`
+  })()
     ? [(minBeds === 0 ? 'Studio' : minBeds ?? 'Min'), (maxBeds === 0 ? 'Studio' : maxBeds ?? 'Max')].join(' – ') + (minBeds === 0 && maxBeds === 0 ? '' : ' bed')
     : null
 
@@ -98,10 +104,13 @@ export default function HomePage() {
           <div className="text-2xl font-light text-white" style={{fontFamily: 'Georgia, serif'}}>
             nest<span style={{color: '#D85A30'}} className="italic">london</span>
           </div>
-          <div className="flex gap-6 text-sm text-white/70">
+          <div className="flex gap-6 text-sm text-white/70 items-center">
             <span className="cursor-pointer hover:text-white transition-colors">Buy</span>
             <span className="cursor-pointer hover:text-white transition-colors">Rent</span>
-            <span className="cursor-pointer hover:text-white transition-colors">For agents</span>
+            <a href="/auth/login" className="hover:text-white transition-colors text-white/70 no-underline">Login</a>
+            <a href="/list" className="px-4 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90 no-underline flex-shrink-0" style={{background:'#D3755A'}}>
+              List your property
+            </a>
           </div>
         </nav>
 
