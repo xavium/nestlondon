@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import SearchMapView from '@/components/SearchMapView'
+import SaveSearchButton from '@/components/SaveSearchButton'
 import ListingCard from '@/components/ListingCard'
 
 interface Coords { lat: number, lng: number }
@@ -116,6 +117,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-stone-500">
           {inRadius.length} properties{location ? ' in ' + location : ' in London'}
+          <SaveSearchButton />
           {radiusLabel ? ` · ${radiusLabel}` : ''}
         </p>
         <ViewToggle view={view} setView={setView} />
@@ -123,9 +125,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 
       {view === 'map' ? (
         <SearchMapView
-          listings={radius
-            ? inRadius.filter((l: any) => l.latitude && l.longitude)
-            : allListings.filter((l: any) => l.latitude && l.longitude)}
+          listings={inRadius.filter((l: any) => l.latitude && l.longitude)}
           radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}

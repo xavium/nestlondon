@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 import NavSearchBar from '@/components/NavSearchBar'
+import NavAuthButton from '@/components/NavAuthButton'
 import SearchFilters from '@/components/SearchFilters'
 import ListingCard from '@/components/ListingCard'
 import { SearchResults } from '@/components/SearchResults'
@@ -292,7 +293,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <main className="min-h-screen bg-[#F5F0EB]">
-      <nav className="border-b border-[#1C2B3A]/10 bg-white">
+      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
           <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
             nest<span className="text-orange-700 italic">london</span>
@@ -314,6 +315,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               availableFrom={availableFrom}
             />
           </div>
+          <NavAuthButton variant="light" />
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">

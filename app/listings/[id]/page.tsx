@@ -3,12 +3,14 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
 import NavSearchBar from '@/components/NavSearchBar'
+import NavAuthButton from '@/components/NavAuthButton'
 import Link from 'next/link'
 import ImageGallery from '@/components/ImageGallery'
 import PropertyMap from '@/components/PropertyMap'
 import MarkViewed from '@/components/MarkViewed'
 import FloorplanSize from '@/components/FloorplanSize'
 import ShareButton from '@/components/ShareButton'
+import SaveButton from '@/components/SaveButton'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -342,7 +344,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   return (
     <main className="min-h-screen bg-[#F5F0EB]">
-      <nav className="border-b border-[#1C2B3A]/10 bg-white">
+      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
           <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
           <div className="flex items-center flex-1">
@@ -361,6 +363,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               availableFrom={navAvailableFrom}
             />
           </div>
+          <NavAuthButton variant="light" />
         </div>
       </nav>
 
@@ -390,7 +393,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
       {/* Full width photos */}
       <div className="max-w-6xl mx-auto px-4 mb-6">
-        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} shareButton={<ShareButton address={listing.address} price={listing.price} />} />
+        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} shareButton={<><SaveButton listingId={listing.id} /><ShareButton address={listing.address} price={listing.price} /></>} />
         <div className="flex justify-end mt-2">
         </div>
       </div>

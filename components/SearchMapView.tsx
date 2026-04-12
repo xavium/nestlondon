@@ -82,7 +82,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         Object.values(markerBubbles).forEach(m => m.addTo(mapRef.current))
       }
 
-      mapped.forEach(listing => {
+      filteredMapped.forEach((listing: any) => {
         const lat = parseFloat(String(listing.latitude))
         const lng = parseFloat(String(listing.longitude))
         if (!lat || !lng) return
@@ -175,9 +175,16 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       ;(window as any).__markViewed = (id: string) => markAsViewed(id)
 
       // Draw radius circle and zoom to it
-      if (effectiveRadius && locationCoords) {
+      // Determine circle centre - use locationCoords if available, otherwise centre of markers
+      const circleCentre = locationCoords || (filteredMapped.length > 0 ? (() => {
+        const lats = filteredMapped.map((l: any) => Number(l.latitude))
+        const lngs = filteredMapped.map((l: any) => Number(l.longitude))
+        return { lat: lats.reduce((a: number, b: number) => a + b) / lats.length, lng: lngs.reduce((a: number, b: number) => a + b) / lngs.length }
+      })() : null)
+
+      if (effectiveRadius && circleCentre) {
         const radiusMetres = effectiveRadius * 1609.34
-        L.circle([locationCoords.lat, locationCoords.lng], {
+        L.circle([circleCentre.lat, circleCentre.lng], {
           radius: radiusMetres,
           color: '#D85A30',
           fillColor: '#D85A30',
@@ -186,7 +193,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
           dashArray: '6 4',
         }).addTo(mapRef.current)
         mapRef.current.fitBounds(
-          L.latLng(locationCoords.lat, locationCoords.lng).toBounds(radiusMetres * 2),
+          L.latLng(circleCentre.lat, circleCentre.lng).toBounds(radiusMetres * 2),
           { padding: [40, 40], animate: false }
         )
       }
