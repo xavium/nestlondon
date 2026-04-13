@@ -1,62 +1,51 @@
 import { createServerClient } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import AccountClient from './AccountClient'
 
-export const dynamic = 'force-dynamic'
-
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const sp = await searchParams
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
+    { cookies: { getAll() { return cookieStore.getAll() } } }
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login?redirect=/account')
+  if (!user) redirect('/auth/login?next=/account')
 
-  // Redirect owners/agents to their own dashboards
-  const role = user.user_metadata?.role
+  const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle()
 
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
-  )
-
-  // Fetch saved properties with listing details
-  const { data: savedProps } = await adminClient
+  const { data: savedProperties } = await supabase
     .from('saved_properties')
     .select('id, created_at, listing_id, listings(id, address, price, bedrooms, bathrooms, property_type, borough, images, is_active)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Fetch saved searches
-  const { data: savedSearches } = await adminClient
+  const { data: savedSearches } = await supabase
     .from('saved_searches')
-    .select('*')
+    .select('id, name, params, created_at, alerts_enabled')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Normalise Supabase join (listings may come back as array or object)
-  const normalisedProps = (savedProps || []).map((p: any) => ({
-    ...p,
-    listings: Array.isArray(p.listings) ? p.listings[0] || null : p.listings
-  }))
+  const validTabs = ['saved', 'searches', 'messages', 'account'] as const
+  type Tab = typeof validTabs[number]
+  const initialTab: Tab = validTabs.includes(sp.tab as Tab) ? (sp.tab as Tab) : 'saved'
 
   return (
     <AccountClient
       user={{
         id: user.id,
-        email: user.email!,
-        name: user.user_metadata?.full_name || '',
-        phone: user.user_metadata?.phone || '',
-        created_at: user.created_at,
-        role: role || undefined,
+        email: user.email || '',
+        name: profile?.name || '',
+        phone: profile?.phone || '',
+        created_at: profile?.created_at || user.created_at || '',
+        role: profile?.role || 'tenant',
       }}
-      savedProperties={normalisedProps}
-      savedSearches={savedSearches || []}
+      savedProperties={(savedProperties || []) as any}
+      savedSearches={(savedSearches || []).map(s => ({ ...s, alerts_enabled: s.alerts_enabled ?? false })) as any}
+      initialTab={initialTab}
     />
   )
 }
