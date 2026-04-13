@@ -89,8 +89,8 @@ export default function MessagesPanel({ listingId, listingAddress, currentUserId
     <div className="bg-white border border-[#E8E2DA] rounded-2xl overflow-hidden sticky top-6">
       <div className="px-5 py-4 border-b border-[#F0EBE5] flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Message the owner</h3>
-          <p className="text-xs text-[#9B928E] mt-0.5">Direct listing · replies go straight to them</p>
+          <h3 className="text-sm font-semibold text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Send an enquiry</h3>
+          <p className="text-xs text-[#9B928E] mt-0.5">We will forward your message to the agent or owner</p>
         </div>
         {messages.length > 0 && (
           <button onClick={() => setShowForm(s => !s)} className="text-xs px-3 py-1.5 rounded-lg text-white" style={{ background: '#D3755A' }}>

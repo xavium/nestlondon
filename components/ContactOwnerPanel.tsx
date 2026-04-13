@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase'
 
 interface Props {
   listingId: string
@@ -30,12 +31,25 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [loggedIn, setLoggedIn] = useState(false)
   const [message, setMessage] = useState('')
   const [selectedSlots, setSelectedSlots] = useState<{ date: string; time: string }[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user
+      if (!user) return
+      setLoggedIn(true)
+      setEmail(user.email || '')
+      if (user.user_metadata?.name) setName(user.user_metadata.name)
+      if (user.user_metadata?.phone) setPhone(user.user_metadata.phone)
+    })
+  }, [])
 
   const days = getNextTwoWeeks()
   const inputClass = "w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] transition-colors bg-white"
@@ -119,9 +133,20 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2 mb-4">{error}</div>}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input required value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Your name" />
-        <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputClass} placeholder="Email address" />
-        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} placeholder="Phone (optional)" />
+        {loggedIn ? (
+          <div className="bg-[#F5F0EB] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] flex items-center gap-2">
+            <svg className="w-4 h-4 text-[#D3755A] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span>{name || email}</span>
+          </div>
+        ) : (
+          <>
+            <input required value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Your name" />
+            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputClass} placeholder="Email address" />
+            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} placeholder="Phone (optional)" />
+          </>
+        )}
 
         {mode === 'enquiry' && (
           <textarea value={message} onChange={e => setMessage(e.target.value)}

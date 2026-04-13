@@ -6,8 +6,18 @@ import { useSearchParams } from 'next/navigation'
 export default function SaveSearchButton() {
   const searchParams = useSearchParams()
   const params = Object.fromEntries(searchParams.entries())
+  const paramsKey = JSON.stringify(Object.keys(params).sort().reduce((a, k) => ({ ...a, [k]: params[k] }), {}))
+
   const [saved, setSaved] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/saved/search/check?' + new URLSearchParams(params).toString())
+      .then(r => r.json())
+      .then(d => { if (d.saved) setSaved(true) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [paramsKey])
 
   async function save() {
     setLoading(true)
@@ -19,6 +29,8 @@ export default function SaveSearchButton() {
     if (res.ok) setSaved(true)
     setLoading(false)
   }
+
+  if (loading) return <span className="w-20 h-4" />
 
   if (saved) return (
     <span className="text-xs text-[#D3755A] flex items-center gap-1">
@@ -33,7 +45,7 @@ export default function SaveSearchButton() {
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
-      {loading ? 'Saving...' : 'Save search'}
+      Save search
     </button>
   )
 }

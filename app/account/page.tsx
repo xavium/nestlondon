@@ -15,7 +15,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?next=/account')
 
-  const { data: profile } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle()
+  // Profile is stored in auth user metadata — no separate users table
+  const profile = {
+    name: user.user_metadata?.name || '',
+    phone: user.user_metadata?.phone || '',
+    role: user.user_metadata?.role || 'resident',
+    created_at: user.created_at || '',
+  }
 
   const { data: savedProperties } = await supabase
     .from('saved_properties')
@@ -29,9 +35,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  const validTabs = ['saved', 'searches', 'messages', 'account'] as const
+  const role = user.user_metadata?.role || 'resident'
+  const validTabs = ['profile', 'account'] as const
   type Tab = typeof validTabs[number]
-  const initialTab: Tab = validTabs.includes(sp.tab as Tab) ? (sp.tab as Tab) : 'saved'
+  const defaultTab: Tab = (role === 'resident' || role === 'tenant' || !role || role === 'user') ? 'profile' : 'account'
+  const initialTab: Tab = validTabs.includes(sp.tab as Tab) ? (sp.tab as Tab) : defaultTab
 
   return (
     <AccountClient
@@ -41,7 +49,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         name: profile?.name || '',
         phone: profile?.phone || '',
         created_at: profile?.created_at || user.created_at || '',
-        role: profile?.role || 'tenant',
+        role: role,
       }}
       savedProperties={(savedProperties || []) as any}
       savedSearches={(savedSearches || []).map(s => ({ ...s, alerts_enabled: s.alerts_enabled ?? false })) as any}

@@ -1,5 +1,4 @@
 import ContactOwnerPanel from '@/components/ContactOwnerPanel'
-import MessagesPanel from '@/components/MessagesPanel'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
@@ -514,7 +513,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
           <div className="flex flex-col gap-5">
             {isDirectListing ? (
-              <MessagesPanel listingId={listing.id} listingAddress={listing.address} currentUserId={currentUser?.id ?? null} />
+              <ContactOwnerPanel listingId={listing.id} address={listing.address} />
             ) : (
               <ExternalLinkCard listing={listing} />
             )}

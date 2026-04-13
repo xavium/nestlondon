@@ -110,7 +110,7 @@ export default function HomePage() {
         </div>
 
         {/* Nav */}
-        <nav className="relative z-10 flex items-center justify-between px-8 py-6">
+        <nav className="relative z-50 flex items-center justify-between px-8 py-6">
           <div className="text-2xl font-light text-white" style={{fontFamily: 'Georgia, serif'}}>
             nest<span style={{color: '#D85A30'}} className="italic">london</span>
           </div>

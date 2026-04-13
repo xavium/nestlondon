@@ -11,6 +11,7 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [newMatches, setNewMatches] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -28,6 +29,12 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
             const count = (d.threads || []).reduce((n: number, t: any) => n + (t.unread || 0), 0)
             setUnread(count)
           })
+          .catch(() => {})
+
+        // Fetch new search matches count
+        fetch('/api/saved/search/new-matches')
+          .then(r => r.json())
+          .then(d => setNewMatches(d.count || 0))
           .catch(() => {})
       }
       setLoading(false)
@@ -71,9 +78,9 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
           <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
         My account
-        {unread > 0 && (
+        {(unread + newMatches) > 0 && (
           <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold text-white flex items-center justify-center" style={{ background: '#D3755A' }}>
-            {unread}
+            {unread + newMatches}
           </span>
         )}
         <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,21 +95,36 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
               <div className="text-xs text-[#9B928E] truncate">{email}</div>
             </div>
           )}
-          <Link href={portalHref} onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
-            <svg className="w-4 h-4 text-[#D3755A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            My portal
-          </Link>
-          <Link href="/account" onClick={() => setOpen(false)}
+          {(userRole === 'owner' || userRole === 'landlord' || userRole === 'agent') && (
+            <Link href={portalHref} onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
+              <svg className="w-4 h-4 text-[#D3755A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              My portal
+            </Link>
+          )}
+          <Link href="/saved" onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
             <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Account
+            Saved properties
           </Link>
-          <Link href="/account?tab=messages" onClick={() => setOpen(false)}
+          <Link href="/searches" onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
+            <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" strokeWidth="1.5"/>
+              <path d="m21 21-4.35-4.35" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Saved searches
+            {newMatches > 0 && (
+              <span className="ml-auto min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold text-white flex items-center justify-center" style={{ background: '#D3755A' }}>
+                {newMatches}
+              </span>
+            )}
+          </Link>
+          <Link href="/messages" onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
             <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -113,6 +135,13 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
                 {unread}
               </span>
             )}
+          </Link>
+          <Link href="/account" onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
+            <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Account
           </Link>
           <div className="border-t border-[#E8E2DA] mt-1" />
           <button onClick={signOut}

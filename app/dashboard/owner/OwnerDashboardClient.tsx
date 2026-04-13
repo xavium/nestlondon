@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
+import NavAuthButton from '@/components/NavAuthButton'
 
 interface Listing {
   id: string
@@ -45,6 +46,7 @@ interface Props {
   comparables: Record<string, any[]>
   avgDaysOnMarket?: Record<string, number | null>
   viewingRequests: ViewingRequest[]
+  renterProfiles?: Record<string, any>
 }
 
 function getImg(listing: Listing): string | null {
@@ -67,7 +69,7 @@ function getPercentile(value: number, arr: number[]): number {
   return Math.round((below / sorted.length) * 100)
 }
 
-export default function OwnerDashboardClient({ user, listings, events, comparables, avgDaysOnMarket = {}, viewingRequests }: Props) {
+export default function OwnerDashboardClient({ user, listings, events, comparables, avgDaysOnMarket = {}, viewingRequests, renterProfiles = {} }: Props) {
   const [requests, setRequests] = useState<ViewingRequest[]>(viewingRequests)
   const [proposingId, setProposingId] = useState<string | null>(null)
   const [proposedSlot, setProposedSlot] = useState<{date:string,time:string} | null>(null)
@@ -158,8 +160,8 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
           nest<span style={{color:'#D3755A'}} className="italic">london</span>
         </Link>
         <div className="flex items-center gap-4">
-          <span className="text-white/50 text-sm">{user.name || user.email}</span>
           <Link href="/list" className="text-xs px-3 py-1.5 rounded-lg text-white border border-white/20 hover:border-white/40 transition-colors no-underline">+ New listing</Link>
+          <NavAuthButton variant="dark" />
         </div>
       </nav>
 
@@ -433,6 +435,12 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                             </span>
                           </div>
                           {req.message && <p className="text-xs text-[#3D3A38] mb-2 italic">"{req.message}"</p>}
+                          {renterProfiles[req.tenant_email] && (
+                            <RenterProfileSummary
+                              profile={renterProfiles[req.tenant_email]}
+                              listingPrice={listings.find(l => l.id === req.listing_id)?.price}
+                            />
+                          )}
                           {req.status === 'pending' && (
                             <div>
                               <div className="text-xs text-[#9B928E] mb-2">Their availability:</div>
@@ -682,6 +690,62 @@ function ViewingsCalendar({ requests, listings }: { requests: any[], listings: a
             <div className="w-3 h-3 rounded" style={{background:'#1B2E4B'}}></div> Awaiting confirmation
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function RenterProfileSummary({ profile, listingPrice }: { profile: any, listingPrice?: number }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const annualRent = listingPrice ? listingPrice * 12 : null
+  const annualIncome = profile.annual_income || null
+  const coverageRatio = annualRent && annualIncome ? annualIncome / annualRent : null
+  const incomePass = coverageRatio !== null ? coverageRatio >= 2.5 : null
+
+  const rows = [
+    profile.time_at_current_address && ['Time at address',   profile.time_at_current_address],
+    profile.reason_for_moving       && ['Reason for moving', profile.reason_for_moving],
+    profile.employment_status       && ['Employment',        profile.employment_status.replace(/_/g, ' ')],
+    profile.job_title               && ['Job title',         profile.job_title],
+    profile.move_in_date            && ['Move-in date',      new Date(profile.move_in_date + 'T12:00:00').toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})],
+    profile.tenancy_length          && ['Tenancy length',    profile.tenancy_length],
+    profile.num_occupants           && ['Occupants',         String(profile.num_occupants)],
+    ['Pets',    profile.has_pets ? (profile.pet_details || 'Yes') : 'No'],
+    ['Smoker',  profile.is_smoker ? 'Yes' : 'No'],
+    profile.right_to_rent           && ['Right to rent',     profile.right_to_rent === 'uk_citizen' ? 'UK citizen' : profile.right_to_rent === 'eu_settled' ? 'EU settled status' : profile.right_to_rent.replace(/_/g, ' ')],
+    profile.additional_info         && ['Additional info',   profile.additional_info],
+  ].filter(Boolean) as [string, string][]
+
+  if (rows.length === 0) return null
+
+  const preview = rows.slice(0, 3)
+  const rest = rows.slice(3)
+
+  return (
+    <div className="bg-[#F5F0EB] rounded-xl p-3 mb-3 text-xs">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-semibold text-[#1B2E4B]">Renter profile</span>
+        <div className="flex items-center gap-2">
+          {incomePass !== null && (
+            <span className={'text-[10px] font-semibold px-2 py-0.5 rounded-full ' + (incomePass ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600')}>
+              Income {incomePass ? '✓ Pass' : '✗ Fail'}
+            </span>
+          )}
+          {rest.length > 0 && (
+            <button onClick={() => setExpanded(e => !e)} className="text-[#D3755A] hover:underline">
+              {expanded ? 'Show less' : 'Show more'}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {(expanded ? rows : preview).map(([label, value]) => (
+          <div key={label}>
+            <span className="text-[#9B928E]">{label}: </span>
+            <span className="text-[#1B2E4B] font-medium capitalize">{value}</span>
+          </div>
+        ))}
       </div>
     </div>
   )

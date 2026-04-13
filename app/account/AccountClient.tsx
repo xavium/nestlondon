@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import MessageInbox from '@/components/MessageInbox'
+import NavAuthButton from '@/components/NavAuthButton'
+import RenterProfileForm from '@/components/RenterProfileForm'
 
 interface SavedProperty {
   id: string
@@ -35,7 +36,7 @@ interface Props {
   user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string }
   savedProperties: SavedProperty[]
   savedSearches: SavedSearch[]
-  initialTab?: 'saved' | 'searches' | 'messages' | 'account'
+  initialTab?: 'profile' | 'account'
 }
 
 function getImg(images: string): string | null {
@@ -59,7 +60,7 @@ function describeSearch(params: Record<string, string>): string {
 }
 
 export default function AccountClient({ user, savedProperties, savedSearches, initialTab }: Props) {
-  const [tab, setTab] = useState<'saved' | 'searches' | 'messages' | 'account'>(initialTab || 'saved')
+  const [tab, setTab] = useState<string>( user.role === 'resident' || user.role === 'tenant' || !user.role || user.role === 'user' ? 'profile' : 'account')
   const [props, setProps] = useState(savedProperties)
   const [searches, setSearches] = useState(savedSearches)
   const [alertToggles, setAlertToggles] = useState<Record<string, boolean>>(
@@ -111,10 +112,8 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
   }
 
   const TABS = [
-    { key: 'saved',    label: `Saved (${props.length})` },
-    { key: 'searches', label: `Searches (${searches.length})` },
-    { key: 'messages', label: 'Messages' },
-    { key: 'account',  label: 'Account' },
+    ...(user.role === 'resident' || user.role === 'tenant' || !user.role || user.role === 'user' ? [{ key: 'profile', label: 'Renter profile' }] : []),
+    { key: 'account', label: 'Account details' },
   ] as const
 
   return (
@@ -123,19 +122,7 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
         <Link href="/" className="text-xl font-light text-white no-underline" style={{ fontFamily: 'Georgia,serif' }}>
           nest<span style={{ color: '#D3755A' }} className="italic">london</span>
         </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-white/50 text-sm hidden sm:block">{user.name || user.email}</span>
-          {(user.role === 'owner' || user.role === 'landlord') && (
-            <Link href="/dashboard/owner" className="text-xs px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:text-white transition-colors no-underline">My portal</Link>
-          )}
-          <button onClick={handleSignOut}
-            className="text-xs px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:text-white transition-colors flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            Sign out
-          </button>
-        </div>
+        <NavAuthButton variant="dark" />
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -259,46 +246,210 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
           </div>
         )}
 
-        {/* Messages */}
-        {tab === 'messages' && (
-          <MessageInbox currentUserId={user.id} />
+        {/* Account Details */}
+        {tab === 'profile' && (
+          <RenterProfileForm />
         )}
 
-        {/* Account Details */}
         {tab === 'account' && (
-          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 flex flex-col gap-5">
-            <h2 className="text-lg font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Account details</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Full name</div>
-                <div className="text-sm text-[#1B2E4B]">{user.name || '—'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Email</div>
-                <div className="text-sm text-[#1B2E4B]">{user.email}</div>
-              </div>
-              <div>
-                <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Phone</div>
-                <div className="text-sm text-[#1B2E4B]">{user.phone || '—'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Member since</div>
-                <div className="text-sm text-[#1B2E4B]">{new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-              </div>
-              <div>
-                <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">Account type</div>
-                <div className="text-sm text-[#1B2E4B] capitalize">
-                  {user.role === 'owner' ? 'Private owner' : user.role === 'landlord' ? 'Landlord' : user.role === 'agent' ? 'Letting agent' : 'Tenant'}
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-[#E8E2DA] pt-4 flex gap-3 flex-wrap">
-              <button onClick={handleSignOut} className="px-5 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#3D3A38] hover:border-red-300 hover:text-red-600 transition-colors">Sign out</button>
-              <button onClick={handleDeleteAccount} className="px-5 py-2.5 rounded-xl border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors">Delete account</button>
-            </div>
-          </div>
+          <AccountDetailsForm user={user} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />
         )}
       </div>
     </main>
+  )
+}
+
+function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
+  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string }
+  onSignOut: () => void
+  onDeleteAccount: () => void
+}) {
+  const supabase = createClient()
+  const inputClass = "w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] transition-colors bg-white"
+
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(user.name || '')
+  const [phone, setPhone] = useState(user.phone || '')
+  const [newEmail, setNewEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [error, setError] = useState('')
+  const [emailError, setEmailError] = useState('')
+  const [displayName, setDisplayName] = useState(user.name || '')
+  const [displayPhone, setDisplayPhone] = useState(user.phone || '')
+
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    setSaved(false)
+    try {
+      const res = await fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save')
+      setDisplayName(name)
+      setDisplayPhone(phone)
+      setSaved(true)
+      setTimeout(() => { setSaved(false); setEditing(false) }, 1500)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function changeEmail(e: React.FormEvent) {
+    e.preventDefault()
+    setEmailError('')
+    if (newEmail !== confirmEmail) {
+      setEmailError('Email addresses do not match')
+      return
+    }
+    if (newEmail === user.email) {
+      setEmailError('This is already your current email')
+      return
+    }
+    setSavingEmail(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail })
+      if (error) throw error
+      setEmailSent(true)
+      setNewEmail('')
+      setConfirmEmail('')
+    } catch (e: any) {
+      setEmailError(e.message)
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  const roleLabel = user.role === 'owner' ? 'Private owner'
+    : user.role === 'landlord' ? 'Landlord'
+    : user.role === 'agent' ? 'Letting agent'
+    : 'Resident'
+
+  return (
+    <div className="flex flex-col gap-5">
+
+      {/* Summary / edit toggle */}
+      <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
+        <div className="flex items-start justify-between mb-5">
+          <h2 className="text-lg font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Account details</h2>
+          {!editing && (
+            <button onClick={() => setEditing(true)}
+              className="text-xs px-4 py-2 rounded-xl border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+              Edit details
+            </button>
+          )}
+        </div>
+
+        {!editing ? (
+          /* ── Read view ── */
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {[
+              { label: 'Full name', value: displayName || '—' },
+              { label: 'Email', value: user.email },
+              { label: 'Phone', value: displayPhone || '—' },
+              { label: 'Member since', value: new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) },
+              { label: 'Account type', value: roleLabel },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">{label}</div>
+                <div className="text-sm text-[#1B2E4B]">{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* ── Edit view ── */
+          <form onSubmit={saveProfile} className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Full name</label>
+                <input value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Your full name" />
+              </div>
+              <div>
+                <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Phone</label>
+                <input value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} placeholder="+44 7700 000000" type="tel" />
+              </div>
+              <div>
+                <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Account type</label>
+                <div className="flex items-center gap-2 py-2.5">
+                  <span className="text-sm text-[#1B2E4B]">{roleLabel}</span>
+                  <span className="text-xs text-[#9B928E]">· cannot be changed</span>
+                </div>
+              </div>
+            </div>
+            {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2">{error}</div>}
+            {saved && <div className="bg-green-50 border border-green-200 text-green-700 text-xs rounded-xl px-3 py-2">Saved successfully.</div>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => { setEditing(false); setName(displayName); setPhone(displayPhone); setError('') }}
+                className="px-5 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#3D3A38] hover:bg-stone-50 transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}
+                className="px-6 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                style={{ background: '#D3755A' }}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* Email change — only shown in edit mode */}
+      {editing && (
+        <form onSubmit={changeEmail} className="bg-white border border-[#E8E2DA] rounded-2xl p-6 flex flex-col gap-4">
+          <div>
+            <h2 className="text-lg font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Change email</h2>
+            <p className="text-xs text-[#9B928E] mt-1">Current: <span className="text-[#1B2E4B]">{user.email}</span></p>
+          </div>
+          {emailSent ? (
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
+              Confirmation sent. Check your inbox and click the link to confirm the change.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">New email</label>
+                  <input required type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                    className={inputClass} placeholder="new@email.com" />
+                </div>
+                <div>
+                  <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Confirm new email</label>
+                  <input required type="email" value={confirmEmail} onChange={e => setConfirmEmail(e.target.value)}
+                    className={inputClass} placeholder="new@email.com again" />
+                </div>
+              </div>
+              {emailError && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2">{emailError}</div>}
+              <div className="flex justify-end">
+                <button type="submit" disabled={savingEmail || !newEmail || !confirmEmail}
+                  className="px-6 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                  style={{ background: '#1B2E4B' }}>
+                  {savingEmail ? 'Sending…' : 'Send confirmation'}
+                </button>
+              </div>
+            </>
+          )}
+        </form>
+      )}
+
+      {/* Danger zone */}
+      <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 flex flex-col gap-4">
+        <h2 className="text-lg font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Sign out &amp; account</h2>
+        <div className="flex gap-3 flex-wrap">
+          <button onClick={onSignOut} className="px-5 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#3D3A38] hover:border-red-300 hover:text-red-600 transition-colors">Sign out</button>
+          <button onClick={onDeleteAccount} className="px-5 py-2.5 rounded-xl border border-red-200 text-sm text-red-500 hover:bg-red-50 transition-colors">Delete account</button>
+        </div>
+        <p className="text-xs text-[#9B928E]">To change your account type, delete your account and sign up again with the appropriate role.</p>
+      </div>
+    </div>
   )
 }

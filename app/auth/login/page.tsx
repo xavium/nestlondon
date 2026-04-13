@@ -22,7 +22,15 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      const { data: { user } } = await supabase.auth.getUser()
+      const role = user?.user_metadata?.role
+      if (role === 'owner' || role === 'landlord') {
+        router.push('/dashboard/owner')
+      } else if (role === 'agent') {
+        router.push('/dashboard')
+      } else {
+        router.push('/search')
+      }
     }
   }
 

@@ -84,16 +84,35 @@ export default async function OwnerDashboardPage() {
     }
   }
 
-  // Get viewing requests for all listings
+  // Get viewing requests for all listings — use REST API to bypass RLS
   let viewingRequests: any[] = []
   if (ids.length > 0) {
-    const { data: vr } = await adminClient
-      .from('viewing_requests')
-      .select('*')
-      .in('listing_id', ids)
-      .order('created_at', { ascending: false })
-    viewingRequests = vr || []
+    const idList = ids.map((id: string) => id).join(',')
+    const vrRes = await fetch(
+      supabaseUrl + '/rest/v1/viewing_requests?listing_id=in.(' + idList + ')&order=created_at.desc',
+      { headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey } }
+    )
+    const vrData = await vrRes.json()
+    viewingRequests = Array.isArray(vrData) ? vrData : []
+    console.log('[DASHBOARD] viewingRequests count:', viewingRequests.length, 'ids:', ids)
   }
+
+  // Fetch renter profiles for all tenants who made viewing requests
+  let renterProfiles: Record<string, any> = {}
+  if (viewingRequests.length > 0) {
+    const tenantEmails = [...new Set(viewingRequests.map((r: any) => r.tenant_email).filter(Boolean))]
+    console.log('[DASHBOARD] tenant emails:', tenantEmails)
+    if (tenantEmails.length > 0) {
+      const { data: rows, error: rpcError } = await adminClient.rpc('get_renter_profiles_by_email', { emails: tenantEmails })
+      console.log('[DASHBOARD] renter profiles result:', rows, 'error:', rpcError)
+      if (rows) {
+        for (const row of rows) {
+          renterProfiles[row.email] = row
+        }
+      }
+    }
+  }
+  console.log('[DASHBOARD] renterProfiles keys:', Object.keys(renterProfiles))
 
   return (
     <OwnerDashboardClient
@@ -103,6 +122,7 @@ export default async function OwnerDashboardPage() {
       comparables={comparables}
       avgDaysOnMarket={avgDaysOnMarket}
       viewingRequests={viewingRequests}
+      renterProfiles={renterProfiles}
     />
   )
 }

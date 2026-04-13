@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import NavAuthButton from '@/components/NavAuthButton'
 
 interface Listing {
   id: string
@@ -217,7 +218,7 @@ export default function AdminListingsClient({
           nest<span style={{color:'#D3755A'}} className="italic">london</span>
           <span className="text-white/40 text-sm ml-3">Admin</span>
         </div>
-        <div className="text-white/40 text-xs">Listing review dashboard</div>
+        <NavAuthButton variant="dark" />
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 py-8">

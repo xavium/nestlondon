@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +15,6 @@ export async function POST(req: NextRequest) {
       (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
     )
 
-    // Get the listing and owner contact details
     const { data: listing } = await supabase
       .from('listings')
       .select('address, raw_data')
@@ -26,40 +27,87 @@ export async function POST(req: NextRequest) {
     const ownerEmail = rd?.contact?.email
     const ownerName = rd?.contact?.name
 
-    console.log(`[ENQUIRY] ${listing.address} | From: ${name} <${email}> | To: ${ownerEmail}`)
-    console.log(`[ENQUIRY] Message: ${message}`)
+    // Fetch renter profile if logged in
+    let renterProfile: any = null
+    try {
+      const cookieStore = await cookies()
+      const authClient = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { getAll: () => cookieStore.getAll() } }
+      )
+      const { data: { user } } = await authClient.auth.getUser()
+      if (user) {
+        const { data } = await supabase.from('renter_profiles').select('*').eq('user_id', user.id).maybeSingle()
+        renterProfile = data
+      }
+    } catch {}
 
-    // Send email to owner if Resend is configured
+    const lines: string[] = []
+    if (renterProfile) {
+      lines.push('')
+      lines.push('── Applicant profile ──────────────────')
+      if (renterProfile.phone)                   lines.push('Phone:             ' + renterProfile.phone)
+      if (renterProfile.time_at_current_address)  lines.push('Time at address:   ' + renterProfile.time_at_current_address)
+      if (renterProfile.reason_for_moving)        lines.push('Reason for moving: ' + renterProfile.reason_for_moving)
+      if (renterProfile.employment_status)        lines.push('Employment:        ' + renterProfile.employment_status.replace(/_/g, ' '))
+      if (renterProfile.job_title)                lines.push('Job title:         ' + renterProfile.job_title)
+      if (renterProfile.move_in_date)             lines.push('Move-in date:      ' + renterProfile.move_in_date)
+      if (renterProfile.tenancy_length)           lines.push('Tenancy length:    ' + renterProfile.tenancy_length)
+      if (renterProfile.num_occupants)            lines.push('Occupants:         ' + renterProfile.num_occupants)
+      lines.push('Pets:              ' + (renterProfile.has_pets ? (renterProfile.pet_details || 'Yes') : 'No'))
+      lines.push('Smoker:            ' + (renterProfile.is_smoker ? 'Yes' : 'No'))
+      if (renterProfile.right_to_rent)            lines.push('Right to rent:     ' + renterProfile.right_to_rent.replace(/_/g, ' '))
+      if (renterProfile.additional_info)          lines.push('Additional info:   ' + renterProfile.additional_info)
+      lines.push('────────────────────────────────────────')
+    }
+    const profileSection = lines.join('\n')
+
+    console.log('[ENQUIRY] ' + listing.address + ' | From: ' + name + ' <' + email + '> | To: ' + ownerEmail)
+
     if (ownerEmail && process.env.RESEND_API_KEY) {
+      const bodyLines = [
+        'Hi ' + (ownerName || 'there') + ',',
+        '',
+        'New enquiry for ' + listing.address + ' from ' + name + '.',
+        '',
+        'Email: ' + email + (phone ? '\nPhone: ' + phone : ''),
+        '',
+        'Message:',
+        message,
+        profileSection,
+        '',
+        'You can reply directly to this email.',
+        '— NestLondon',
+      ]
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'NestLondon <hello@nestlondon.co.uk>',
+          from: 'NestLondon <onboarding@resend.dev>',
           to: ownerEmail,
           reply_to: email,
-          subject: `New enquiry for ${listing.address}`,
-          text: `Hi ${ownerName},\n\nYou have a new enquiry for your property at ${listing.address}.\n\nFrom: ${name}\nEmail: ${email}${phone ? '\nPhone: ' + phone : ''}\n\nMessage:\n${message}\n\nYou can reply directly to this email to respond to ${name}.\n\nNestLondon`
+          subject: 'New enquiry for ' + listing.address,
+          text: bodyLines.join('\n'),
         })
       })
     }
 
-    // Also send confirmation to enquirer
     if (process.env.RESEND_API_KEY) {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'NestLondon <hello@nestlondon.co.uk>',
+          from: 'NestLondon <onboarding@resend.dev>',
           to: email,
-          subject: `Your enquiry for ${listing.address}`,
-          text: `Hi ${name},\n\nThank you for your enquiry about ${listing.address}. We've forwarded your message to the owner and they'll be in touch shortly.\n\nNestLondon`
+          subject: 'Your enquiry for ' + listing.address,
+          text: 'Hi ' + name + ',\n\nThank you for your enquiry about ' + listing.address + '. We have forwarded your message and they will be in touch shortly.\n\n— NestLondon',
         })
       })
     }

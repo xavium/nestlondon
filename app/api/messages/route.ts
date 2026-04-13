@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getAuthUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Allow guest enquiries — user can be null
 
   const supabase = serviceClient()
   const { listing_id, body, to_user_id, thread_id, from_name, from_email } = await req.json()
@@ -105,14 +105,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'listing_id and body required' }, { status: 400 })
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, email')
-    .eq('id', user.id)
-    .maybeSingle()
+  // For logged-in users, get profile; for guests use provided name/email
+  let senderName = from_name || 'Guest'
+  let senderEmail = from_email || ''
 
-  const senderName = from_name || profile?.name || user.email?.split('@')[0] || 'Unknown'
-  const senderEmail = from_email || profile?.email || user.email || ''
+  if (user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('name, email')
+      .eq('id', user.id)
+      .maybeSingle()
+    senderName = from_name || profile?.name || user.email?.split('@')[0] || 'Unknown'
+    senderEmail = from_email || profile?.email || user.email || ''
+  }
+
+  if (!senderName || !senderEmail) {
+    return NextResponse.json({ error: 'Name and email required for guest enquiries' }, { status: 400 })
+  }
 
   let recipientId = to_user_id
   if (!recipientId) {
@@ -128,7 +137,7 @@ export async function POST(req: NextRequest) {
     .from('messages')
     .insert({
       listing_id,
-      from_user_id: user.id,
+      from_user_id: user?.id ?? null,
       from_name: senderName,
       from_email: senderEmail,
       to_user_id: recipientId,
