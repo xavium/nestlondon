@@ -34,12 +34,19 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
 
 export default function ListingCard({ listing, distanceLabel }: Props) {
   const [viewed, setViewed] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [savingHeart, setSavingHeart] = useState(false)
   const [imgIndex, setImgIndex] = useState(0)
   const searchParams = useSearchParams()
   const fromParam = searchParams.toString() ? '?from=' + encodeURIComponent('?' + searchParams.toString()) : ''
 
   useEffect(() => {
     setViewed(getViewedListings().has(listing.id))
+    // Check if saved
+    fetch('/api/saved/property')
+      .then(r => r.json())
+      .then(d => { if (d.saved?.includes(listing.id)) setSaved(true) })
+      .catch(() => {})
   }, [listing.id])
 
   let images: string[] = []
@@ -57,21 +64,21 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
     <Link
       href={'/listings/' + listing.id + fromParam}
       onClick={() => markAsViewed(listing.id)}
-      className={'group block border rounded-2xl overflow-hidden transition-all no-underline ' + (viewed ? 'bg-white border-[#E8E2DA] opacity-75' : 'bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300')}
+      className={'group block border rounded-2xl overflow-hidden transition-all no-underline bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300'}
     >
       <div className="relative h-48 overflow-hidden">
         {imgSrc ? (
-          <img src={imgSrc} alt={listing.address} className={'w-full h-full object-cover transition-opacity duration-200 ' + (viewed ? 'grayscale-[30%]' : '')} referrerPolicy="no-referrer" />
+          <img src={imgSrc} alt={listing.address} className={'w-full h-full object-cover transition-opacity duration-200'} referrerPolicy="no-referrer" />
         ) : (
           <div className="w-full h-full bg-stone-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeWidth="1"/></svg>
           </div>
         )}
-        <div className={'absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium ' + (viewed ? 'bg-stone-200/95 text-stone-500' : 'bg-white/95 text-[#374151]')}>
+        <div className={'absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium bg-white/95 text-[#374151]'}>
           £{listing.price?.toLocaleString()}<span className="text-stone-400 font-normal">/mo</span>
         </div>
         {distanceLabel && (
-          <div className={"absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-medium " + (viewed ? "bg-stone-200/95 text-stone-500" : "bg-white/95 text-[#374151]")}>
+          <div className={"absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-medium bg-white/95 text-[#374151]"}>
             {distanceLabel}
           </div>
         )}
@@ -111,7 +118,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
         )}
       </div>
       <div className="p-4">
-        <div className={'text-sm font-medium mb-0.5 truncate ' + (viewed ? 'text-stone-500' : 'text-[#1C2B3A]')}>{listing.address}</div>
+        <div className={'text-sm font-medium mb-0.5 truncate text-[#1C2B3A]'}>{listing.address}</div>
         <div className="flex gap-3 text-xs text-stone-400 mb-2">
           {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span>Studio</span> : listing.bedrooms ? <span>{listing.bedrooms} bed</span> : null}
           {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
@@ -129,8 +136,35 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
             ))}
           </div>
         )}
-        <div className={'w-full text-xs rounded-lg py-2 text-center ' + (viewed ? 'bg-stone-100 text-stone-400' : 'bg-orange-700 text-white')}>
-          {viewed ? 'View again' : 'View property'}
+        <div className="flex items-center gap-2">
+          <div className={'flex-1 text-xs rounded-lg py-2 text-center ' + (viewed ? 'bg-stone-100 text-stone-400' : 'text-white')} style={viewed ? {} : {background:'#D3755A'}}>
+            {viewed ? 'View again' : 'View property'}
+          </div>
+          <button
+            onClick={async (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (savingHeart) return
+              setSavingHeart(true)
+              if (saved) {
+                setSaved(false)
+              } else {
+                const res = await fetch('/api/saved/property', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ listing_id: listing.id })
+                })
+                if (res.ok) setSaved(true)
+              }
+              setSavingHeart(false)
+            }}
+            className="w-9 h-9 rounded-lg border border-[#E8E2DA] flex items-center justify-center hover:border-[#D3755A] transition-colors flex-shrink-0"
+            aria-label={saved ? 'Unsave' : 'Save'}
+          >
+            <svg className="w-4 h-4" fill={saved ? '#D3755A' : 'none'} stroke={saved ? '#D3755A' : '#9B928E'} viewBox="0 0 24 24">
+              <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
     </Link>

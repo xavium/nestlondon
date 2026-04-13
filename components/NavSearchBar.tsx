@@ -35,6 +35,7 @@ interface Props {
   features?: string[]
   addedWithin?: number | null
   availableFrom?: string | null
+  style?: string | null
 }
 
 export default function NavSearchBar({
@@ -50,6 +51,7 @@ export default function NavSearchBar({
   features = [],
   addedWithin = null,
   availableFrom = null,
+  style = null,
 }: Props) {
   const [location, setLocation] = useState(initLocation)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -97,6 +99,7 @@ export default function NavSearchBar({
     if (maxP) p.set('maxPrice', String(maxP))
     if (furnished) p.set('furnished', furnished)
     if (propertyType) p.set('propertyType', propertyType)
+    if (style) p.set('style', style)
     if (features.length > 0) p.set('features', features.join(','))
     const aw = localAddedWithin
     if (aw) p.set('addedWithin', String(aw))
@@ -199,6 +202,7 @@ export default function NavSearchBar({
             radius={radius}
             addedWithin={addedWithin}
             availableFrom={availableFrom}
+            style={style}
           />
         </div>
 

@@ -23,6 +23,7 @@ interface SearchParams {
   minSize?: string
   maxSize?: string
   floorLayout?: string
+  style?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -42,6 +43,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const minSize = params.minSize ? parseInt(params.minSize) : null
   const maxSize = params.maxSize ? parseInt(params.maxSize) : null
   const floorLayout = params.floorLayout || null
+  const style = params.style || null
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -274,6 +276,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       if (f === 'Retirement homes' && combined.includes('retirement')) return false
       if (f === 'Lower ground floor' && /lower ground floor|lower ground level|basement/.test(combined)) return false
     }
+    // Style filter — match any selected style
+    if (style) {
+      const selectedStyles = style.split(',').map((s: string) => s.toLowerCase())
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const photoStyle = (rd?.photo_tags?.style || '').toLowerCase()
+      if (!selectedStyles.some((s: string) => photoStyle.includes(s))) return false
+    }
     return true
   })
 
@@ -313,6 +322,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               features={features}
               addedWithin={addedWithin}
               availableFrom={availableFrom}
+              style={style}
             />
           </div>
           <NavAuthButton variant="light" />

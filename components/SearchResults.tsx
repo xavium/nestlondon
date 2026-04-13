@@ -55,6 +55,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 }) {
   const [view, setView] = useState<'grid' | 'map'>('grid')
   const [viewReady, setViewReady] = useState(false)
+  const [sortBy, setSortBy] = useState<'relevant' | 'newest' | 'price_asc' | 'price_desc' | 'nearest' | 'size_asc' | 'size_desc' | 'psqm_desc' | 'psqm_asc'>('relevant')
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search)
@@ -108,24 +109,106 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
       .slice(0, 12)
   }
 
+  // Apply sort
+  const sortedResults = [...inRadius].sort((a: any, b: any) => {
+    if (sortBy === 'price_asc') return (a.price || 0) - (b.price || 0)
+    if (sortBy === 'price_desc') return (b.price || 0) - (a.price || 0)
+    if (sortBy === 'nearest' && a._dist != null && b._dist != null) return a._dist - b._dist
+    if (sortBy === 'newest') return new Date(b.scraped_at || 0).getTime() - new Date(a.scraped_at || 0).getTime()
+    if (sortBy === 'size_asc') {
+      const getSqft = (l: any) => {
+        try {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data) : (l.raw_data || {})
+          const txt = rd?.size_text || l.description || ''
+          const m = txt.match(/([\d,]+)\s*sq\s*ft/i)
+          return m ? parseFloat(m[1].replace(',','')) : 0
+        } catch { return 0 }
+      }
+      return getSqft(a) - getSqft(b)
+    }
+    if (sortBy === 'size_desc') {
+      const getSqft2 = (l: any) => {
+        try {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data) : (l.raw_data || {})
+          const txt = rd?.size_text || l.description || ''
+          const m = txt.match(/([\d,]+)\s*sq\s*ft/i)
+          return m ? parseFloat(m[1].replace(',','')) : 0
+        } catch { return 0 }
+      }
+      return getSqft2(b) - getSqft2(a)
+    }
+    if (sortBy === 'psqm_desc') {
+      const getPsqm = (l: any) => {
+        try {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data) : (l.raw_data || {})
+          const txt = rd?.size_text || l.description || ''
+          const sqftM = txt.match(/([\d,]+)\s*sq\s*ft/i)
+          const sqmM = txt.match(/([\d,]+)\s*sq\s*m(?!ft)/i)
+          let sqm = sqmM ? parseFloat(sqmM[1].replace(',','')) : sqftM ? Math.round(parseFloat(sqftM[1].replace(',','')) * 0.0929) : 0
+          return sqm > 0 && l.price ? l.price / sqm : 0
+        } catch { return 0 }
+      }
+      const pa = getPsqm(a), pb = getPsqm(b)
+      if (pa === 0) return 1
+      if (pb === 0) return -1
+      return pb - pa
+    }
+    if (sortBy === 'psqm_asc') {
+      const getPsqm2 = (l: any) => {
+        try {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data) : (l.raw_data || {})
+          const txt = rd?.size_text || l.description || ''
+          const sqftM = txt.match(/([\d,]+)\s*sq\s*ft/i)
+          const sqmM = txt.match(/([\d,]+)\s*sq\s*m(?!ft)/i)
+          let sqm = sqmM ? parseFloat(sqmM[1].replace(',','')) : sqftM ? Math.round(parseFloat(sqftM[1].replace(',','')) * 0.0929) : 0
+          return sqm > 0 && l.price ? l.price / sqm : 0
+        } catch { return 0 }
+      }
+      const pa2 = getPsqm2(a), pb2 = getPsqm2(b)
+      if (pa2 === 0) return 1
+      if (pb2 === 0) return -1
+      return pa2 - pb2
+    }
+    // recommended: nearest first if location, otherwise newest
+    if (a._dist != null && b._dist != null) return a._dist - b._dist
+    return new Date(b.scraped_at || 0).getTime() - new Date(a.scraped_at || 0).getTime()
+  })
+
   const radiusLabel = splitRadius ? `within ${splitRadius} mile${splitRadius === 1 ? '' : 's'}` : ''
 
   if (!viewReady) return <div style={{minHeight: '500px'}} />
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-stone-500">
+      <div className="flex items-center justify-between mb-6 gap-4">
+        <p className="text-sm text-stone-500 flex items-center gap-2 flex-wrap">
           {inRadius.length} properties{location ? ' in ' + location : ' in London'}
-          <SaveSearchButton />
           {radiusLabel ? ` · ${radiusLabel}` : ''}
+          <SaveSearchButton />
         </p>
-        <ViewToggle view={view} setView={setView} />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as any)}
+            className="text-xs border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-[#3D3A38] bg-white outline-none focus:border-[#D3755A] cursor-pointer"
+          >
+            <option value="relevant">Recommended</option>
+            <option value="newest">Most recent</option>
+            <option value="price_asc">Price: low to high</option>
+            <option value="price_desc">Price: high to low</option>
+            <option value="size_asc">Smallest floor area</option>
+            <option value="size_desc">Largest floor area</option>
+            <option value="psqm_desc">Highest £/sqm</option>
+            <option value="psqm_asc">Lowest £/sqm</option>
+            {locationCoords && <option value="nearest">Nearest first</option>}
+          </select>
+          <ViewToggle view={view} setView={setView} />
+        </div>
       </div>
 
       {view === 'map' ? (
         <SearchMapView
-          listings={inRadius.filter((l: any) => l.latitude && l.longitude)}
+          listings={sortedResults.filter((l: any) => l.latitude && l.longitude)}
           radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}
@@ -134,7 +217,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
         <>
           {inRadius.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {inRadius.map((listing: any) => (
+              {sortedResults.map((listing: any) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>

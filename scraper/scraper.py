@@ -21,6 +21,19 @@ IMAGE_DIR = 'images'
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
 
+def normalise_address(address: str) -> str:
+    import re
+    a = address.lower().strip()
+    a = re.sub(r'\bflat\s+[\w/]+,?\s*', '', a)
+    a = re.sub(r'\bapartment\s+[\w/]+,?\s*', '', a)
+    a = re.sub(r',?\s*london\s*', '', a)
+    a = re.sub(r'\s+', ' ', a).strip()
+    return a
+
+def make_fingerprint(address: str, bedrooms, price) -> str:
+    key = f"{normalise_address(address)}|{bedrooms or 0}|{price or 0}"
+    return hashlib.md5(key.encode()).hexdigest()
+
 def clean_price(price_str):
     if not price_str:
         return None
@@ -285,37 +298,74 @@ async def scrape_page(page, url, page_num):
     return listings
 
 
-async def save_to_supabase(listings):
+async def save_to_supabase(listings, source_name='Rightmove'):
     saved = 0
     skipped = 0
+    updated = 0
+    new_ids = []
     for listing in listings:
         try:
-            if listing.get('source_id'):
-                existing = supabase.table('listings').select('id').eq('source_id', listing['source_id']).execute()
-                if existing.data:
-                    skipped += 1
-                    continue
-            source_id = listing.get('source_id') or hashlib.md5(
-                (listing.get('address', '') + str(listing.get('price', ''))).encode()
-            ).hexdigest()[:12]
+            address = listing.get('address', '')
+            price = listing.get('price')
+            bedrooms = listing.get('bedrooms')
+            fp = make_fingerprint(address, bedrooms, price)
+
             image_urls = listing.get('image_urls') or []
             if not image_urls and listing.get('image_url'):
                 image_urls = [listing.get('image_url')]
             images = [u for u in image_urls if u and u.startswith('http')]
+
             postcode = None
-            address = listing.get('address', '')
             match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', address)
             if match:
                 postcode = match.group(0)
+
+            source_url = listing.get('source_url')
+
+            # Check for existing listing by fingerprint
+            existing = supabase.table('listings').select('id,is_direct,source,source_urls').eq('fingerprint', fp).execute()
+
+            if existing.data:
+                ex = existing.data[0]
+                # Never overwrite direct listings
+                if ex.get('is_direct'):
+                    skipped += 1
+                    continue
+                # Update source_urls to add this portal
+                existing_urls = ex.get('source_urls') or {}
+                if isinstance(existing_urls, str):
+                    import json as _json
+                    existing_urls = _json.loads(existing_urls)
+                if source_url:
+                    existing_urls[source_name] = source_url
+                supabase.table('listings').update({
+                    'source_urls': existing_urls,
+                    'scraped_at': datetime.utcnow().isoformat(),
+                }).eq('id', ex['id']).execute()
+                updated += 1
+                continue
+
+            # Also check by source_id for backwards compat
+            source_id = listing.get('source_id') or hashlib.md5(
+                (address + str(price or '')).encode()
+            ).hexdigest()[:12]
+            existing2 = supabase.table('listings').select('id').eq('source_id', source_id).execute()
+            if existing2.data:
+                skipped += 1
+                continue
+
+            source_urls = {source_name: source_url} if source_url else {}
             record = {
-                'source': 'rightmove',
-                'source_url': listing.get('source_url'),
+                'source': source_name,
+                'source_url': source_url,
+                'source_urls': source_urls,
                 'source_id': source_id,
+                'fingerprint': fp,
                 'address': address,
                 'postcode': postcode,
-                'price': listing.get('price'),
+                'price': price,
                 'price_period': 'month',
-                'bedrooms': listing.get('bedrooms'),
+                'bedrooms': bedrooms,
                 'bathrooms': listing.get('bathrooms'),
                 'property_type': listing.get('property_type'),
                 'listing_type': 'rent',
@@ -327,15 +377,19 @@ async def save_to_supabase(listings):
                 'longitude': listing.get('longitude'),
                 'images': json.dumps(images),
                 'is_active': True,
+                'is_direct': False,
                 'raw_data': json.dumps({'key_features': listing.get('key_features'), 'size_text': listing.get('size_text'), 'letting_details': listing.get('letting_details'), 'additional': listing.get('additional'), 'floorplans': listing.get('floorplans') or []}),
                 'scraped_at': datetime.utcnow().isoformat(),
             }
-            supabase.table('listings').insert(record).execute()
+            result = supabase.table('listings').insert(record).execute()
+            if result.data:
+                new_ids.append(result.data[0]['id'])
             saved += 1
         except Exception as e:
             print('  Save error: ' + str(e))
             continue
-    return saved, skipped
+    print(f'  Saved: {saved}, Updated: {updated}, Skipped: {skipped}')
+    return saved, skipped, new_ids
 
 
 async def main():
@@ -391,8 +445,24 @@ async def main():
     print('Total listings: ' + str(len(all_listings)))
     if all_listings:
         print('Saving to Supabase...')
-        saved, skipped = await save_to_supabase(all_listings)
+        saved, skipped, new_ids = await save_to_supabase(all_listings, 'Rightmove')
         print('Done. Saved: ' + str(saved) + ' | Skipped: ' + str(skipped))
+        if new_ids:
+            try:
+                import urllib.request as _ur
+                import json as _json
+                site_url = os.getenv('NEXT_PUBLIC_SITE_URL', 'http://localhost:3000')
+                alerts_secret = os.getenv('ALERTS_SECRET', 'nestlondon-alerts')
+                req = _ur.Request(
+                    site_url + '/api/alerts/trigger',
+                    data=_json.dumps({'secret': alerts_secret, 'listing_ids': new_ids}).encode(),
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
+                with _ur.urlopen(req, timeout=15) as r:
+                    print('Alerts triggered: ' + r.read().decode())
+            except Exception as e:
+                print('Alert trigger failed: ' + str(e))
     else:
         print('No listings found')
 

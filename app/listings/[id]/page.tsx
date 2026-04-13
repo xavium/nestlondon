@@ -11,6 +11,7 @@ import MarkViewed from '@/components/MarkViewed'
 import FloorplanSize from '@/components/FloorplanSize'
 import ShareButton from '@/components/ShareButton'
 import SaveButton from '@/components/SaveButton'
+import PhotoTags from '@/components/PhotoTags'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -109,6 +110,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     return bullets.slice(0, 12)
   })()
   const floorplans: string[] = rawData?.floorplans || []
+  const photoTags = rawData?.photo_tags || null
   const lettingDetails: Record<string, string> = rawData?.letting_details || {}
 
 
@@ -326,20 +328,25 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     return null
   })()
 
-  // Extract parking and concierge into structuredDetails
+  // Extract parking and outside space — check description AND key features
+  console.log('[LISTING TILES] keyFeatures:', keyFeatures, 'desc:', (listing.description || '').slice(0,50))
   const _descClean = (listing.description || '').replace(/^(PARKING|CONCIERGE|GARDEN|ACCESSIBILITY|COUNCIL TAX|EPC|UTILITIES)[\s\S]*$/im, '').toLowerCase()
-  if (/no[- ]parking|no car park|without parking/.test(_descClean)) structuredDetails['Parking'] = 'No'
-  else if (/parking (space|bay|permit|available|included|provided)|allocated parking|private parking|secure parking|underground parking|off.street parking|residents.{0,5}parking|\bgarage\b/.test(_descClean)) structuredDetails['Parking'] = 'Yes'
+  const _featuresLower = keyFeatures.map(f => f.toLowerCase())
+  const _combined = _descClean + ' ' + _featuresLower.join(' ')
+
+  if (/no[- ]parking|no car park|without parking/.test(_combined)) structuredDetails['Parking'] = 'No'
+  else if (/parking (space|bay|permit|available|included|provided)|allocated parking|private parking|secure parking|underground parking|off.street parking|residents.{0,5}parking|\bgarage\b/.test(_combined)) structuredDetails['Parking'] = 'Yes'
   else structuredDetails['Parking'] = 'Ask agent'
 
-  if (/no garden|without a garden|without garden/.test(_descClean)) {
+  if (/no garden|without a garden|without garden/.test(_combined)) {
     structuredDetails['Outside Space'] = 'No'
   } else {
     const _outsideTypes: string[] = []
-    if (/\bgardens?\b/.test(_descClean) && !/no garden|without garden/.test(_descClean)) _outsideTypes.push('Garden')
-    if (/\bbalcon(y|ies)\b/.test(_descClean)) _outsideTypes.push('Balcony')
-    if (/\bterrace\b/.test(_descClean) && !/\bterraced\b/.test(_descClean)) _outsideTypes.push('Terrace')
-    if (/\bpatio\b/.test(_descClean)) _outsideTypes.push('Patio')
+    if (/\bgardens?\b/.test(_combined) && !/no garden|without garden/.test(_combined)) _outsideTypes.push('Garden')
+    if (/\bbalcon(y|ies)\b/.test(_combined)) _outsideTypes.push('Balcony')
+    if (/\bterrace\b/.test(_combined) && !/\bterraced\b/.test(_combined)) _outsideTypes.push('Terrace')
+    if (/\bpatio\b/.test(_combined)) _outsideTypes.push('Patio')
+    if (/\broof terrace\b/.test(_combined)) _outsideTypes.push('Roof terrace')
     if (_outsideTypes.length > 0) structuredDetails['Outside Space'] = _outsideTypes.join(', ')
     else structuredDetails['Outside Space'] = 'Ask agent'
   }
@@ -389,6 +396,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
             {floorText && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{floorText}</span>}
             {floorsText && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{floorsText}</span>}
+          </div>
+          <div className="mt-3">
+            <PhotoTags listingId={listing.id} initialTags={photoTags} />
           </div>
         </div>
       </div>
@@ -505,9 +515,19 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             <div className="text-xs text-stone-400 pt-2">
               Listed on {listing.source}
-              {listing.source_url && (
-                <span> · <a href={listing.source_url} target="_blank" rel="noopener noreferrer" className="text-orange-700 hover:underline">View original listing</a></span>
-              )}
+              {(() => {
+                const urls = typeof listing.source_urls === 'string' ? JSON.parse(listing.source_urls || '{}') : (listing.source_urls || {})
+                const entries = Object.entries(urls) as [string,string][]
+                if (entries.length > 0) return (
+                  <span>{entries.map(([src, url]) => (
+                    <span key={src}> · <a href={url} target="_blank" rel="noopener noreferrer" className="text-orange-700 hover:underline">View on {src}</a></span>
+                  ))}</span>
+                )
+                if (listing.source_url) return (
+                  <span> · <a href={listing.source_url} target="_blank" rel="noopener noreferrer" className="text-orange-700 hover:underline">View original listing</a></span>
+                )
+                return null
+              })()}
             </div>
           </div>
 

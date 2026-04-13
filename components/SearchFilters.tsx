@@ -13,6 +13,7 @@ interface Props {
   furnished: string | null
   propertyType: string | null
   features: string[]
+  style?: string | null
   radius?: number | null
   addedWithin?: number | null
   availableFrom?: string | null
@@ -30,6 +31,7 @@ export default function SearchFilters(props: Props) {
   const [furnished, setFurnished] = useState(props.furnished)
   const [propertyType, setPropertyType] = useState(props.propertyType)
   const [features, setFeatures] = useState<string[]>(props.features)
+  const [styles, setStyles] = useState<string[]>(props.style ? props.style.split(',') : [])
   const [radius, setRadius] = useState<number | null>(sp.get('radius') ? parseFloat(sp.get('radius')!) : null)
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
   const [minSize, setMinSize] = useState<number | null>(null)
@@ -43,7 +45,12 @@ export default function SearchFilters(props: Props) {
   useEffect(() => { setAvailableFrom(props.availableFrom || null) }, [props.availableFrom])
   const router = useRouter()
 
-  const FEATURE_OPTIONS = ['Garden', 'Balcony', 'Parking', 'Garage', 'Pets allowed', 'Bills included']
+  const FEATURE_GROUPS = [
+    { label: 'Outside space', options: ['Garden', 'Balcony', 'Terrace', 'Patio', 'Roof terrace'] },
+    { label: 'Parking', options: ['Parking', 'Garage', 'Underground parking'] },
+    { label: 'Character features', options: ['Fireplace', 'Bay windows', 'Sash windows', 'High ceilings', 'Period features', 'Exposed brick', 'Exposed beams', 'Parquet flooring', 'Wooden floors'] },
+    { label: 'Lifestyle', options: ['Pets allowed', 'Bills included', 'Concierge', 'Gym', 'Swimming pool'] },
+  ]
   const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor']
 
   function toggleFeature(f: string) {
@@ -65,6 +72,7 @@ export default function SearchFilters(props: Props) {
     if (furnished) p.set('furnished', furnished)
     if (propertyType) p.set('propertyType', propertyType)
     if (features.length > 0) p.set('features', features.join(','))
+    if (styles.length > 0) p.set('style', styles.join(','))
     if (minSize) p.set('minSize', String(minSize))
     if (maxSize) p.set('maxSize', String(maxSize))
     if (floorLayout) p.set('floorLayout', floorLayout)
@@ -73,6 +81,7 @@ export default function SearchFilters(props: Props) {
   }
 
   function clearFilters() {
+    setStyles([])
     window.dispatchEvent(new Event('nestlondon:clearFilters'))
     setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null); setAvailableFrom(null); setAvailableFrom(null)
     setFurnished(null); setPropertyType(null); setFeatures([]); setRadius(null); setAddedWithin(null)
@@ -87,7 +96,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + features.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + features.length + styles.length
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -99,11 +108,11 @@ export default function SearchFilters(props: Props) {
     <div className="relative">
       <button
         onClick={() => { if (!open) window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setOpen(!open) }}
-        className={'flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border transition-colors ' + (activeCount > 0 ? 'bg-orange-700 text-white border-orange-700' : 'bg-white text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
+        className={'flex items-center gap-1.5 text-sm px-3 whitespace-nowrap transition-colors ' + (activeCount > 0 ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6" strokeWidth="1.5"/><line x1="8" y1="12" x2="16" y2="12" strokeWidth="1.5"/><line x1="11" y1="18" x2="13" y2="18" strokeWidth="1.5"/></svg>
         Filters
-        {activeCount > 0 && <span className="bg-white text-orange-700 text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">{activeCount}</span>}
+        {activeCount > 0 && <span className="bg-white text-[#D3755A] text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">{activeCount}</span>}
       </button>
 
       {open && (
@@ -120,7 +129,7 @@ export default function SearchFilters(props: Props) {
                 type="date"
                 value={availableFrom || ''}
                 onChange={e => setAvailableFrom(e.target.value || null)}
-                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#374151] bg-[#F5F0EB] outline-none"
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#374151] bg-[#F5EBE0] outline-none"
               />
               {availableFrom && (
                 <button onClick={() => setAvailableFrom(null)} className="text-stone-400 hover:text-[#4A5568] text-xs">✕</button>
@@ -156,7 +165,7 @@ export default function SearchFilters(props: Props) {
             <div className="flex flex-wrap gap-2">
               {['Flat','House','Studio','Maisonette','Bungalow'].map(t => (
                 <button key={t} onClick={() => setPropertyType(propertyType === t ? null : t)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyType === t ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyType === t ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
                 >{t}</button>
               ))}
             </div>
@@ -167,7 +176,7 @@ export default function SearchFilters(props: Props) {
             <div className="flex gap-2">
               {[['Furnished','furnished'],['Unfurnished','unfurnished'],['Part','part furnished']].map(([label, val]) => (
                 <button key={val} onClick={() => setFurnished(furnished === val ? null : val)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors flex-1 ' + (furnished === val ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors flex-1 ' + (furnished === val ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
                 >{label}</button>
               ))}
             </div>
@@ -186,16 +195,30 @@ export default function SearchFilters(props: Props) {
             </div>
           </div>
 
-          <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Must have</label>
+          <div className="mb-4">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Style</label>
             <div className="flex flex-wrap gap-2">
-              {FEATURE_OPTIONS.map(f => (
-                <button key={f} onClick={() => toggleFeature(f)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (features.includes(f) ? 'bg-orange-700 text-white border-orange-700' : 'bg-[#F5F0EB] text-[#4A5568] border-[#E8E2DA] hover:border-orange-600')}
-                >{f}</button>
+              {['Modern', 'Contemporary', 'Victorian', 'Georgian', 'Edwardian', 'Art Deco', 'Industrial', 'Minimalist', 'Period', 'New build', 'Converted', 'Loft'].map(s => (
+                <button key={s} onClick={() => setStyles(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (styles.includes(s) ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                  {s}
+                </button>
               ))}
             </div>
           </div>
+
+          {FEATURE_GROUPS.map(group => (
+            <div key={group.label} className="mb-4">
+              <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">{group.label}</label>
+              <div className="flex flex-wrap gap-2">
+                {group.options.map(f => (
+                  <button key={f} onClick={() => toggleFeature(f)}
+                    className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (features.includes(f) ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
+                  >{f}</button>
+                ))}
+              </div>
+            </div>
+          ))}
 
           <div className="mb-6">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Exclude</label>
@@ -210,7 +233,7 @@ export default function SearchFilters(props: Props) {
 
           <div className="flex gap-3">
             <button onClick={clearFilters} className="flex-1 border border-[#E8E2DA] text-[#4A5568] text-sm rounded-xl py-2.5 hover:border-stone-300 transition-colors">Clear all</button>
-            <button onClick={applyFilters} className="flex-1 bg-orange-700 text-white text-sm rounded-xl py-2.5 hover:bg-orange-800 transition-colors">{onApply ? 'Add' : 'Show results'}</button>
+            <button onClick={applyFilters} className="flex-1 text-white text-sm rounded-xl py-2.5 transition-opacity hover:opacity-90" style={{background:'#D3755A'}}>{onApply ? 'Add' : 'Show results'}</button>
           </div>
         </div>
       )}

@@ -124,6 +124,13 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
               </span>
             )}
           </Link>
+          <Link href="/viewings" onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
+            <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            My viewings
+          </Link>
           <Link href="/messages" onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
             <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
