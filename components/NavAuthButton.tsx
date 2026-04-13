@@ -10,6 +10,7 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
   const [email, setEmail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [unread, setUnread] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -20,6 +21,14 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
       if (user) {
         setUserRole(user.user_metadata?.role || 'user')
         setEmail(user.email || null)
+        // Fetch unread message count
+        fetch('/api/messages?inbox=true')
+          .then(r => r.json())
+          .then(d => {
+            const count = (d.threads || []).reduce((n: number, t: any) => n + (t.unread || 0), 0)
+            setUnread(count)
+          })
+          .catch(() => {})
       }
       setLoading(false)
     })
@@ -62,6 +71,11 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
           <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
         My account
+        {unread > 0 && (
+          <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold text-white flex items-center justify-center" style={{ background: '#D3755A' }}>
+            {unread}
+          </span>
+        )}
         <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round"/>
         </svg>
@@ -87,6 +101,18 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
               <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
             Account
+          </Link>
+          <Link href="/account?tab=messages" onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
+            <svg className="w-4 h-4 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Messages
+            {unread > 0 && (
+              <span className="ml-auto min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold text-white flex items-center justify-center" style={{ background: '#D3755A' }}>
+                {unread}
+              </span>
+            )}
           </Link>
           <div className="border-t border-[#E8E2DA] mt-1" />
           <button onClick={signOut}

@@ -247,11 +247,11 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
                   </div>
                   <button
                     onClick={() => toggleAlerts(s.id)}
-                    className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                    className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0 focus:outline-none"
                     style={{ background: alertToggles[s.id] ? '#D3755A' : '#E8E2DA' }}
                     aria-label={alertToggles[s.id] ? 'Disable alerts' : 'Enable alerts'}
                   >
-                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${alertToggles[s.id] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${alertToggles[s.id] ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
                 </div>
               </div>

@@ -127,7 +127,7 @@ export default function MessageInbox({ currentUserId }: Props) {
             {threads.map(t => {
               const img = t.listings ? getImg(t.listings.images) : null
               const isActive = t.thread_id === activeThread
-              const otherName = t.from_user_id === currentUserId ? 'Owner' : t.from_name
+              const otherName = t.from_user_id === currentUserId ? (t.listings?.address ? 'Owner · ' + t.listings.address.split(',')[0] : 'Owner') : t.from_name
               return (
                 <button key={t.thread_id} onClick={() => setActiveThread(t.thread_id)}
                   className={`w-full text-left px-4 py-3 flex gap-3 transition-colors border-b border-[#F8F5F2] ${isActive ? 'bg-[#FDF8F5]' : 'hover:bg-[#FAFAF9]'}`}>
