@@ -115,8 +115,6 @@ export default function HomePage() {
             nest<span style={{color: '#D85A30'}} className="italic">london</span>
           </div>
           <div className="flex gap-6 text-sm text-white/70 items-center">
-            <span className="cursor-pointer hover:text-white transition-colors">Buy</span>
-            <span className="cursor-pointer hover:text-white transition-colors">Rent</span>
             <NavAuthButton />
             <a href="/list" className="px-4 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90 no-underline flex-shrink-0" style={{background:'#D3755A'}}>
               List your property

@@ -18,7 +18,7 @@ export default async function SavedPage() {
 
   const { data: savedProperties } = await supabase
     .from('saved_properties')
-    .select('id, created_at, listing_id, listings(id, address, price, bedrooms, bathrooms, property_type, borough, images, is_active)')
+    .select('id, created_at, listing_id, folder_id, listings(id, address, price, bedrooms, bathrooms, property_type, borough, images, is_active)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

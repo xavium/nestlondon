@@ -42,6 +42,9 @@ export default function SavedSearchesClient({ savedSearches }: { savedSearches: 
     Object.fromEntries(savedSearches.map(s => [s.id, s.alert_frequency || 'instant']))
   )
   const [openFreq, setOpenFreq] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editParams, setEditParams] = useState<Record<string, string>>({})
+  const [savingEdit, setSavingEdit] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameVal, setRenameVal] = useState('')
   const [renameLoading, setRenameLoading] = useState(false)
@@ -61,6 +64,18 @@ export default function SavedSearchesClient({ savedSearches }: { savedSearches: 
     setSearches(ss => ss.map(s => s.id === id ? { ...s, name: renameVal.trim() || null } : s))
     setRenamingId(null)
     setRenameLoading(false)
+  }
+
+  async function saveEditedSearch(id: string) {
+    setSavingEdit(true)
+    await fetch('/api/saved/search/update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, params: editParams })
+    })
+    setSearches(ss => ss.map(s => s.id === id ? { ...s, params: editParams } : s))
+    setEditingId(null)
+    setSavingEdit(false)
   }
 
   async function deleteSearch(id: string) {
@@ -154,6 +169,10 @@ export default function SavedSearchesClient({ savedSearches }: { savedSearches: 
               <div className="text-xs text-[#9B928E]">Saved {new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
             </div>
             <div className="flex gap-2 flex-shrink-0 items-center">
+              <button onClick={() => { setEditingId(editingId === s.id ? null : s.id); setEditParams({...s.params}) }}
+                className="text-xs px-3 py-2 rounded-xl border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0] transition-colors">
+                Edit search
+              </button>
               <Link href={buildSearchUrl(s.params)}
                 className="text-xs px-4 py-2 rounded-xl text-white no-underline transition-opacity hover:opacity-90"
                 style={{ background: '#D3755A' }}>
@@ -216,6 +235,70 @@ export default function SavedSearchesClient({ savedSearches }: { savedSearches: 
               )}
             </div>
           </div>
+
+          {/* Edit search params */}
+          {editingId === s.id && (
+            <div className="mt-4 pt-3 border-t border-[#F5F0EB]">
+              <div className="text-xs font-semibold text-[#1B2E4B] mb-3">Edit search criteria</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                <div>
+                  <label className="text-[10px] text-[#9B928E] uppercase tracking-wide mb-1 block">Location</label>
+                  <input value={editParams.location || ''} onChange={e => setEditParams(p => ({...p, location: e.target.value}))}
+                    className="w-full border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
+                    placeholder="e.g. Shoreditch, E1" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#9B928E] uppercase tracking-wide mb-1 block">Min beds</label>
+                  <select value={editParams.minBeds || ''} onChange={e => setEditParams(p => ({...p, minBeds: e.target.value}))}
+                    className="w-full border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                    <option value="">Any</option>
+                    <option value="0">Studio</option>
+                    {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} bed</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#9B928E] uppercase tracking-wide mb-1 block">Max beds</label>
+                  <select value={editParams.maxBeds || ''} onChange={e => setEditParams(p => ({...p, maxBeds: e.target.value}))}
+                    className="w-full border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                    <option value="">Any</option>
+                    <option value="0">Studio</option>
+                    {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} bed</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#9B928E] uppercase tracking-wide mb-1 block">Min price (£/mo)</label>
+                  <input type="number" value={editParams.minPrice || ''} onChange={e => setEditParams(p => ({...p, minPrice: e.target.value}))}
+                    className="w-full border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
+                    placeholder="e.g. 1000" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#9B928E] uppercase tracking-wide mb-1 block">Max price (£/mo)</label>
+                  <input type="number" value={editParams.maxPrice || ''} onChange={e => setEditParams(p => ({...p, maxPrice: e.target.value}))}
+                    className="w-full border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
+                    placeholder="e.g. 2500" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#9B928E] uppercase tracking-wide mb-1 block">Radius</label>
+                  <select value={editParams.radius || ''} onChange={e => setEditParams(p => ({...p, radius: e.target.value}))}
+                    className="w-full border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                    <option value="">This area only</option>
+                    {[0.5,1,2,3,5,10].map(r => <option key={r} value={r}>Within {r} mi</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setEditingId(null)}
+                  className="text-xs px-4 py-2 rounded-xl border border-[#E8E2DA] text-[#9B928E] hover:bg-stone-50 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={() => saveEditedSearch(s.id)} disabled={savingEdit}
+                  className="text-xs px-4 py-2 rounded-xl text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+                  style={{ background: '#D3755A' }}>
+                  {savingEdit ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Latest matching listings */}
           <div className="mt-4 pt-3 border-t border-[#F5F0EB]">
