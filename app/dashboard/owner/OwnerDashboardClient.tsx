@@ -71,12 +71,59 @@ function getPercentile(value: number, arr: number[]): number {
 
 export default function OwnerDashboardClient({ user, listings, events, comparables, avgDaysOnMarket = {}, viewingRequests, renterProfiles = {} }: Props) {
   const [requests, setRequests] = useState<ViewingRequest[]>(viewingRequests)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [confirmingAddress, setConfirmingAddress] = useState<{id: string, slot: any, address: string} | null>(null)
+  const [fullAddress, setFullAddress] = useState('')
+  const [amendingOwnerId, setAmendingOwnerId] = useState<string | null>(null)
+  const [ownerAmendMsg, setOwnerAmendMsg] = useState('')
+  const [ownerAmendDate, setOwnerAmendDate] = useState('')
+  const [ownerAmendTime, setOwnerAmendTime] = useState('10:00 AM')
+  const [ownerActioning, setOwnerActioning] = useState(false)
   const [proposingId, setProposingId] = useState<string | null>(null)
   const [proposedSlot, setProposedSlot] = useState<{date:string,time:string} | null>(null)
   const [proposeLoading, setProposeLoading] = useState(false)
   const [proposeNote, setProposeNote] = useState('')
   const [alternativeMode, setAlternativeMode] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(listings[0]?.id || null)
+  async function confirmWithAddress(id: string, slot: any) {
+    await fetch('/api/listings/viewing-confirm-owner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: id, proposed_slot: slot, confirmed_address: fullAddress })
+    })
+    setRequests(r => r.map(x => x.id === id ? { ...x, status: 'proposed', proposed_slot: slot } : x))
+    setConfirmingAddress(null)
+    setFullAddress('')
+  }
+
+  async function cancelViewingOwner(id: string) {
+    if (!confirm('Cancel this viewing?')) return
+    setCancellingId(id)
+    await fetch('/api/listings/viewing-amend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ viewing_id: id, action: 'cancel' })
+    })
+    setRequests(r => r.map(x => x.id === id ? { ...x, status: 'cancelled' } : x))
+    setCancellingId(null)
+  }
+
+  async function requestAmendmentOwner(id: string) {
+    setOwnerActioning(true)
+    const new_slots = ownerAmendDate ? [{ date: ownerAmendDate, time: ownerAmendTime }] : undefined
+    await fetch('/api/listings/viewing-amend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ viewing_id: id, action: 'request_amendment', message: ownerAmendMsg, new_slots })
+    })
+    setRequests(r => r.map(x => x.id === id ? { ...x, status: 'pending' } : x))
+    setAmendingOwnerId(null)
+    setOwnerAmendMsg('')
+    setOwnerAmendDate('')
+    setOwnerAmendTime('10:00 AM')
+    setOwnerActioning(false)
+  }
+
   const [dashTab, setDashTab] = useState<'analytics' | 'viewings'>('analytics')
 
   const listing = listings.find(l => l.id === selected)
@@ -462,10 +509,14 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                                   <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
                                     placeholder="Add a note to the tenant (optional)..."
                                     className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
-                                  <button onClick={() => proposeViewing(req.id)} disabled={proposeLoading}
+                                  <button onClick={() => {
+                                    const addr = (req as any).listings?.address || ''
+                                    setFullAddress(addr)
+                                    setConfirmingAddress({ id: req.id, slot: proposedSlot, address: addr })
+                                  }} disabled={proposeLoading}
                                     className="w-full py-2 rounded-xl text-white text-xs font-medium disabled:opacity-50"
                                     style={{background:'#1B2E4B'}}>
-                                    {proposeLoading ? 'Sending...' : 'Propose slot →'}
+                                    Propose slot →
                                   </button>
                                 </div>
                               )}
@@ -504,6 +555,54 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                               )}
                             </div>
                           )}
+                          {/* Cancel / Amend */}
+                          {req.status !== 'cancelled' && (
+                            <div className="mt-3 pt-3 border-t border-[#F5F0EB]">
+                              {amendingOwnerId === req.id ? (
+                                <div className="flex flex-col gap-2">
+                                  <div className="text-xs font-medium text-[#9B928E] uppercase tracking-wide mb-1">Suggest new time (optional)</div>
+                                  <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <input type="date" value={ownerAmendDate} onChange={e => setOwnerAmendDate(e.target.value)}
+                                      min={new Date().toISOString().split('T')[0]}
+                                      className="border border-[#E8E2DA] rounded-xl px-2 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+                                    <select value={ownerAmendTime} onChange={e => setOwnerAmendTime(e.target.value)}
+                                      className="border border-[#E8E2DA] rounded-xl px-2 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                                      {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                  </div>
+                                  <textarea value={ownerAmendMsg} onChange={e => setOwnerAmendMsg(e.target.value)}
+                                    placeholder="Additional notes..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-12 bg-white" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setAmendingOwnerId(null); setOwnerAmendMsg(''); setOwnerAmendDate(''); setOwnerAmendTime('10:00 AM') }}
+                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                                    <button onClick={() => requestAmendmentOwner(req.id)} disabled={ownerActioning}
+                                      className="flex-1 py-1.5 rounded-xl text-white text-xs disabled:opacity-50"
+                                      style={{ background: '#D3755A' }}>
+                                      {ownerActioning ? 'Sending…' : 'Send'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button onClick={() => {
+                                    const slot = req.proposed_slot || req.slots?.[0]
+                                    setAmendingOwnerId(req.id)
+                                    setOwnerAmendDate(slot?.date || '')
+                                    setOwnerAmendTime(slot?.time || '10:00 AM')
+                                  }}
+                                    className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+                                    Request amendment
+                                  </button>
+                                  <button onClick={() => cancelViewingOwner(req.id)} disabled={cancellingId === req.id}
+                                    className="flex-1 py-1.5 rounded-xl border border-red-200 text-xs text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                                    {cancellingId === req.id ? 'Cancelling…' : 'Cancel viewing'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {req.status === 'proposed' && req.proposed_slot && (
                             <div>
                               <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700 mb-2">
@@ -692,6 +791,33 @@ function ViewingsCalendar({ requests, listings }: { requests: any[], listings: a
         </div>
       </div>
     </div>
+
+    {/* Full address prompt modal */}
+    {confirmingAddress && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setConfirmingAddress(null)}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+          <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Confirm full address</h3>
+          <p className="text-xs text-[#9B928E] mb-4">The tenant will receive the full address when you propose this viewing. Please ensure the door/flat number is included.</p>
+          <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Full property address</label>
+          <input
+            value={fullAddress}
+            onChange={e => setFullAddress(e.target.value)}
+            className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-4"
+            placeholder="e.g. Flat 3, 42 Roman Road, London, E2 0RN"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmingAddress(null)}
+              className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#9B928E]">Cancel</button>
+            <button onClick={() => confirmWithAddress(confirmingAddress.id, confirmingAddress.slot)}
+              disabled={!fullAddress.trim()}
+              className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+              style={{background:'#1B2E4B'}}>
+              Send proposal →
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   )
 }
 

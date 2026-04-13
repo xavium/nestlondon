@@ -20,7 +20,7 @@ export default async function ViewingsPage() {
 
   const { data: viewings } = await svc
     .from('viewing_requests')
-    .select('*, listings(id, address, price, images, property_type, bedrooms)')
+    .select('*, listings(id, address, price, images, property_type, bedrooms, raw_data, agent_id)')
     .eq('tenant_email', user.email)
     .order('created_at', { ascending: false })
 
@@ -37,7 +37,7 @@ export default async function ViewingsPage() {
           <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#D3755A' }}>My viewings</p>
           <h1 className="text-3xl font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Viewing requests</h1>
         </div>
-        <ViewingsClient viewings={viewings || []} />
+        <ViewingsClient viewings={viewings || []} currentUserId={user.id} />
       </div>
     </main>
   )

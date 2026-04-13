@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import MessagesPanel from '@/components/MessagesPanel'
 
 interface Slot { date: string; time: string; note?: string }
 interface Viewing {
@@ -14,6 +15,7 @@ interface Viewing {
   proposed_slot?: Slot
   status: 'pending' | 'proposed' | 'confirmed' | 'cancelled'
   confirmation_token: string
+  confirmed_address?: string | null
   created_at: string
   listings: {
     id: string
@@ -22,6 +24,8 @@ interface Viewing {
     images: string
     property_type: string | null
     bedrooms: number | null
+    raw_data: any
+    agent_id: string | null
   } | null
 }
 
@@ -49,6 +53,8 @@ const STATUS_CONFIG = {
 }
 
 function CalendarView({ viewings }: { viewings: Viewing[] }) {
+  const [selectedViewing, setSelectedViewing] = useState<Viewing | null>(null)
+
   const confirmed = viewings.filter(v => v.status === 'confirmed' && v.proposed_slot)
   const proposed = viewings.filter(v => v.status === 'proposed' && v.proposed_slot)
   const upcoming = [...confirmed, ...proposed].sort((a, b) =>
@@ -57,11 +63,10 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
 
   if (upcoming.length === 0) return null
 
-  // Get next 4 weeks
   const today = new Date()
   const weeks: Date[][] = []
   const start = new Date(today)
-  start.setDate(today.getDate() - today.getDay() + 1) // Monday
+  start.setDate(today.getDate() - today.getDay() + 1)
 
   for (let w = 0; w < 4; w++) {
     const week: Date[] = []
@@ -83,7 +88,7 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
   return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 mb-5">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 mb-5 relative">
       <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Calendar</h2>
       <div className="grid grid-cols-7 gap-1 mb-2">
         {dayNames.map(d => (
@@ -98,18 +103,16 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
             const isToday = key === today.toISOString().split('T')[0]
             const isPast = day < today && !isToday
             return (
-              <div key={di}
-                className={'rounded-lg p-1 min-h-[52px] text-center ' + (isToday ? 'bg-[#F5EBE0]' : isPast ? '' : 'hover:bg-stone-50')}
-              >
+              <div key={di} className={'rounded-lg p-1 min-h-[52px] text-center ' + (isToday ? 'bg-[#F5EBE0]' : isPast ? '' : 'hover:bg-stone-50')}>
                 <div className={'text-xs mb-1 ' + (isToday ? 'font-bold text-[#D3755A]' : isPast ? 'text-[#C8C4BF]' : 'text-[#3D3A38]')}>
                   {day.getDate()}
                 </div>
                 {dayViewings.map(v => (
-                  <div key={v.id}
-                    className={'text-[9px] px-1 py-0.5 rounded mb-0.5 truncate ' +
+                  <button key={v.id} onClick={() => setSelectedViewing(v)}
+                    className={'w-full text-[9px] px-1 py-0.5 rounded mb-0.5 truncate text-left cursor-pointer hover:opacity-80 transition-opacity ' +
                       (v.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700')}>
                     {v.proposed_slot!.time}
-                  </div>
+                  </button>
                 ))}
               </div>
             )
@@ -117,20 +120,77 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
         </div>
       ))}
       <div className="flex gap-3 mt-3 pt-3 border-t border-[#F0EBE5]">
-        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]">
-          <div className="w-3 h-3 rounded bg-green-100" />Confirmed
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]">
-          <div className="w-3 h-3 rounded bg-blue-100" />Proposed
-        </div>
+        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-green-100" />Confirmed</div>
+        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-blue-100" />Proposed</div>
       </div>
+
+      {/* Popup */}
+      {selectedViewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setSelectedViewing(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className={'text-xs font-semibold px-2 py-0.5 rounded-full inline-block mb-2 ' +
+                  (selectedViewing.status === 'confirmed' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700')}>
+                  {selectedViewing.status === 'confirmed' ? 'Confirmed' : 'Proposed'}
+                </div>
+                <h3 className="text-base font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>
+                  {selectedViewing.listings?.address || 'Property viewing'}
+                </h3>
+              </div>
+              <button onClick={() => setSelectedViewing(null)} className="text-[#9B928E] hover:text-[#1B2E4B] text-lg leading-none ml-4">✕</button>
+            </div>
+
+            {selectedViewing.listings && (
+              <div className="text-xs text-[#9B928E] mb-3">
+                £{selectedViewing.listings.price?.toLocaleString()}/mo
+                {selectedViewing.listings.bedrooms ? ' · ' + selectedViewing.listings.bedrooms + ' bed' : ''}
+                {selectedViewing.listings.property_type ? ' · ' + selectedViewing.listings.property_type : ''}
+              </div>
+            )}
+
+            <div className="bg-[#F5EBE0] rounded-xl p-4 mb-4">
+              <div className="text-xs text-[#9B928E] mb-1">Date & time</div>
+              <div className="text-sm font-medium text-[#1B2E4B]">
+                {formatSlot(selectedViewing.proposed_slot!)}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Link href={'/listings/' + selectedViewing.listing_id} target="_blank" rel="noopener noreferrer"
+                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center no-underline hover:bg-[#F5EBE0] transition-colors">
+                View property
+              </Link>
+              <button
+                onClick={() => {
+                  setSelectedViewing(null)
+                  setTimeout(() => {
+                    const el = document.getElementById('viewing-' + selectedViewing.id)
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  }, 100)
+                }}
+                className="flex-1 py-2.5 rounded-xl text-white text-xs text-center transition-opacity hover:opacity-90"
+                style={{background:'#D3755A'}}>
+                Manage viewing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-export default function ViewingsClient({ viewings }: { viewings: Viewing[] }) {
+export default function ViewingsClient({ viewings, currentUserId }: { viewings: Viewing[], currentUserId: string }) {
   const [tab, setTab] = useState<'all' | 'pending' | 'confirmed'>('all')
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState<string | null>(null)
+  const [amendingId, setAmendingId] = useState<string | null>(null)
+  const [amendMessage, setAmendMessage] = useState('')
+  const [amendDate, setAmendDate] = useState('')
+  const [amendTime, setAmendTime] = useState('10:00 AM')
+  const [actioning, setActioning] = useState(false)
+  const [messagingId, setMessagingId] = useState<string | null>(null)
 
   async function respondToProposal(token: string, action: 'confirm' | 'decline') {
     setConfirming(token)
@@ -139,6 +199,33 @@ export default function ViewingsClient({ viewings }: { viewings: Viewing[] }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, action })
     })
+    window.location.reload()
+  }
+
+  async function cancelViewing(id: string) {
+    if (!confirm('Cancel this viewing request?')) return
+    setCancelling(id)
+    await fetch('/api/listings/viewing-amend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ viewing_id: id, action: 'cancel' })
+    })
+    window.location.reload()
+  }
+
+  async function requestAmendment(id: string) {
+    setActioning(true)
+    const new_slots = amendDate ? [{ date: amendDate, time: amendTime }] : undefined
+    await fetch('/api/listings/viewing-amend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ viewing_id: id, action: 'request_amendment', message: amendMessage, new_slots })
+    })
+    setAmendingId(null)
+    setAmendMessage('')
+    setAmendDate('')
+    setAmendTime('10:00 AM')
+    setActioning(false)
     window.location.reload()
   }
 
@@ -191,7 +278,7 @@ export default function ViewingsClient({ viewings }: { viewings: Viewing[] }) {
           const cfg = STATUS_CONFIG[v.status] || STATUS_CONFIG.pending
 
           return (
-            <div key={v.id} className="bg-white border border-[#E8E2DA] rounded-2xl overflow-hidden">
+            <div key={v.id} id={'viewing-' + v.id} className="bg-white border border-[#E8E2DA] rounded-2xl overflow-hidden transition-all">
               <div className="flex gap-4 p-4">
                 {/* Property thumbnail */}
                 <Link href={l ? '/listings/' + l.id : '#'} className="no-underline flex-shrink-0">
@@ -266,14 +353,120 @@ export default function ViewingsClient({ viewings }: { viewings: Viewing[] }) {
                 {v.status === 'confirmed' && v.proposed_slot && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3">
                     <div className="text-xs font-semibold text-green-700 mb-1">Viewing confirmed</div>
-                    <div className="text-sm text-green-800 font-medium">{formatSlot(v.proposed_slot)}</div>
-                    <div className="text-xs text-green-600 mt-1">Add to your calendar and arrive on time.</div>
+                    <div className="text-sm text-green-800 font-medium mb-1">{formatSlot(v.proposed_slot)}</div>
+                    {v.confirmed_address ? (
+                      <div className="mt-2 pt-2 border-t border-green-200">
+                        <div className="text-xs text-green-600 mb-0.5">Full address</div>
+                        <div className="text-sm text-green-800 font-medium">{v.confirmed_address}</div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-green-600 mt-1">Full address will be confirmed by the owner.</div>
+                    )}
+                    {(() => {
+                      const rd = v.listings?.raw_data
+                      const raw = typeof rd === 'string' ? (() => { try { return JSON.parse(rd) } catch { return {} } })() : (rd || {})
+                      const contact = raw?.contact || {}
+                      const hasContact = contact.name || contact.email || contact.phone
+                      if (!hasContact) return null
+                      return (
+                        <div className="mt-2 pt-2 border-t border-green-200">
+                          <div className="text-xs text-green-600 mb-1.5">Owner / agent contact</div>
+                          {contact.name && <div className="text-sm text-green-800 font-medium">{contact.name}</div>}
+                          {contact.phone && (
+                            <a href={'tel:' + contact.phone} className="text-xs text-green-700 hover:underline flex items-center gap-1 mt-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                              {contact.phone}
+                            </a>
+                          )}
+                          {contact.email && (
+                            <a href={'mailto:' + contact.email} className="text-xs text-green-700 hover:underline flex items-center gap-1 mt-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                              {contact.email}
+                            </a>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 
                 {/* Cancelled */}
                 {v.status === 'cancelled' && (
                   <div className="text-xs text-[#9B928E]">This viewing was cancelled.</div>
+                )}
+
+                {/* Cancel / Amend actions for active viewings */}
+                {v.status !== 'cancelled' && (
+                  <div className="mt-3 pt-3 border-t border-[#F5F0EB]">
+                    {amendingId === v.id ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="text-xs font-medium text-[#9B928E] uppercase tracking-wide">Suggest a new time (optional)</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="date" value={amendDate} onChange={e => setAmendDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="border border-[#E8E2DA] rounded-xl px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+                          <select value={amendTime} onChange={e => setAmendTime(e.target.value)}
+                            className="border border-[#E8E2DA] rounded-xl px-3 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                            {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <textarea value={amendMessage} onChange={e => setAmendMessage(e.target.value)}
+                          placeholder="Any additional notes..."
+                          className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-14 bg-white" />
+                        <div className="flex gap-2">
+                          <button onClick={() => { setAmendingId(null); setAmendMessage(''); setAmendDate(''); setAmendTime('10:00 AM') }}
+                            className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                          <button onClick={() => requestAmendment(v.id)} disabled={actioning}
+                            className="flex-1 py-1.5 rounded-xl text-white text-xs disabled:opacity-50"
+                            style={{ background: '#D3755A' }}>
+                            {actioning ? 'Sending…' : 'Send request'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button onClick={() => {
+                          const slot = v.proposed_slot || (v.slots?.[0])
+                          setAmendingId(v.id)
+                          setAmendDate(slot?.date || '')
+                          setAmendTime(slot?.time || '10:00 AM')
+                        }}
+                          className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+                          Request amendment
+                        </button>
+                        <button onClick={() => cancelViewing(v.id)} disabled={cancelling === v.id}
+                          className="flex-1 py-1.5 rounded-xl border border-red-200 text-xs text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                          {cancelling === v.id ? 'Cancelling…' : 'Cancel viewing'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Message owner */}
+                {v.status !== 'cancelled' && (
+                  <div className="mt-2">
+                    {messagingId === v.id ? (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-[#1B2E4B]">Message the owner</span>
+                          <button onClick={() => setMessagingId(null)} className="text-xs text-[#9B928E] hover:text-[#1B2E4B]">✕ Close</button>
+                        </div>
+                        <MessagesPanel
+                          listingId={v.listing_id}
+                          listingAddress={v.listings?.address || ''}
+                          currentUserId={currentUserId}
+                        />
+                      </div>
+                    ) : (
+                      <button onClick={() => setMessagingId(v.id)}
+                        className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors flex items-center justify-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Message owner
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
