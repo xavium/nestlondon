@@ -84,6 +84,37 @@ export default async function DashboardPage() {
     events = evts || []
   }
 
+  // Fetch comparables and avg days on market per listing
+  const comparables: Record<string, any[]> = {}
+  const avgDaysOnMarket: Record<string, number | null> = {}
+  for (const listing of (listings || [])) {
+    const { data: comps } = await svc
+      .from('listings')
+      .select('id, price, bedrooms, square_feet, borough, scraped_at')
+      .eq('is_active', true)
+      .eq('borough', listing.borough || '')
+      .eq('bedrooms', listing.bedrooms || 0)
+      .neq('id', listing.id)
+      .limit(10)
+    comparables[listing.id] = comps || []
+
+    if (comps && comps.length >= 3) {
+      const days = comps
+        .filter(c => c.scraped_at)
+        .map(c => Math.floor((Date.now() - new Date(c.scraped_at).getTime()) / 86400000))
+      avgDaysOnMarket[listing.id] = days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : null
+    } else {
+      avgDaysOnMarket[listing.id] = null
+    }
+  }
+
+  // Fetch agency team members
+  const { data: agencyAgents } = await svc
+    .from('agency_agents')
+    .select('*')
+    .eq('agency_id', user.id)
+    .order('name')
+
   return (
     <main className="min-h-screen bg-[#F5EBE0]">
       <nav className="bg-[#1B2E4B] px-6 py-4 flex items-center justify-between">
@@ -96,6 +127,9 @@ export default async function DashboardPage() {
       <AgentDashboardClient
         user={{ email: user.email!, name: user.user_metadata?.name || '', id: user.id }}
         agentRecord={agentRecord}
+        agencyAgents={agencyAgents || []}
+        comparables={comparables}
+        avgDaysOnMarket={avgDaysOnMarket}
         listings={listings || []}
         viewingRequests={viewingRequests}
         messages={messages}

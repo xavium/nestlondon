@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest) {
     const { data: { user } } = await auth.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { listing_id, action } = await req.json()
+    const { listing_id, action, assigned_agent_name } = await req.json()
     const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
     // Verify ownership
@@ -42,7 +42,6 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (action === 'assign') {
-      const { assigned_agent_name } = await req.clone().json().catch(() => ({}))
       await svc.from('listings').update({
         assigned_agent_name: assigned_agent_name || null
       }).eq('id', listing_id)

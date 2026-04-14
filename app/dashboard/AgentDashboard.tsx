@@ -19,6 +19,13 @@ interface Listing {
   assigned_agent_name: string | null
 }
 
+interface AgencyAgent {
+  id: string
+  name: string
+  email: string | null
+  role: string
+}
+
 interface Props {
   user: { email: string; name: string; id: string }
   agentRecord: any
@@ -26,6 +33,9 @@ interface Props {
   viewingRequests: any[]
   messages: any[]
   events: any[]
+  agencyAgents: AgencyAgent[]
+  comparables: Record<string, any[]>
+  avgDaysOnMarket: Record<string, number | null>
 }
 
 function getImg(images: any): string | null {
@@ -45,8 +55,10 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   )
 }
 
-export default function AgentDashboardClient({ user, agentRecord, listings, viewingRequests, messages, events }: Props) {
-  const [tab, setTab] = useState<'overview' | 'listings' | 'viewings' | 'enquiries' | 'feed'>('overview')
+export default function AgentDashboardClient({ user, agentRecord, listings, viewingRequests, messages, events, agencyAgents: initialAgencyAgents = [], comparables = {}, avgDaysOnMarket = {} }: Props) {
+  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'feed' | 'team'>('overview')
+  const [listingsState, setListingsState] = useState(listings)
+  const [selectedListing, setSelectedListing] = useState<string | null>(null)
 
   // Search/filter state
   const [listingSearch, setListingSearch] = useState('')
@@ -55,6 +67,37 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const [listingStatusFilter, setListingStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [agentFilter, setAgentFilter] = useState<string>('all')
   const [assigningId, setAssigningId] = useState<string | null>(null)
+  const [agencyAgents, setAgencyAgents] = useState<AgencyAgent[]>(initialAgencyAgents)
+  const [newAgentName, setNewAgentName] = useState('')
+  const [newAgentEmail, setNewAgentEmail] = useState('')
+  const [addingAgent, setAddingAgent] = useState(false)
+
+  async function addAgencyAgent() {
+    if (!newAgentName.trim()) return
+    setAddingAgent(true)
+    const res = await fetch('/api/agency/agents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newAgentName.trim(), email: newAgentEmail.trim() || null })
+    })
+    const data = await res.json()
+    if (data.agent) {
+      setAgencyAgents(a => [...a, data.agent])
+      setNewAgentName('')
+      setNewAgentEmail('')
+    }
+    setAddingAgent(false)
+  }
+
+  async function removeAgencyAgent(id: string) {
+    if (!confirm('Remove this agent from your team?')) return
+    await fetch('/api/agency/agents', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+    setAgencyAgents(a => a.filter(x => x.id !== id))
+  }
   const [assignName, setAssignName] = useState('')
   const [assigning, setAssigning] = useState(false)
 
@@ -81,12 +124,29 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   }
 
   // Per-listing stats
-  const listingStats = listings.map(l => ({
-    ...l,
-    views: events.filter(e => e.listing_id === l.id && e.event_type === 'view').length,
-    viewings: viewingRequests.filter(v => v.listing_id === l.id).length,
-    enquiries: messages.filter(m => m.listing_id === l.id).length,
-  }))
+  const listingStats = listingsState.map(l => {
+    const lComps = comparables[l.id] || []
+    const compPrices = lComps.map((c: any) => c.price).filter(Boolean)
+    const avgCompPrice = compPrices.length ? Math.round(compPrices.reduce((a: number, b: number) => a + b, 0) / compPrices.length) : null
+    const priceDiff = avgCompPrice && l.price ? Math.round((l.price - avgCompPrice) / avgCompPrice * 100) : null
+    const daysListed = l.scraped_at ? Math.floor((Date.now() - new Date(l.scraped_at).getTime()) / 86400000) : 0
+    const avgMktDays = avgDaysOnMarket[l.id] ?? null
+    const lViews = events.filter(e => e.listing_id === l.id && e.event_type === 'view').length
+    const lEnquiries = messages.filter(m => m.listing_id === l.id).length
+    const lViewings = viewingRequests.filter(v => v.listing_id === l.id).length
+    return {
+      ...l,
+      views: lViews,
+      viewings: lViewings,
+      enquiries: lEnquiries,
+      priceDiff,
+      avgCompPrice,
+      daysListed,
+      avgMktDays,
+      comps: lComps,
+      conversionRate: lViews > 0 ? Math.round(lEnquiries / lViews * 100) : 0,
+    }
+  })
 
   const filteredListingStats = listingStats.filter(l => {
     if (listingStatusFilter === 'active' && !l.is_active) return false
@@ -104,7 +164,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const filteredViewings = agentFilter === 'all' ? viewingRequests : applyAgentFilter(viewingRequests, v => v.listing_id)
   const filteredMessages = agentFilter === 'all' ? messages : applyAgentFilter(messages, m => m.listing_id)
 
-  const activeListings = listings.filter(l => l.is_active)
+  const activeListings = listingsState.filter(l => l.is_active)
   const totalViews = events.filter(e => e.event_type === 'view').length
   const thisWeekViews = events.filter(e => e.event_type === 'view' && new Date(e.created_at) > new Date(Date.now() - 7 * 86400000)).length
   const pendingViewings = filteredViewings.filter(v => v.status === 'pending').length
@@ -129,18 +189,21 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ listing_id, action: 'assign', assigned_agent_name: assignName.trim() || null })
     })
+    // Update locally without reload
+    setListingsState(ls => ls.map(l => l.id === listing_id ? { ...l, assigned_agent_name: assignName.trim() || null } : l))
     setAssigningId(null)
     setAssignName('')
     setAssigning(false)
-    window.location.reload()
   }
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
+    { key: 'analytics', label: 'Analytics' },
     { key: 'listings', label: `Listings (${activeListings.length})` },
     { key: 'viewings', label: `Viewings (${pendingViewings + confirmedViewings})` },
     { key: 'enquiries', label: `Enquiries (${filteredMessages.length})` },
     { key: 'feed', label: 'BLM Feed' },
+    { key: 'team', label: `Team (${agencyAgents.length})` },
   ]
 
   // Agent filter pill component
@@ -196,10 +259,238 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
         ))}
       </div>
 
+      {/* Analytics */}
+      {tab === 'analytics' && (() => {
+        // Views last 14 days
+        const last14 = Array.from({length: 14}, (_, i) => {
+          const d = new Date(); d.setDate(d.getDate() - 13 + i)
+          const dayStr = d.toISOString().split('T')[0]
+          return {
+            label: d.toLocaleDateString('en-GB', {day:'numeric',month:'short'}),
+            views: events.filter(e => e.event_type === 'view' && e.created_at?.startsWith(dayStr)).length,
+            enquiries: messages.filter(m => m.created_at?.startsWith(dayStr)).length,
+          }
+        })
+        const maxDay = Math.max(...last14.map(d => d.views), 1)
+
+        // Borough breakdown
+        const boroughMap: Record<string, number> = {}
+        listingsState.forEach(l => {
+          const b = l.borough || 'Unknown'
+          boroughMap[b] = (boroughMap[b] || 0) + 1
+        })
+        const boroughs = Object.entries(boroughMap).sort((a,b) => b[1]-a[1]).slice(0, 6)
+        const maxBorough = Math.max(...boroughs.map(b => b[1]), 1)
+
+        // Price brackets
+        const brackets = [
+          { label: '<£1,500', min: 0, max: 1500 },
+          { label: '£1.5-2k', min: 1500, max: 2000 },
+          { label: '£2-3k', min: 2000, max: 3000 },
+          { label: '£3-5k', min: 3000, max: 5000 },
+          { label: '£5k+', min: 5000, max: Infinity },
+        ].map(b => ({...b, count: listingsState.filter(l => l.price >= b.min && l.price < b.max).length}))
+        const maxBracket = Math.max(...brackets.map(b => b.count), 1)
+
+        // Conversion funnel
+        const totalViews2 = events.filter(e => e.event_type === 'view').length
+        const totalEnquiries = messages.length
+        const totalViewings2 = viewingRequests.length
+        const totalConfirmed = viewingRequests.filter(v => v.status === 'confirmed').length
+        const funnelSteps = [
+          { label: 'Views', value: totalViews2, pct: 100 },
+          { label: 'Enquiries', value: totalEnquiries, pct: totalViews2 ? Math.round(totalEnquiries/totalViews2*100) : 0 },
+          { label: 'Viewings', value: totalViewings2, pct: totalEnquiries ? Math.round(totalViewings2/totalEnquiries*100) : 0 },
+          { label: 'Confirmed', value: totalConfirmed, pct: totalViewings2 ? Math.round(totalConfirmed/totalViewings2*100) : 0 },
+        ]
+
+        // Top/bottom performers by view-to-enquiry ratio
+        const performers = listingStats.filter(l => l.views > 0).map(l => ({
+          ...l, ratio: l.enquiries / l.views * 100
+        })).sort((a,b) => b.ratio - a.ratio)
+
+        // Avg days on market (listings older than 7 days)
+        const daysOnMarket = listingsState.filter(l => l.scraped_at).map(l => {
+          const days = Math.floor((Date.now() - new Date(l.scraped_at).getTime()) / 86400000)
+          return days
+        })
+        const avgDays = daysOnMarket.length ? Math.round(daysOnMarket.reduce((a,b)=>a+b,0)/daysOnMarket.length) : 0
+        const avgPrice = listingsState.length ? Math.round(listingsState.reduce((a,l)=>a+l.price,0)/listingsState.length) : 0
+
+        return (
+          <div className="flex flex-col gap-6">
+            {/* KPI row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard label="Avg listing price" value={'£' + avgPrice.toLocaleString()} sub="per month" />
+              <StatCard label="Avg days listed" value={avgDays} sub="across portfolio" />
+              <StatCard label="View → Enquiry" value={totalViews2 ? Math.round(totalEnquiries/totalViews2*100)+'%' : '—'} sub="conversion rate" />
+              <StatCard label="Enquiry → Viewing" value={totalEnquiries ? Math.round(totalViewings2/totalEnquiries*100)+'%' : '—'} sub="conversion rate" />
+            </div>
+
+            {/* Views trend */}
+            <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Views & enquiries — last 14 days</h2>
+              <div className="flex items-end gap-1 h-24">
+                {last14.map((d, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                    <div className="w-full flex flex-col-reverse gap-0.5">
+                      <div className="w-full rounded-t" style={{height: Math.max(2, d.views/maxDay*80) + 'px', background:'#D3755A', opacity: 0.8}} title={d.views + ' views'} />
+                      {d.enquiries > 0 && <div className="w-full rounded-t" style={{height: Math.max(2, d.enquiries/maxDay*80) + 'px', background:'#1B2E4B'}} title={d.enquiries + ' enquiries'} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-end gap-1 mt-1">
+                {last14.map((d, i) => (
+                  <div key={i} className="flex-1 text-center text-[9px] text-[#9B928E]">{i % 2 === 0 ? d.label.split(' ')[0] : ''}</div>
+                ))}
+              </div>
+              <div className="flex gap-4 mt-3">
+                <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded" style={{background:'#D3755A'}}/>Views</div>
+                <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded" style={{background:'#1B2E4B'}}/>Enquiries</div>
+              </div>
+            </div>
+
+            {/* Conversion funnel */}
+            <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Conversion funnel</h2>
+              <div className="flex flex-col gap-2">
+                {funnelSteps.map((s, i) => (
+                  <div key={s.label} className="flex items-center gap-3">
+                    <div className="w-20 text-xs text-[#9B928E] text-right flex-shrink-0">{s.label}</div>
+                    <div className="flex-1 bg-[#F5EBE0] rounded-full h-6 overflow-hidden">
+                      <div className="h-full rounded-full flex items-center px-3" style={{width: s.pct + '%', minWidth: '2rem', background: i === 0 ? '#D3755A' : i === 1 ? '#E8956A' : i === 2 ? '#1B2E4B' : '#2D4A7A', transition:'width 0.5s ease'}}>
+                        <span className="text-xs text-white font-medium">{s.value.toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="w-10 text-xs text-[#9B928E] flex-shrink-0">{i > 0 ? s.pct + '%' : ''}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Borough breakdown */}
+              <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Listings by area</h2>
+                {boroughs.length === 0 ? <p className="text-xs text-[#9B928E]">No data yet</p> : (
+                  <div className="flex flex-col gap-2">
+                    {boroughs.map(([name, count]) => (
+                      <div key={name} className="flex items-center gap-3">
+                        <div className="w-24 text-xs text-[#9B928E] truncate flex-shrink-0">{name}</div>
+                        <div className="flex-1 bg-[#F5EBE0] rounded-full h-4 overflow-hidden">
+                          <div className="h-full rounded-full" style={{width: count/maxBorough*100+'%', background:'#D3755A', opacity:0.7}} />
+                        </div>
+                        <div className="w-6 text-xs text-[#1B2E4B] font-medium text-right">{count}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Price distribution */}
+              <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Price distribution</h2>
+                <div className="flex flex-col gap-2">
+                  {brackets.map(b => (
+                    <div key={b.label} className="flex items-center gap-3">
+                      <div className="w-16 text-xs text-[#9B928E] flex-shrink-0">{b.label}</div>
+                      <div className="flex-1 bg-[#F5EBE0] rounded-full h-4 overflow-hidden">
+                        <div className="h-full rounded-full" style={{width: b.count/maxBracket*100+'%', background:'#1B2E4B', opacity:0.7}} />
+                      </div>
+                      <div className="w-6 text-xs text-[#1B2E4B] font-medium text-right">{b.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Top performers */}
+            {performers.length > 0 && (
+              <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Performance — view to enquiry rate</h2>
+                <div className="flex flex-col gap-2">
+                  {performers.slice(0, 8).map((l, i) => (
+                    <div key={l.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#F5F0EB] transition-colors">
+                      <div className="w-5 text-xs text-[#9B928E] text-right flex-shrink-0">#{i+1}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-[#1B2E4B] truncate">{l.address}</div>
+                        <div className="text-[10px] text-[#9B928E]">{l.views} views · {l.enquiries} enquiries</div>
+                      </div>
+                      <div className="text-xs font-semibold flex-shrink-0" style={{color: l.ratio > 10 ? '#16a34a' : l.ratio > 5 ? '#D3755A' : '#9B928E'}}>
+                        {l.ratio.toFixed(1)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Agent performance if team exists */}
+            {agencyAgents.length > 0 && (
+              <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Agent performance</h2>
+                <div className="flex flex-col gap-3">
+                  {agencyAgents.map(a => {
+                    const aListings = listingsState.filter(l => l.assigned_agent_name === a.name)
+                    const aViews = events.filter(e => aListings.some(l => l.id === e.listing_id) && e.event_type === 'view').length
+                    const aEnquiries = messages.filter(m => aListings.some(l => l.id === m.listing_id)).length
+                    const aViewings = viewingRequests.filter(v => aListings.some(l => l.id === v.listing_id)).length
+                    return (
+                      <div key={a.id} className="flex items-center gap-4 p-3 rounded-xl border border-[#F0EBE5]">
+                        <div className="w-9 h-9 rounded-full bg-[#F5EBE0] flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-medium text-[#D3755A]">{a.name.charAt(0)}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-[#1B2E4B]">{a.name}</div>
+                          <div className="text-xs text-[#9B928E]">{aListings.length} listings</div>
+                        </div>
+                        <div className="flex gap-4 text-xs text-right flex-shrink-0">
+                          <div><div className="font-semibold text-[#1B2E4B]">{aViews}</div><div className="text-[#9B928E]">views</div></div>
+                          <div><div className="font-semibold text-[#1B2E4B]">{aEnquiries}</div><div className="text-[#9B928E]">enquiries</div></div>
+                          <div><div className="font-semibold text-[#1B2E4B]">{aViewings}</div><div className="text-[#9B928E]">viewings</div></div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Overview */}
       {tab === 'overview' && (
         <div className="flex flex-col gap-6">
           {assignedAgents.length > 0 && <AgentFilterBar />}
+
+          {/* Portfolio revenue banner */}
+          {activeListings.length > 0 && (() => {
+            const totalRevenue = activeListings.reduce((s,l) => s + (l.price||0), 0)
+            const vacantRevenue = listingsState.filter(l => !l.is_active).reduce((s,l) => s + (l.price||0), 0)
+            const avgConversion = listingStats.length ? Math.round(listingStats.reduce((s,l) => s + l.conversionRate, 0) / listingStats.length) : 0
+            return (
+              <div className="bg-[#1B2E4B] rounded-2xl p-5 grid grid-cols-3 gap-4">
+                <div>
+                  <div className="text-xs text-white/60 uppercase tracking-wide mb-1">Portfolio value</div>
+                  <div className="text-2xl font-light text-white">£{totalRevenue.toLocaleString()}</div>
+                  <div className="text-xs text-white/50 mt-0.5">per month</div>
+                </div>
+                <div>
+                  <div className="text-xs text-white/60 uppercase tracking-wide mb-1">Revenue at risk</div>
+                  <div className="text-2xl font-light text-white">£{vacantRevenue.toLocaleString()}</div>
+                  <div className="text-xs text-white/50 mt-0.5">from inactive listings</div>
+                </div>
+                <div>
+                  <div className="text-xs text-white/60 uppercase tracking-wide mb-1">Avg conversion</div>
+                  <div className="text-2xl font-light text-white">{avgConversion}%</div>
+                  <div className="text-xs text-white/50 mt-0.5">view to enquiry</div>
+                </div>
+              </div>
+            )
+          })()}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard label="Active listings" value={activeListings.length} sub={`${listings.length} total`} />
             <StatCard label="Total views" value={totalViews} sub={`${thisWeekViews} this week`} />
@@ -262,7 +553,6 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       {tab === 'listings' && (
         <div className="flex flex-col gap-4">
           {assignedAgents.length > 0 && <AgentFilterBar />}
-          {/* Search and filters */}
           <div className="bg-white border border-[#E8E2DA] rounded-2xl p-4 flex flex-wrap gap-3 items-center">
             <input value={listingSearch} onChange={e => setListingSearch(e.target.value)}
               placeholder="Search by address..."
@@ -286,72 +576,176 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                 </button>
               ))}
             </div>
-            <span className="text-xs text-[#9B928E]">{filteredListingStats.length} of {listings.length}</span>
+            <span className="text-xs text-[#9B928E]">{filteredListingStats.length} of {listingsState.length}</span>
           </div>
-
           {filteredListingStats.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#E8E2DA]">
               <p className="text-sm text-[#9B928E] mb-4">No listings match.</p>
               <Link href="/list" className="px-5 py-2.5 rounded-xl text-white text-sm no-underline" style={{ background: '#D3755A' }}>Add a listing →</Link>
             </div>
-          ) : filteredListingStats.map(l => (
-            <div key={l.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-5 flex gap-4">
-              <div className="w-24 h-24 rounded-xl overflow-hidden bg-[#F5EBE0] flex-shrink-0">
-                {getImg(l.images) ? <img src={getImg(l.images)!} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : null}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
-                  <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500')}>
-                    {l.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <div className="text-xs text-[#9B928E] mb-2">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
-                <div className="flex gap-4 text-xs text-[#9B928E] mb-2">
-                  <span>{l.views} views</span>
-                  <span>{l.viewings} viewings</span>
-                  <span>{l.enquiries} enquiries</span>
-                </div>
-                {/* Agent assignment */}
-                {assigningId === l.id ? (
-                  <div className="flex gap-2 items-center mt-1">
-                    <input value={assignName} onChange={e => setAssignName(e.target.value)}
-                      placeholder="Agent name..."
-                      className="flex-1 border border-[#D3755A] rounded-lg px-2 py-1 text-xs outline-none"
-                      list="agent-names"
-                    />
-                    <datalist id="agent-names">
-                      {assignedAgents.map(a => <option key={a.id} value={a.name} />)}
-                    </datalist>
-                    <button onClick={() => assignAgent(l.id)} disabled={assigning}
-                      className="text-xs px-2 py-1 rounded-lg text-white disabled:opacity-50"
-                      style={{background:'#D3755A'}}>Save</button>
-                    <button onClick={() => setAssigningId(null)} className="text-xs px-2 py-1 rounded-lg border border-[#E8E2DA] text-[#9B928E]">✕</button>
-                  </div>
-                ) : (
-                  <button onClick={() => { setAssigningId(l.id); setAssignName(l.assigned_agent_name || '') }}
-                    className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                    {l.assigned_agent_name ? l.assigned_agent_name : 'Assign agent'}
+          ) : filteredListingStats.map(l => {
+            const isSelected = selectedListing === l.id
+            const lEvents = events.filter(e => e.listing_id === l.id)
+            const viewsByDay = Array.from({length:7}, (_,i) => {
+              const d = new Date(); d.setDate(d.getDate()-6+i)
+              const ds = d.toISOString().split('T')[0]
+              return { day: d.toLocaleDateString('en-GB',{weekday:'short'}), views: lEvents.filter(e=>e.event_type==='view'&&e.created_at?.startsWith(ds)).length }
+            })
+            const maxV = Math.max(...viewsByDay.map(d=>d.views),1)
+            const daysListed = l.scraped_at ? Math.floor((Date.now()-new Date(l.scraped_at).getTime())/86400000) : 0
+            const lViewingReqs = viewingRequests.filter(v=>v.listing_id===l.id)
+            return (
+              <div key={l.id} className={'bg-white border rounded-2xl overflow-hidden ' + (isSelected ? 'border-[#D3755A] shadow-md' : 'border-[#E8E2DA]')}>
+                <div className="p-5 flex gap-4">
+                  <button className="w-20 h-20 rounded-xl overflow-hidden bg-[#F5EBE0] flex-shrink-0 cursor-pointer" onClick={() => setSelectedListing(isSelected ? null : l.id)}>
+                    {getImg(l.images) ? <img src={getImg(l.images)!} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : null}
                   </button>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedListing(isSelected ? null : l.id)}>
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
+                      <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500')}>
+                        {l.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#9B928E] mb-2">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
+                    <div className="flex gap-3 text-xs">
+                      <span><span className="font-semibold text-[#1B2E4B]">{l.views}</span> <span className="text-[#9B928E]">views</span></span>
+                      <span><span className="font-semibold text-[#1B2E4B]">{l.viewings}</span> <span className="text-[#9B928E]">viewings</span></span>
+                      <span><span className="font-semibold text-[#1B2E4B]">{l.enquiries}</span> <span className="text-[#9B928E]">enquiries</span></span>
+                    </div>
+                    {l.assigned_agent_name && <div className="text-xs text-[#D3755A] mt-1">{l.assigned_agent_name}</div>}
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-shrink-0">
+                    <Link href={'/listings/' + l.id} target="_blank"
+                      className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
+                      View →
+                    </Link>
+                    <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
+                      className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
+                      {l.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button onClick={() => manageListing(l.id, 'delete')}
+                      className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                {/* Expanded analytics */}
+                {isSelected && (
+                  <div className="border-t border-[#F5F0EB] p-5 bg-[#FAFAF9] flex flex-col gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Total views', value: l.views, sub: 'all time' },
+                        { label: 'Enquiries', value: l.enquiries, sub: l.views ? Math.round(l.enquiries/l.views*100)+'% rate' : '—' },
+                        { label: 'Viewings', value: l.viewings, sub: lViewingReqs.filter(v=>v.status==='confirmed').length + ' confirmed' },
+                        { label: 'Days listed', value: daysListed, sub: l.is_active ? 'currently live' : 'inactive' },
+                      ].map(s => (
+                        <div key={s.label} className="bg-white border border-[#E8E2DA] rounded-xl p-4">
+                          <div className="text-xs text-[#9B928E] uppercase tracking-wide mb-1">{s.label}</div>
+                          <div className="text-2xl font-light text-[#1B2E4B]">{s.value}</div>
+                          <div className="text-xs text-[#9B928E] mt-0.5">{s.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
+                      <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">Views — last 7 days</h3>
+                      <div className="flex items-end gap-2 h-16">
+                        {viewsByDay.map((d,i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full rounded-t" style={{height: Math.max(d.views/maxV*56, d.views>0?3:0)+'px', background: d.views>0?'#D3755A':'#E8E2DA'}} />
+                            <span className="text-[10px] text-[#9B928E]">{d.day}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {lViewingReqs.length > 0 && (
+                      <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
+                        <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">Viewing requests</h3>
+                        <div className="flex flex-col gap-2">
+                          {lViewingReqs.slice(0,5).map(v => (
+                            <div key={v.id} className="flex items-center gap-3 text-xs">
+                              <span className={'px-2 py-0.5 rounded-full ' + (v.status==='confirmed'?'bg-green-50 text-green-700':v.status==='pending'?'bg-amber-50 text-amber-700':'bg-stone-100 text-stone-500')}>
+                                {v.status}
+                              </span>
+                              <span className="text-[#1B2E4B] font-medium">{v.tenant_name}</span>
+                              <span className="text-[#9B928E] truncate">{v.tenant_email}</span>
+                              {v.proposed_slot && <span className="text-[#9B928E] ml-auto flex-shrink-0">{v.proposed_slot.date}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Pricing analysis */}
+                    {l.comps && l.comps.length >= 3 && (
+                      <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
+                        <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">Pricing analysis</h3>
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
+                            <div className="text-xs text-[#9B928E] mb-1">Your price</div>
+                            <div className="text-lg font-medium text-[#1B2E4B]">£{l.price?.toLocaleString()}</div>
+                          </div>
+                          <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
+                            <div className="text-xs text-[#9B928E] mb-1">Area avg</div>
+                            <div className="text-lg font-medium text-[#1B2E4B]">£{l.avgCompPrice?.toLocaleString() || '—'}</div>
+                          </div>
+                          <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
+                            <div className="text-xs text-[#9B928E] mb-1">vs market</div>
+                            <div className={'text-lg font-medium ' + (l.priceDiff === null ? 'text-[#9B928E]' : l.priceDiff > 10 ? 'text-red-500' : l.priceDiff < -10 ? 'text-green-600' : 'text-[#D3755A]')}>
+                              {l.priceDiff !== null ? (l.priceDiff > 0 ? '+' : '') + l.priceDiff + '%' : '—'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs text-[#9B928E] flex-shrink-0">Days on market:</div>
+                          <div className="flex-1 bg-[#F5EBE0] rounded-full h-2 relative">
+                            {l.avgMktDays && <div className="absolute inset-y-0 left-0 rounded-full" style={{width: Math.min(l.daysListed/Math.max(l.avgMktDays*2,1)*100,100)+'%', background: l.daysListed > (l.avgMktDays||0) ? '#ef4444' : '#D3755A'}} />}
+                          </div>
+                          <div className="text-xs text-[#1B2E4B] font-medium flex-shrink-0">{l.daysListed}d {l.avgMktDays ? '(avg ' + l.avgMktDays + 'd)' : ''}</div>
+                        </div>
+                        {l.priceDiff !== null && l.priceDiff > 15 && (
+                          <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
+                            ⚠ Priced {l.priceDiff}% above area average — consider reviewing your price to improve enquiry rate
+                          </div>
+                        )}
+                        {l.conversionRate === 0 && l.views > 10 && (
+                          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                            ⚠ {l.views} views but no enquiries — review photos and listing description
+                          </div>
+                        )}
+                        {l.daysListed > 0 && l.avgMktDays && l.daysListed > l.avgMktDays * 1.5 && (
+                          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                            ⚠ Listed {l.daysListed - l.avgMktDays} days longer than similar properties — consider a price adjustment
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
+                      <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Assigned agent</h3>
+                      {assigningId === l.id ? (
+                        <div className="flex gap-2 items-center">
+                          <select value={assignName} onChange={e => setAssignName(e.target.value)}
+                            className="flex-1 border border-[#D3755A] rounded-lg px-2 py-1 text-xs outline-none bg-white">
+                            <option value="">Unassigned</option>
+                            {agencyAgents.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                          </select>
+                          <button onClick={() => assignAgent(l.id)} disabled={assigning}
+                            className="text-xs px-2 py-1 rounded-lg text-white disabled:opacity-50" style={{background:'#D3755A'}}>Save</button>
+                          <button onClick={() => setAssigningId(null)} className="text-xs px-2 py-1 rounded-lg border border-[#E8E2DA] text-[#9B928E]">✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setAssigningId(l.id); setAssignName(l.assigned_agent_name || '') }}
+                          className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          {l.assigned_agent_name || 'Assign agent'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-              <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <Link href={'/listings/' + l.id} target="_blank"
-                  className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
-                  View →
-                </Link>
-                <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
-                  className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
-                  {l.is_active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button onClick={() => manageListing(l.id, 'delete')}
-                  className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -364,7 +758,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               <p className="text-sm text-[#9B928E]">No viewing requests.</p>
             </div>
           ) : filteredViewings.map(v => {
-            const listing = listings.find(l => l.id === v.listing_id)
+            const listing = listingsState.find(l => l.id === v.listing_id)
             const STATUS: Record<string, string> = { pending: 'bg-amber-50 text-amber-700', proposed: 'bg-blue-50 text-blue-700', confirmed: 'bg-green-50 text-green-700', cancelled: 'bg-stone-100 text-stone-500' }
             return (
               <div key={v.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
@@ -397,7 +791,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               <p className="text-sm text-[#9B928E]">No enquiries yet.</p>
             </div>
           ) : filteredMessages.map(m => {
-            const listing = listings.find(l => l.id === m.listing_id)
+            const listing = listingsState.find(l => l.id === m.listing_id)
             return (
               <div key={m.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-4 flex gap-3">
                 <div className={'w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ' + (!m.read_at ? 'bg-[#D3755A]' : 'bg-[#E8E2DA]')} />
@@ -414,6 +808,58 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Team */}
+      {tab === 'team' && (
+        <div className="flex flex-col gap-5">
+          {/* Add agent */}
+          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Add team member</h2>
+            <div className="flex gap-3 flex-wrap">
+              <input value={newAgentName} onChange={e => setNewAgentName(e.target.value)}
+                placeholder="Full name" onKeyDown={e => e.key === 'Enter' && addAgencyAgent()}
+                className="flex-1 border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+              <input value={newAgentEmail} onChange={e => setNewAgentEmail(e.target.value)}
+                placeholder="Email (optional)" type="email"
+                className="flex-1 border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+              <button onClick={addAgencyAgent} disabled={addingAgent || !newAgentName.trim()}
+                className="px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                style={{ background: '#D3755A' }}>
+                {addingAgent ? 'Adding…' : 'Add agent'}
+              </button>
+            </div>
+          </div>
+
+          {/* Agent list */}
+          {agencyAgents.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-[#E8E2DA]">
+              <p className="text-sm text-[#9B928E]">No team members yet. Add agents above to assign them to listings.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {agencyAgents.map(a => (
+                <div key={a.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-[#F5EBE0] flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-medium text-[#D3755A]">{a.name.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-[#1B2E4B]">{a.name}</div>
+                    {a.email && <div className="text-xs text-[#9B928E]">{a.email}</div>}
+                    <div className="text-xs text-[#9B928E] capitalize">{a.role}</div>
+                  </div>
+                  <div className="text-xs text-[#9B928E]">
+                    {listingsState.filter(l => l.assigned_agent_name === a.name).length} listings
+                  </div>
+                  <button onClick={() => removeAgencyAgent(a.id)}
+                    className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
