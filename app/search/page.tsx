@@ -84,7 +84,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   )
   const isBuyMode = listingType === 'buy'
   let query = supabase.from('listings').select('*').eq('is_active', true).order('scraped_at', { ascending: false }).limit(200)
-  if (isBuyMode) query = query.eq('listing_type', 'buy')
+  query = query.eq('listing_type', isBuyMode ? 'buy' : 'rent')
 
 
   // Geocode location to lat/lng for map centering and radius filtering
