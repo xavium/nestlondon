@@ -132,7 +132,7 @@ export default function SearchFilters(props: Props) {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-[#E8E2DA] rounded-2xl shadow-xl z-[200] p-6">
+        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-[#E8E2DA] rounded-2xl shadow-xl z-[200] p-6 max-h-[80vh] overflow-y-auto max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-medium text-[#1C2B3A]">Filters</h3>
             <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-[#4A5568] text-lg leading-none">x</button>

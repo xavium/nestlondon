@@ -7,6 +7,8 @@ import { getViewedListings, markAsViewed } from '@/lib/viewed'
 
 interface Props {
   listing: any
+  showHidden?: boolean
+  onHide?: () => void
   distanceLabel?: string
 }
 
@@ -32,22 +34,44 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
   return tags.slice(0, 4)
 }
 
-export default function ListingCard({ listing, distanceLabel }: Props) {
+export default function ListingCard({ listing, distanceLabel, showHidden = false, onHide,
+}: Props) {
   const [viewed, setViewed] = useState(false)
   const [saved, setSaved] = useState(false)
   const [savingHeart, setSavingHeart] = useState(false)
+  const [hidden, setHidden] = useState(false)
   const [imgIndex, setImgIndex] = useState(0)
   const searchParams = useSearchParams()
   const fromParam = searchParams.toString() ? '?from=' + encodeURIComponent('?' + searchParams.toString()) : ''
 
   useEffect(() => {
     setViewed(getViewedListings().has(listing.id))
+    try {
+      const hiddenIds = JSON.parse(localStorage.getItem('nestlondon_hidden') || '[]')
+      if (hiddenIds.includes(listing.id)) setHidden(true)
+    } catch {}
     // Check saved status from cached all-ids endpoint
     fetch('/api/saved/property')
       .then(r => r.json())
       .then(d => {
         const ids = Array.isArray(d.saved) ? d.saved : []
         if (ids.includes(listing.id)) setSaved(true)
+      })
+      .catch(() => {})
+    // Sync hidden state with DB
+    fetch('/api/hidden')
+      .then(r => r.json())
+      .then(d => {
+        const ids: string[] = d.ids || []
+        if (ids.includes(listing.id)) {
+          setHidden(true)
+          try {
+            const local = JSON.parse(localStorage.getItem('nestlondon_hidden') || '[]')
+            if (!local.includes(listing.id)) {
+              localStorage.setItem('nestlondon_hidden', JSON.stringify([...local, listing.id]))
+            }
+          } catch {}
+        }
       })
       .catch(() => {})
   }, [listing.id])
@@ -62,6 +86,62 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
 
   const tags = extractFeatureTags(listing)
   const desc = listing.description ? listing.description.slice(0, 100) + (listing.description.length > 100 ? '…' : '') : null
+
+  if (hidden && !showHidden) return null
+  if (hidden && showHidden) return (
+    <div className="grayscale opacity-60">
+      <Link href={'/listings/' + listing.id + fromParam}
+        className="group block border rounded-2xl overflow-hidden transition-all no-underline bg-white border-[#E8E2DA]"
+        onClick={e => e.preventDefault()}>
+        <div className="relative h-48 overflow-hidden">
+          {imgSrc ? (
+            <img src={imgSrc} alt={listing.address} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-full h-full bg-stone-100 flex items-center justify-center">
+              <svg className="w-8 h-8 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeWidth="1"/></svg>
+            </div>
+          )}
+          <div className="absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium bg-white/95 text-[#374151]">
+            £{listing.price?.toLocaleString()}<span className="text-stone-400 font-normal">/mo</span>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="text-sm font-medium mb-0.5 truncate text-[#1C2B3A]">{listing.address}</div>
+          <div className="flex gap-3 text-xs text-stone-400 mb-2">
+            {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span>Studio</span> : listing.bedrooms ? <span>{listing.bedrooms} bed</span> : null}
+            {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
+            {listing.property_type && <span>{listing.property_type}</span>}
+          </div>
+          {desc && <p className="text-xs text-stone-500 leading-relaxed mb-3">{desc}</p>}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {tags.map(tag => (
+                <span key={tag.label} className={'text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ' + (tag.positive ? 'bg-orange-50 text-orange-700' : 'bg-stone-100 text-stone-500')}>
+                  {tag.positive && <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1 5l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {tag.label}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <button onClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              setHidden(false)
+              try {
+                const ids = JSON.parse(localStorage.getItem('nestlondon_hidden') || '[]')
+                localStorage.setItem('nestlondon_hidden', JSON.stringify(ids.filter((id: string) => id !== listing.id)))
+              } catch {}
+              fetch('/api/hidden', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listing_id: listing.id }) }).catch(() => {})
+              setTimeout(() => { if (onHide) onHide() }, 50)
+            }} className="flex-1 text-xs rounded-lg py-2 text-center bg-stone-100 text-stone-500 hover:bg-stone-200 transition-colors">
+              Unhide
+            </button>
+          </div>
+        </div>
+      </Link>
+    </div>
+  )
 
   return (
     <Link
@@ -139,6 +219,7 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
             ))}
           </div>
         )}
+        {hidden ? null : (
         <div className="flex items-center gap-2">
           <div className={'flex-1 text-xs rounded-lg py-2 text-center ' + (viewed ? 'bg-stone-100 text-stone-400' : 'text-white')} style={viewed ? {} : {background:'#D3755A'}}>
             {viewed ? 'View again' : 'View property'}
@@ -168,7 +249,27 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
               <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setHidden(true)
+              try {
+                const hiddenIds = JSON.parse(localStorage.getItem('nestlondon_hidden') || '[]')
+                localStorage.setItem('nestlondon_hidden', JSON.stringify([...hiddenIds, listing.id]))
+              } catch {}
+              fetch('/api/hidden', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listing_id: listing.id }) }).catch(() => {})
+              if (onHide) onHide()
+            }}
+            className="w-9 h-9 rounded-lg border border-[#E8E2DA] flex items-center justify-center hover:border-red-300 hover:text-red-400 transition-colors flex-shrink-0 text-[#9B928E]"
+            aria-label="Hide listing"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
         </div>
+        )}
       </div>
     </Link>
   )

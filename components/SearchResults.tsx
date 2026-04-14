@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import SearchMapView from '@/components/SearchMapView'
 import SaveSearchButton from '@/components/SaveSearchButton'
 import ListingCard from '@/components/ListingCard'
@@ -60,6 +60,19 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   const [commuteTimes, setCommuteTimes] = useState<Record<string, number>>({})
   const [commuteLoading, setCommuteLoading] = useState(false)
   const [commuteFiltered, setCommuteFiltered] = useState<any[] | null>(null)
+  const [showHidden, setShowHidden] = useState(false)
+  const showHiddenRef = useRef(false)
+  useEffect(() => { showHiddenRef.current = showHidden }, [showHidden])
+  const [hiddenCount, setHiddenCount] = useState(0)
+
+  const refreshHiddenCount = () => {
+    try {
+      const ids = JSON.parse(localStorage.getItem('nestlondon_hidden') || '[]')
+      setHiddenCount(ids.length)
+    } catch {}
+  }
+
+  useEffect(() => { refreshHiddenCount() }, [])
 
   const [sortBy, setSortBy] = useState<'relevant' | 'newest' | 'price_asc' | 'price_desc' | 'nearest' | 'size_asc' | 'size_desc' | 'psqm_desc' | 'psqm_asc'>('relevant')
 
@@ -265,11 +278,43 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
     <>
       <div className="flex items-center justify-between mb-6 gap-4">
         <p className="text-sm text-stone-500 flex items-center gap-2 flex-wrap">
-          {commuteLoading ? 'Calculating commute times…' : (displayResults.length + ' properties' + (location ? ' in ' + location : ' in London'))}
+          {(() => {
+            try {
+              const hiddenIds = showHidden ? [] : JSON.parse(localStorage.getItem('nestlondon_hidden') || '[]')
+              const visibleCount = displayResults.filter((l: any) => !hiddenIds.includes(l.id)).length
+              return commuteLoading ? 'Calculating commute times…' : (visibleCount + ' properties' + (location ? ' in ' + location : ' in London'))
+            } catch {
+              return commuteLoading ? 'Calculating commute times…' : (displayResults.length + ' properties' + (location ? ' in ' + location : ' in London'))
+            }
+          })()}
           {radiusLabel ? ` · ${radiusLabel}` : ''}
           <SaveSearchButton />
         </p>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {hiddenCount > 0 && !showHidden && (
+            <button onClick={() => setShowHidden(true)}
+              className="text-xs px-3 py-1.5 rounded-full border border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors whitespace-nowrap">
+              Show {hiddenCount} hidden
+            </button>
+          )}
+          {showHidden && (
+            <div className="flex gap-2">
+              <button onClick={async () => {
+                try { localStorage.removeItem('nestlondon_hidden') } catch {}
+                await fetch('/api/hidden', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }).catch(() => {})
+                setHiddenCount(0)
+                setShowHidden(false)
+                window.location.reload()
+              }}
+                className="text-xs px-3 py-1.5 rounded-full border border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors whitespace-nowrap">
+                Unhide all
+              </button>
+              <button onClick={() => setShowHidden(false)}
+                className="text-xs px-3 py-1.5 rounded-full border border-[#D3755A] text-[#D3755A] bg-[#FDF5F2] transition-colors whitespace-nowrap">
+                Cancel
+              </button>
+            </div>
+          )}
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value as any)}
@@ -301,7 +346,13 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
           {inRadius.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {displayResults.map((listing: any) => (
-                <ListingCard key={listing.id} listing={listing} />
+                <ListingCard key={listing.id} listing={listing}
+                  showHidden={showHidden}
+                  onHide={() => {
+                    if (showHiddenRef.current) setShowHidden(false)
+                    setTimeout(refreshHiddenCount, 50)
+                  }}
+                />
               ))}
             </div>
           ) : (
@@ -325,6 +376,11 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
                   <ListingCard
                     key={listing.id}
                     listing={listing}
+                    showHidden={showHidden}
+                    onHide={() => {
+                      if (showHiddenRef.current) setShowHidden(false)
+                      setTimeout(refreshHiddenCount, 50)
+                    }}
                     distanceLabel={listing._dist < 1609 ? Math.round(listing._dist) + 'm away' : (Math.round(listing._dist / 160.9) / 10).toFixed(1) + ' mi away'}
                   />
                 ))}

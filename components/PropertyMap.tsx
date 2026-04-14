@@ -543,9 +543,12 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
           {nearestStations.map(station => (
             <div key={station.name} className="flex items-start gap-2.5">
               <div className="flex-shrink-0 mt-0.5">
-                <div style={{width:'18px',height:'18px',borderRadius:'50%',background:'white',border:'2px solid #003688',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <div style={{width:'10px',height:'2.5px',background:'#E32017'}} />
-                </div>
+                <svg width="18" height="18" fill="none" stroke="#9B928E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <rect x="3" y="8" width="18" height="10" rx="2"/>
+                  <path d="M7 8V6a2 2 0 012-2h6a2 2 0 012 2v2"/>
+                  <circle cx="7.5" cy="15" r="1" fill="#9B928E" stroke="none"/>
+                  <circle cx="16.5" cy="15" r="1" fill="#9B928E" stroke="none"/>
+                </svg>
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-medium text-[#374151] truncate">{station.name}</div>

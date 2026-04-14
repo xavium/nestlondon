@@ -1,5 +1,6 @@
 'use client'
 import NavAuthButton from '@/components/NavAuthButton'
+import AnimatedWord from '@/components/AnimatedWord'
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -124,8 +125,11 @@ export default function HomePage() {
 
         {/* Hero content */}
         <div className="relative z-10 flex flex-col items-center justify-center px-6 pt-20 pb-32">
-          <h1 className="text-6xl font-light text-white text-center mb-12 leading-tight" style={{fontFamily: 'Georgia, serif'}}>
-            Find your next home
+          <h1 className="text-6xl font-light text-white text-center mb-12 leading-tight whitespace-nowrap" style={{fontFamily: 'Georgia, serif'}}>
+            Find your next{' '}
+            <span style={{display:'inline-block', width:'5ch', verticalAlign:'bottom', overflow:'hidden'}}>
+              <AnimatedWord />
+            </span>
           </h1>
 
           {/* Unified search bar */}
