@@ -16,6 +16,7 @@ import SaveButton from '@/components/SaveButton'
 import PhotoTags from '@/components/PhotoTags'
 import ListingEventTracker from '@/components/ListingEventTracker'
 import CommuteWidget from '@/components/CommuteWidget'
+import BuyListingPanel from '@/components/BuyListingPanel'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -68,8 +69,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   if (listing.latitude && listing.longitude) {
     const { data: nearby } = await supabase
       .from('listings')
-      .select('id,address,price,latitude,longitude,bedrooms,property_type,images')
+      .select('id,address,price,latitude,longitude,bedrooms,property_type,images,listing_type')
       .eq('is_active', true)
+      .eq('listing_type', listing.listing_type || 'rent')
       .neq('id', id)
       .not('latitude', 'is', null)
       .limit(500)
@@ -203,6 +205,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   }
 
   const isDirectListing = !!listing.agent_id
+  const isBuyListing = listing.listing_type === 'buy'
 
   const TILE_ICONS: Record<string, string> = {
     'Available':    '<path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/>',
@@ -394,8 +397,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           <h1 className="text-2xl font-semibold text-[#1C2B3A] mb-1" style={{fontFamily: 'Georgia, serif'}}>{listing.address}</h1>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-[#1C2B3A]" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</span>
-            <span className="text-stone-400 text-sm">per month</span>
-            {listing.price && <span className="text-stone-400 text-sm">£{Math.round(listing.price / 4.33).toLocaleString()} per week</span>}
+            {!isBuyListing && <span className="text-stone-400 text-sm">per month</span>}
+            {!isBuyListing && listing.price && <span className="text-stone-400 text-sm">£{Math.round(listing.price / 4.33).toLocaleString()} per week</span>}
+            {isBuyListing && <span className="text-stone-400 text-sm">asking price</span>}
           </div>
           <div className="flex gap-2 mt-2 flex-wrap">
             {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">Studio</span> : listing.bedrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span> : null}
@@ -424,7 +428,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             {Object.keys(lettingDetails).length > 0 && (
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
-                <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Letting details</h2>
+                <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">{isBuyListing ? 'Property details' : 'Letting details'}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Object.entries(lettingDetails).map(([k, v]) => (
                     <div key={k}>
@@ -439,8 +443,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 items-stretch">
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Available" />
-                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Available</div>
-                <div className="text-sm font-semibold text-[#374151]">{availableText || 'Ask agent'}</div>
+                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{isBuyListing ? 'Tenure' : 'Available'}</div>
+                <div className="text-sm font-semibold text-[#374151]">{isBuyListing ? ((() => { const t = (listing.description || '').match(/freehold|leasehold|share of freehold/i); return t ? t[0].replace(/^\w/, (c: string) => c.toUpperCase()) : 'Ask agent' })()) : (availableText || 'Ask agent')}</div>
               </div>
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bedrooms" />
@@ -517,6 +521,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 address={listing.address}
                 price={listing.price}
                 nearbyListings={nearbyListings}
+                listingType={isBuyListing ? 'buy' : 'rent'}
               />
             )}
 
@@ -546,7 +551,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           </div>
 
           <div className="flex flex-col gap-5">
-            {isDirectListing ? (
+            {isBuyListing ? (
+              <BuyListingPanel
+                price={listingPrice}
+                address={listing.address}
+                sourceUrl={listing.source_url || null}
+                source={listing.source || null}
+              />
+            ) : isDirectListing ? (
               <ContactOwnerPanel listingId={listing.id} address={listing.address} />
             ) : (
               <>
@@ -635,7 +647,6 @@ function ExternalLinkCard({ listing }: { listing: any }) {
       <div className="mb-4">
         <div className="text-2xl font-bold text-[#1C2B3A] mb-0.5" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</div>
         <div className="text-sm text-stone-400">per month</div>
-        {listing.price && <div className="text-sm text-stone-400">£{Math.round(listing.price / 4.33).toLocaleString()} per week</div>}
       </div>
       <div className="flex gap-2 mb-4 flex-wrap">
         {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">Studio</span> : listing.bedrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span> : null}

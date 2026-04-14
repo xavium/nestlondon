@@ -20,10 +20,15 @@ interface Props {
   onApply?: (params: URLSearchParams) => void
   commuteAddress?: string
   maxCommute?: number | null
+  tenure?: string | null
+  chainFree?: boolean
+  newBuild?: boolean
+  leaseholdMin?: number | null
 }
 
 export default function SearchFilters(props: Props) {
   const { onApply } = props
+  const isBuy = props.listingType === 'buy'
   const [open, setOpen] = useState(false)
   const sp = useSearchParams()
   const [minBeds, setMinBeds] = useState<number | null>(sp.get('minBeds') ? parseInt(sp.get('minBeds')!) : null)
@@ -44,6 +49,10 @@ export default function SearchFilters(props: Props) {
   const [maxCommute, setMaxCommute] = useState<number | null>(sp.get('maxCommute') ? parseInt(sp.get('maxCommute')!) : (props.maxCommute || null))
   const [editingCommute, setEditingCommute] = useState(false)
   const [commuteDraft, setCommuteDraft] = useState(sp.get('commuteAddress') || props.commuteAddress || '')
+  const [tenure, setTenure] = useState<string | null>(sp.get('tenure') || props.tenure || null)
+  const [chainFree, setChainFree] = useState<boolean>(sp.get('chainFree') === 'true' || props.chainFree || false)
+  const [newBuild, setNewBuild] = useState<boolean>(sp.get('newBuild') === 'true' || props.newBuild || false)
+  const [leaseholdMin, setLeaseholdMin] = useState<number | null>(sp.get('leaseholdMin') ? parseInt(sp.get('leaseholdMin')!) : (props.leaseholdMin || null))
 
   useEffect(() => { console.log('[SF] props.commuteAddress:', props.commuteAddress, 'state:', commuteAddress) }, [props.commuteAddress])
   // Sync commute address from profile if not in URL
@@ -92,6 +101,10 @@ export default function SearchFilters(props: Props) {
     if (maxSize) p.set('maxSize', String(maxSize))
     if (floorLayout) p.set('floorLayout', floorLayout)
     if (commuteAddress && maxCommute) { p.set('commuteAddress', commuteAddress); p.set('maxCommute', String(maxCommute)) }
+    if (tenure) p.set('tenure', tenure)
+    if (chainFree) p.set('chainFree', 'true')
+    if (newBuild) p.set('newBuild', 'true')
+    if (leaseholdMin) p.set('leaseholdMin', String(leaseholdMin))
     setOpen(false)
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
@@ -112,7 +125,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + features.length + styles.length + (maxCommute ? 1 : 0)
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout, tenure].filter(Boolean).length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -138,6 +151,7 @@ export default function SearchFilters(props: Props) {
             <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-[#4A5568] text-lg leading-none">x</button>
           </div>
 
+          {!isBuy && (
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Available from</label>
             <div className="flex items-center gap-2 flex-wrap">
@@ -163,6 +177,7 @@ export default function SearchFilters(props: Props) {
               )}
             </div>
           </div>
+          )}
 
 
 
@@ -198,6 +213,7 @@ export default function SearchFilters(props: Props) {
             </div>
           </div>
 
+          {!isBuy && (
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Furnished</label>
             <div className="flex gap-2">
@@ -208,6 +224,7 @@ export default function SearchFilters(props: Props) {
               ))}
             </div>
           </div>
+          )}
 
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Floor layout</label>
@@ -222,6 +239,51 @@ export default function SearchFilters(props: Props) {
             </div>
           </div>
 
+          {isBuy && (
+            <>
+              <div className="mb-5">
+                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Tenure</label>
+                <div className="flex flex-wrap gap-2">
+                  {['Freehold','Leasehold','Share of freehold','Commonhold'].map(t => (
+                    <button key={t} onClick={() => setTenure(tenure === t ? null : t)}
+                      className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (tenure === t ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(tenure === 'Leasehold' || !tenure) && (
+                <div className="mb-5">
+                  <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Min lease remaining</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[null, 50, 75, 100, 125, 150, 200, 250].map(y => (
+                      <button key={String(y)} onClick={() => setLeaseholdMin(y)}
+                        className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (leaseholdMin === y ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                        {y === null ? 'Any' : y + ' yrs'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-5">
+                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Other</label>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setChainFree(!chainFree)}
+                    className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (chainFree ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                    Chain-free only
+                  </button>
+                  <button onClick={() => setNewBuild(!newBuild)}
+                    className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (newBuild ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                    New build only
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!isBuy && (
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Commute time</label>
             {commuteAddress && !editingCommute ? (
@@ -243,17 +305,15 @@ export default function SearchFilters(props: Props) {
                   onKeyDown={e => { if (e.key === 'Enter') { setCommuteAddress(commuteDraft); setEditingCommute(false) } if (e.key === 'Escape') setEditingCommute(false) }}
                   placeholder="Work postcode or station (e.g. EC1A 1BB)"
                   className="flex-1 border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
-                  autoFocus
                 />
                 <button onClick={async () => {
                   setCommuteAddress(commuteDraft)
                   setEditingCommute(false)
-                  await fetch('/api/commute', {
+                  fetch('/api/commute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ commute_address: commuteDraft })
                   }).catch(() => {})
-                  window.location.reload()
                 }}
                   className="px-3 py-1.5 rounded-xl text-white text-xs flex-shrink-0"
                   style={{background:'#D3755A'}}>
@@ -281,6 +341,7 @@ export default function SearchFilters(props: Props) {
               <span>Any</span>
             </div>
           </div>
+          )}
 
           <div className="mb-4">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Style</label>

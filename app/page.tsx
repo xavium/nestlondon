@@ -4,7 +4,7 @@ import AnimatedWord from '@/components/AnimatedWord'
 
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import FeaturedListings from '@/components/FeaturedListings'
+import BoroughQuiz from '@/components/BoroughQuiz'
 import SearchFilters from '@/components/SearchFilters'
 
 const SUGGESTIONS = [
@@ -69,7 +69,7 @@ export default function HomePage() {
 
   function doSearch() {
     const p = new URLSearchParams()
-    p.set('type', 'rent')
+    p.set('type', listingMode)
     if (location) p.set('location', location)
     if (minBeds) p.set('minBeds', String(minBeds))
     if (maxBeds) p.set('maxBeds', String(maxBeds))
@@ -86,7 +86,9 @@ export default function HomePage() {
   const priceLabel = minPrice || maxPrice
     ? [minPrice ? '£' + minPrice.toLocaleString() : 'Min', maxPrice ? '£' + maxPrice.toLocaleString() : 'Max'].join(' – ')
     : null
-  const bedsLabel = minBeds || maxBeds
+  const bedsLabel = (minBeds !== null || maxBeds !== null)
+    ? [(minBeds === 0 ? 'Studio' : minBeds ?? 'Min'), (maxBeds === 0 ? 'Studio' : maxBeds ?? 'Max')].join(' – ') + (minBeds === 0 && maxBeds === 0 ? '' : ' bed')
+    : null
   const addedWithinLabel = (() => {
     if (!addedWithin) return null
     if (addedWithin === 1) return '24 hours'
@@ -94,8 +96,6 @@ export default function HomePage() {
     if (addedWithin === 90) return '3 months'
     return `${addedWithin} days`
   })()
-    ? [(minBeds === 0 ? 'Studio' : minBeds ?? 'Min'), (maxBeds === 0 ? 'Studio' : maxBeds ?? 'Max')].join(' – ') + (minBeds === 0 && maxBeds === 0 ? '' : ' bed')
-    : null
 
   return (
     <main>
@@ -151,7 +151,7 @@ export default function HomePage() {
                     <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Location</div>
                     <input value={location} onChange={handleLocationChange} placeholder="Where are you looking to buy?" className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full" autoComplete="off" />
                   </div>
-                  <button type="button" className="flex items-center gap-2 px-7 m-2 rounded-xl text-white font-medium text-sm" style={{background:'#D3755A'}}>
+                  <button type="button" onClick={doSearch} className="flex items-center gap-2 px-7 m-2 rounded-xl text-white font-medium text-sm" style={{background:'#D3755A'}}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth="2"/><path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round"/></svg>
                     Search
                   </button>
@@ -197,7 +197,7 @@ export default function HomePage() {
               {/* Distance */}
               <div className="relative">
                 <button
-                  onClick={() => setActive(active === 'radius' ? null : 'radius')}
+                  onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'radius' ? null : 'radius') }}
                   className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors ' + (active === 'radius' ? 'bg-stone-50' : 'hover:bg-stone-50')}
                 >
                   <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Distance</div>
@@ -223,7 +223,7 @@ export default function HomePage() {
               <div className="relative">
               <div
                 className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[130px] ' + (active === 'minPrice' || active === 'maxPrice' ? 'bg-stone-50' : 'hover:bg-stone-50')}
-                onClick={() => setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
+                onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice') }}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Price range</div>
                 <div className={'text-sm ' + (priceLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{priceLabel || 'Any price'}</div>
@@ -263,7 +263,7 @@ export default function HomePage() {
               <div className="relative">
               <div
                 className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'minBeds' || active === 'maxBeds' ? 'bg-stone-50' : 'hover:bg-stone-50')}
-                onClick={() => setActive(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
+                onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds') }}
               >
                 <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Bedrooms</div>
                 <div className={'text-sm ' + (bedsLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{bedsLabel || 'Any beds'}</div>
@@ -299,7 +299,7 @@ export default function HomePage() {
               <div className="relative">
               <div
                 className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'addedWithin' ? 'bg-stone-50' : 'hover:bg-stone-50')}
-                onClick={() => setActive(active === 'addedWithin' ? null : 'addedWithin')}
+                onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'addedWithin' ? null : 'addedWithin') }}
               >
                 <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-widest mb-0.5">Added</div>
                 <div className={'text-sm ' + (addedWithinLabel ? 'text-[#3D3A38]' : 'text-stone-300')}>{addedWithinLabel || 'Any time'}</div>
@@ -360,9 +360,13 @@ export default function HomePage() {
               )}
             </div>
 
-            <p className="text-center text-white/50 text-xs mt-4">
-              Aggregating listings from Rightmove, Zoopla and OnTheMarket
-            </p>
+            <div className="flex justify-center mt-4">
+            <a href="#borough-quiz" className="flex items-center gap-2 text-white/60 text-sm hover:text-white/90 transition-colors border border-white/20 hover:border-white/40 px-5 py-2.5 rounded-full backdrop-blur-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="1.5"/></svg>
+              Find your perfect borough
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </a>
+          </div>
           </div>
 
           {/* Scroll indicator */}
@@ -376,7 +380,8 @@ export default function HomePage() {
       </div>
 
       {/* ── FEATURED LISTINGS ───────────────────────────────────── */}
-      <FeaturedListings />
+
+      <div id="borough-quiz"><BoroughQuiz /></div>
 
       {/* ── WHY NEST? ───────────────────────────────────────────── */}
       <section style={{background: '#1C2B3A'}} className="py-20 px-6">

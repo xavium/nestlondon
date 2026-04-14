@@ -37,6 +37,14 @@ async def main():
     except Exception as e:
         print('OnTheMarket error: ' + str(e))
 
+    # Rightmove Buy
+    print('\n[4/4] Rightmove Sales')
+    try:
+        from scraper import scrape_buy
+        await scrape_buy(pages=5)
+    except Exception as e:
+        print('Rightmove buy error: ' + str(e))
+
     print('\n' + '=' * 50)
     print('All scrapers complete.')
 

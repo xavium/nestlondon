@@ -16,7 +16,8 @@ const SUGGESTIONS = [
   'SW4', 'SW6', 'SW9', 'SW11', 'W1', 'W2', 'W11', 'WC1', 'WC2',
 ]
 
-const PRICE_OPTIONS = [null, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
+const RENT_PRICE_OPTIONS = [null, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
+const BUY_PRICE_OPTIONS = [null, 100000, 150000, 200000, 250000, 300000, 350000, 400000, 500000, 600000, 750000, 1000000, 1250000, 1500000, 2000000, 3000000, 5000000]
 const BED_OPTIONS = [null, 0, 1, 2, 3, 4, 5]
 const RADIUS_OPTIONS = [null, 0.5, 1, 2, 3, 5, 10]
 
@@ -38,6 +39,10 @@ interface Props {
   style?: string | null
   commuteAddress?: string | null
   maxCommute?: number | null
+  tenure?: string | null
+  chainFree?: boolean
+  newBuild?: boolean
+  leaseholdMin?: number | null
 }
 
 export default function NavSearchBar({
@@ -55,7 +60,12 @@ export default function NavSearchBar({
   availableFrom = null,
   style = null,
   commuteAddress = null,
-  maxCommute = null,}: Props) {
+  maxCommute = null,
+  tenure = null,
+  chainFree = false,
+  newBuild = false,
+  leaseholdMin = null,}: Props) {
+  const PRICE_OPTIONS = listingType === 'buy' ? BUY_PRICE_OPTIONS : RENT_PRICE_OPTIONS
   const [location, setLocation] = useState(initLocation)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState<number | null>(initMinPrice)
@@ -120,7 +130,7 @@ export default function NavSearchBar({
 
   const priceLabel = minPrice || maxPrice
     ? [minPrice ? '£' + minPrice.toLocaleString() : 'Min', maxPrice ? '£' + maxPrice.toLocaleString() : 'Max'].join(' – ')
-    : 'Price'
+    : listingType === 'buy' ? 'Price' : 'Price'
 
   const bedsLabel = minBeds !== null || maxBeds !== null
     ? [(minBeds === 0 ? 'Studio' : minBeds ?? 'Min'), (maxBeds === 0 ? 'Studio' : maxBeds ?? 'Max')].join(' – ') + (minBeds === 0 && maxBeds === 0 ? '' : ' bed')
@@ -210,6 +220,10 @@ export default function NavSearchBar({
             style={style}
             commuteAddress={commuteAddress || ''}
             maxCommute={maxCommute}
+            tenure={tenure}
+            chainFree={chainFree}
+            newBuild={newBuild}
+            leaseholdMin={leaseholdMin}
           />
         </div>
 

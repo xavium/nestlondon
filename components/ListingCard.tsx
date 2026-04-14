@@ -102,7 +102,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
             </div>
           )}
           <div className="absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium bg-white/95 text-[#374151]">
-            £{listing.price?.toLocaleString()}<span className="text-stone-400 font-normal">/mo</span>
+            £{listing.price?.toLocaleString()}{listing.listing_type !== 'buy' && <span className="text-stone-400 font-normal">/mo</span>}
           </div>
         </div>
         <div className="p-4">
@@ -158,7 +158,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           </div>
         )}
         <div className={'absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium bg-white/95 text-[#374151]'}>
-          £{listing.price?.toLocaleString()}<span className="text-stone-400 font-normal">/mo</span>
+          £{listing.price?.toLocaleString()}{listing.listing_type !== 'buy' && <span className="text-stone-400 font-normal">/mo</span>}
         </div>
         {distanceLabel && (
           <div className={"absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-medium bg-white/95 text-[#374151]"}>

@@ -41,7 +41,7 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   )
 }
 
-export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute }: {
+export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, listingType }: {
   filtered: any[]
   allListings: any[]
   allListingsForMap: any[]
@@ -54,6 +54,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   maxPrice?: number | null
   commuteAddress?: string | null
   maxCommute?: number | null
+  listingType?: string
 }) {
   const [view, setView] = useState<'grid' | 'map'>('grid')
   const [viewReady, setViewReady] = useState(false)
@@ -340,6 +341,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
           radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}
+          listingType={listingType || "rent"}
         />
       ) : (
         <>

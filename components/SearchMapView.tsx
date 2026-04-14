@@ -16,8 +16,10 @@ interface Listing {
 
 interface Coords { lat: number, lng: number }
 
-export default function SearchMapView({ listings, radius, locationCoords, location }: {
+
+export default function SearchMapView({ listings, radius, locationCoords, location, listingType = "rent" }: {
   listings: Listing[]
+  listingType?: string
   radius?: number | null
   locationCoords?: Coords | null
   location?: string
@@ -103,7 +105,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         const textCol = hasViewed ? '#6b6b67' : '#D85A30'
         const icon = L.divIcon({
           className: '',
-          html: `<div data-id="${listing.id}" style="background:${bg};border-radius:99px;padding:5px 12px;font-size:12px;font-weight:${weight};color:${textCol};box-shadow:0 2px 10px rgba(0,0,0,0.2);border:2px solid ${borderCol};white-space:nowrap;font-family:Georgia,serif;cursor:pointer;position:relative;text-align:center;">£${listing.price?.toLocaleString()}/mo<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${borderCol};"></div></div>`,
+          html: `<div data-id="${listing.id}" style="background:${bg};border-radius:99px;padding:5px 12px;font-size:12px;font-weight:${weight};color:${textCol};box-shadow:0 2px 10px rgba(0,0,0,0.2);border:2px solid ${borderCol};white-space:nowrap;font-family:Georgia,serif;cursor:pointer;position:relative;text-align:center;">£${listing.price?.toLocaleString()}${listingType === 'rent' ? '/mo' : ''}<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${borderCol};"></div></div>`,
           iconSize: [130, 36],
           iconAnchor: [65, 43],
         })
@@ -111,7 +113,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         const popupContent = `
           <div style="width:210px;font-family:sans-serif;">
             ${imgSrc ? `<img src="${imgSrc}" referrerpolicy="no-referrer" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>` : '<div style="width:100%;height:80px;background:#f5f5f0;border-radius:6px;margin-bottom:8px;"></div>'}
-            <div style="font-size:15px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${listing.price?.toLocaleString()}<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">/mo</span></div>
+            <div style="font-size:15px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${listing.price?.toLocaleString()}${listingType === 'rent' ? '<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">/mo</span>' : ''}</div>
             <div style="font-size:11px;color:#6b6b67;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${listing.address}</div>
             <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;">${listing.bedrooms ? listing.bedrooms + ' bed' : ''} ${listing.property_type || ''}</div>
             <a href="/listings/${listing.id}" target="_blank" onclick="window.__markViewed && window.__markViewed('${listing.id}')" style="display:block;background:#D85A30;color:white;text-align:center;padding:7px;border-radius:7px;font-size:12px;text-decoration:none;">View listing →</a>
@@ -234,7 +236,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
     return () => {
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-  }, [radius, locationCoords, location])
+  }, [radius, locationCoords, location, listingType])
 
   const RADIUS_OPTIONS = [
     { label: 'This area only', value: null },

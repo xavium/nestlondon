@@ -16,6 +16,7 @@ SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 SEARCH_URL = 'https://www.rightmove.co.uk/property-to-rent/find.html?locationIdentifier=REGION%5E87490&propertyTypes=&includeLetAgreed=false'
+BUY_SEARCH_URL = 'https://www.rightmove.co.uk/property-for-sale/find.html?locationIdentifier=REGION%5E87490&propertyTypes=&includeSSTC=false'
 
 IMAGE_DIR = 'images'
 os.makedirs(IMAGE_DIR, exist_ok=True)
@@ -298,7 +299,7 @@ async def scrape_page(page, url, page_num):
     return listings
 
 
-async def save_to_supabase(listings, source_name='Rightmove'):
+async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent'):
     saved = 0
     skipped = 0
     updated = 0
@@ -364,11 +365,11 @@ async def save_to_supabase(listings, source_name='Rightmove'):
                 'address': address,
                 'postcode': postcode,
                 'price': price,
-                'price_period': 'month',
+                'price_period': 'month' if listing_type == 'rent' else None,
                 'bedrooms': bedrooms,
                 'bathrooms': listing.get('bathrooms'),
                 'property_type': listing.get('property_type'),
-                'listing_type': 'rent',
+                'listing_type': listing_type,
                 'description': listing.get('description'),
                 'features': json.dumps(listing.get('features') or []),
                 'furnished': listing.get('furnished'),
@@ -390,6 +391,65 @@ async def save_to_supabase(listings, source_name='Rightmove'):
             continue
     print(f'  Saved: {saved}, Updated: {updated}, Skipped: {skipped}')
     return saved, skipped, new_ids
+
+
+async def scrape_buy(pages=5):
+    """Scrape Rightmove for-sale listings in London."""
+    print('Starting Rightmove scraper - London sales')
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1280, 'height': 800},
+        )
+        page = await context.new_page()
+        print('Loading buy first page...')
+        await page.goto(BUY_SEARCH_URL, wait_until='domcontentloaded', timeout=30000)
+        await page.wait_for_timeout(3000)
+        await accept_cookies(page)
+        await page.wait_for_timeout(2000)
+        all_listings = []
+        for page_num in range(pages):
+            offset = page_num * 24
+            url = BUY_SEARCH_URL + '&index=' + str(offset) if page_num > 0 else BUY_SEARCH_URL
+            print('Buy page ' + str(page_num + 1) + '/' + str(pages))
+            listings = await scrape_page(page, url, page_num)
+            print('  Got ' + str(len(listings)) + ' listings - fetching full descriptions...')
+            for i, listing in enumerate(listings):
+                if listing.get('source_url'):
+                    full_data = await get_full_description(context, listing['source_url'])
+                    if full_data and isinstance(full_data, dict):
+                        if full_data.get('description'):
+                            listing['description'] = full_data['description']
+                        if full_data.get('key_features'):
+                            listing['key_features'] = full_data['key_features']
+                        if full_data.get('size_text'):
+                            listing['size_text'] = full_data['size_text']
+                        if full_data.get('letting_details'):
+                            listing['letting_details'] = full_data['letting_details']
+                        if full_data.get('additional'):
+                            listing['additional'] = full_data['additional']
+                        if full_data.get('latitude'):
+                            listing['latitude'] = full_data['latitude']
+                        if full_data.get('longitude'):
+                            listing['longitude'] = full_data['longitude']
+                        if full_data.get('listed_at'):
+                            listing['listed_at'] = full_data['listed_at']
+                        if full_data.get('floorplans'):
+                            listing['floorplans'] = full_data['floorplans']
+                    if (i+1) % 5 == 0:
+                        print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
+                    await asyncio.sleep(0.5)
+            all_listings.extend(listings)
+            if page_num < pages - 1:
+                await asyncio.sleep(2)
+        await browser.close()
+    print('Total buy listings: ' + str(len(all_listings)))
+    if all_listings:
+        print('Saving to Supabase...')
+        saved, skipped, new_ids = await save_to_supabase(all_listings, 'Rightmove', listing_type='buy')
+        print('Done. Saved: ' + str(saved) + ' | Skipped: ' + str(skipped))
+    return all_listings
 
 
 async def main():

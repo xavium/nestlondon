@@ -351,6 +351,7 @@ function getNearestStations(lat: number, lng: number, count = 4) {
 }
 
 interface NearbyListing {
+  listing_type?: string
   id: string
   address: string
   price: number
@@ -362,6 +363,7 @@ interface NearbyListing {
 }
 
 interface Props {
+  listingType?: string
   latitude: number
   longitude: number
   address: string
@@ -369,20 +371,20 @@ interface Props {
   nearbyListings?: NearbyListing[]
 }
 
-export default function PropertyMap({ latitude, longitude, address, price, nearbyListings = [] }: Props) {
+export default function PropertyMap({ latitude, longitude, address, price, nearbyListings = [], listingType }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const nearestStations = getNearestStations(latitude, longitude)
 
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return
+    if (!mapContainer.current) return
+    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
 
     async function initMap() {
       const L = (await import('leaflet')).default
       await import('leaflet/dist/leaflet.css')
       const viewed = getViewedListings()
 
-      if (mapRef.current) return
       mapRef.current = L.map(mapContainer.current!, {
         center: [latitude, longitude],
         zoom: 15,
@@ -454,7 +456,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       // Current listing marker - highest z-index
       const mainIcon = L.divIcon({
         className: '',
-        html: `<div style="background:white;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:#D85A30;box-shadow:0 2px 10px rgba(0,0,0,0.25);border:2px solid #D85A30;white-space:nowrap;font-family:Georgia,serif;position:relative;text-align:center;">£${price.toLocaleString()}/mo<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #D85A30;"></div></div>`,
+        html: `<div style="background:white;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:#D85A30;box-shadow:0 2px 10px rgba(0,0,0,0.25);border:2px solid #D85A30;white-space:nowrap;font-family:Georgia,serif;position:relative;text-align:center;">£${price.toLocaleString()}${(listingType !== 'buy') ? '/mo' : ''}<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #D85A30;"></div></div>`,
         iconSize: [130, 36],
         iconAnchor: [65, 43],
       })
@@ -480,7 +482,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
 
         const nearbyIcon = L.divIcon({
           className: '',
-          html: `<div style="background:${bubbleBg};border-radius:99px;padding:4px 10px;font-size:11px;font-weight:${bubbleFontWeight};color:${bubbleColor};box-shadow:0 1px 6px rgba(0,0,0,0.15);border:1px solid rgba(0,0,0,0.12);white-space:nowrap;font-family:Georgia,serif;cursor:pointer;position:relative;text-align:center;">£${nearby.price.toLocaleString()}/mo<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid ${tailColor};"></div></div>`,
+          html: `<div style="background:${bubbleBg};border-radius:99px;padding:4px 10px;font-size:11px;font-weight:${bubbleFontWeight};color:${bubbleColor};box-shadow:0 1px 6px rgba(0,0,0,0.15);border:1px solid rgba(0,0,0,0.12);white-space:nowrap;font-family:Georgia,serif;cursor:pointer;position:relative;text-align:center;">£${nearby.price.toLocaleString()}${(nearby.listing_type || listingType) !== 'buy' ? '/mo' : ''}<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid ${tailColor};"></div></div>`,
           iconSize: [110, 32],
           iconAnchor: [55, 37],
         })
@@ -488,7 +490,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
         const popupContent = `
           <div style="width:200px;font-family:sans-serif;">
             ${imgSrc ? `<img src="${imgSrc}" referrerpolicy="no-referrer" style="width:100%;height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : '<div style="width:100%;height:80px;background:#f5f5f0;border-radius:6px;margin-bottom:8px;"></div>'}
-            <div style="font-size:14px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${nearby.price.toLocaleString()}<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">/mo</span></div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${nearby.price.toLocaleString()}<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">${(nearby.listing_type || listingType) !== 'buy' ? '/mo' : ''}</span></div>
             <div style="font-size:11px;color:#6b6b67;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nearby.address}</div>
             <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;">${nearby.bedrooms ? nearby.bedrooms + ' bed' : ''} ${nearby.property_type || ''}</div>
             <a href="/listings/${nearby.id}" target="_blank" onclick="window.__markViewed && window.__markViewed('${nearby.id}')" style="display:block;background:#D85A30;color:white;text-align:center;padding:7px;border-radius:7px;font-size:12px;text-decoration:none;">View listing</a>
@@ -521,7 +523,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
     return () => {
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-  }, [latitude, longitude])
+  }, [latitude, longitude, listingType])
 
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-xl overflow-hidden">
