@@ -33,7 +33,7 @@ interface SavedSearch {
 }
 
 interface Props {
-  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string }
+  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string, commute_address?: string }
   savedProperties: SavedProperty[]
   savedSearches: SavedSearch[]
   initialTab?: 'profile' | 'account'
@@ -260,7 +260,7 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
 }
 
 function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
-  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string }
+  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string, commute_address?: string }
   onSignOut: () => void
   onDeleteAccount: () => void
 }) {
@@ -269,6 +269,7 @@ function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
 
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(user.name || '')
+  const [commuteAddress, setCommuteAddress] = useState(user.commute_address || '')
   const [phone, setPhone] = useState(user.phone || '')
   const [newEmail, setNewEmail] = useState('')
   const [confirmEmail, setConfirmEmail] = useState('')
@@ -290,7 +291,7 @@ function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
       const res = await fetch('/api/account/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name, phone, commute_address: commuteAddress }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save')

@@ -42,10 +42,13 @@ export default function ListingCard({ listing, distanceLabel }: Props) {
 
   useEffect(() => {
     setViewed(getViewedListings().has(listing.id))
-    // Check if saved
+    // Check saved status from cached all-ids endpoint
     fetch('/api/saved/property')
       .then(r => r.json())
-      .then(d => { if (d.saved?.includes(listing.id)) setSaved(true) })
+      .then(d => {
+        const ids = Array.isArray(d.saved) ? d.saved : []
+        if (ids.includes(listing.id)) setSaved(true)
+      })
       .catch(() => {})
   }, [listing.id])
 

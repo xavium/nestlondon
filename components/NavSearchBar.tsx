@@ -36,6 +36,8 @@ interface Props {
   addedWithin?: number | null
   availableFrom?: string | null
   style?: string | null
+  commuteAddress?: string | null
+  maxCommute?: number | null
 }
 
 export default function NavSearchBar({
@@ -52,7 +54,8 @@ export default function NavSearchBar({
   addedWithin = null,
   availableFrom = null,
   style = null,
-}: Props) {
+  commuteAddress = null,
+  maxCommute = null,}: Props) {
   const [location, setLocation] = useState(initLocation)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState<number | null>(initMinPrice)
@@ -100,6 +103,8 @@ export default function NavSearchBar({
     if (furnished) p.set('furnished', furnished)
     if (propertyType) p.set('propertyType', propertyType)
     if (style) p.set('style', style)
+    if (commuteAddress) p.set('commuteAddress', commuteAddress)
+    if (maxCommute) p.set('maxCommute', String(maxCommute))
     if (features.length > 0) p.set('features', features.join(','))
     const aw = localAddedWithin
     if (aw) p.set('addedWithin', String(aw))
@@ -203,6 +208,8 @@ export default function NavSearchBar({
             addedWithin={addedWithin}
             availableFrom={availableFrom}
             style={style}
+            commuteAddress={commuteAddress || ''}
+            maxCommute={maxCommute}
           />
         </div>
 

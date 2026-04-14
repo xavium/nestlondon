@@ -41,7 +41,7 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   )
 }
 
-export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, minBeds, maxBeds, minPrice, maxPrice }: {
+export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute }: {
   filtered: any[]
   allListings: any[]
   allListingsForMap: any[]
@@ -52,9 +52,15 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   maxBeds?: number | null
   minPrice?: number | null
   maxPrice?: number | null
+  commuteAddress?: string | null
+  maxCommute?: number | null
 }) {
   const [view, setView] = useState<'grid' | 'map'>('grid')
   const [viewReady, setViewReady] = useState(false)
+  const [commuteTimes, setCommuteTimes] = useState<Record<string, number>>({})
+  const [commuteLoading, setCommuteLoading] = useState(false)
+  const [commuteFiltered, setCommuteFiltered] = useState<any[] | null>(null)
+
   const [sortBy, setSortBy] = useState<'relevant' | 'newest' | 'price_asc' | 'price_desc' | 'nearest' | 'size_asc' | 'size_desc' | 'psqm_desc' | 'psqm_asc'>('relevant')
 
   useEffect(() => {
@@ -92,6 +98,15 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
     const nbMaxBeds = sp.get('maxBeds') ? parseInt(sp.get('maxBeds')!) : null
     const nbMinPrice = sp.get('minPrice') ? parseInt(sp.get('minPrice')!) : null
     const nbMaxPrice = sp.get('maxPrice') ? parseInt(sp.get('maxPrice')!) : null
+    const nbFurnished = sp.get('furnished') || null
+    const nbPropertyType = sp.get('propertyType') || null
+    const nbFeatures = sp.get('features') ? sp.get('features')!.split(',') : []
+    const nbStyle = sp.get('style') ? sp.get('style')!.split(',') : []
+    const nbAddedWithin = sp.get('addedWithin') ? parseInt(sp.get('addedWithin')!) : null
+    const nbAvailableFrom = sp.get('availableFrom') || null
+    const nbMinSize = sp.get('minSize') ? parseInt(sp.get('minSize')!) : null
+    const nbMaxSize = sp.get('maxSize') ? parseInt(sp.get('maxSize')!) : null
+
     nearby = allListings
       .filter((l: any) => {
         if (!l.latitude || !l.longitude) return false
@@ -102,11 +117,51 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
         if (nbMaxBeds && (beds == null || beds > nbMaxBeds)) return false
         if (nbMinPrice && (price == null || price < nbMinPrice)) return false
         if (nbMaxPrice && (price == null || price > nbMaxPrice)) return false
+        if (nbFurnished && l.furnished && !l.furnished.toLowerCase().includes(nbFurnished.toLowerCase())) return false
+        if (nbPropertyType && l.property_type && !l.property_type.toLowerCase().includes(nbPropertyType.toLowerCase())) return false
+        if (nbAddedWithin) {
+          const cutoff = new Date()
+          cutoff.setDate(cutoff.getDate() - nbAddedWithin)
+          if (!l.scraped_at || new Date(l.scraped_at) < cutoff) return false
+        }
+        if (nbAvailableFrom && l.available_from && l.available_from > nbAvailableFrom) return false
+        if (nbMinSize || nbMaxSize) {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data || '{}') : (l.raw_data || {})
+          const txt = rd?.size_text || l.description || ''
+          const m = txt.match(/([\d,]+)\s*sq\s*ft/i)
+          const sqft = m ? parseFloat(m[1].replace(',','')) : null
+          if (nbMinSize && (!sqft || sqft < nbMinSize)) return false
+          if (nbMaxSize && sqft && sqft > nbMaxSize) return false
+        }
+        if (nbStyle.length > 0) {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data || '{}') : (l.raw_data || {})
+          const s = (rd?.photo_tags?.style || '').toLowerCase()
+          if (!nbStyle.some((st: string) => s.includes(st.toLowerCase()))) return false
+        }
+        if (nbFeatures.length > 0) {
+          const combined = ((l.description || '') + ' ' + JSON.stringify(l.features || [])).toLowerCase()
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data || '{}') : (l.raw_data || {})
+          const pf = (rd?.photo_tags?.features || []).map((f: string) => f.toLowerCase())
+          for (const f of nbFeatures) {
+            if (!f.startsWith('exclude:') && !combined.includes(f.toLowerCase()) && !pf.includes(f.toLowerCase())) return false
+          }
+        }
         return true
       })
       .map(withDist)
       .sort((a: any, b: any) => a._dist - b._dist)
-      .slice(0, 12)
+      .slice(0, 24) // fetch more so commute filter has enough to work with
+  }
+
+  // Apply commute filter to nearby
+  if (maxCommute && commuteAddress && Object.keys(commuteTimes).length > 0) {
+    nearby = nearby.filter((l: any) => {
+      const t = commuteTimes[l.id]
+      if (t == null) return true
+      return t <= maxCommute
+    }).slice(0, 12)
+  } else {
+    nearby = nearby.slice(0, 12)
   }
 
   // Apply sort
@@ -174,6 +229,34 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
     return new Date(b.scraped_at || 0).getTime() - new Date(a.scraped_at || 0).getTime()
   })
 
+  // Commute filter — applied after sort, covers both inRadius and nearby
+  useEffect(() => {
+    if (!commuteAddress || !maxCommute) { setCommuteFiltered(null); return }
+    setCommuteLoading(true)
+    const allToCheck = [...sortedResults, ...nearby]
+      .filter((l: any) => l.postcode || (l.latitude && l.longitude))
+      .filter((l: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === l.id) === i) // dedupe
+      .slice(0, 60)
+    Promise.all(allToCheck.map(async (l: any) => {
+      const from = l.postcode ? l.postcode.replace(/\s/g, '') : `${l.latitude},${l.longitude}`
+      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(commuteAddress!)}`)
+      const d = await res.json()
+      return { id: l.id, duration: d.duration }
+    })).then(results => {
+      const times: Record<string, number> = {}
+      results.forEach(r => { if (r.duration != null) times[r.id] = r.duration })
+      setCommuteTimes(times)
+      setCommuteFiltered(sortedResults.filter((l: any) => {
+        const t = times[l.id]
+        if (t == null) return true
+        return t <= maxCommute!
+      }))
+      setCommuteLoading(false)
+    }).catch(() => setCommuteLoading(false))
+  }, [commuteAddress, maxCommute, sortedResults.length, nearby.length])
+
+  const displayResults = commuteFiltered ?? sortedResults
+
   const radiusLabel = splitRadius ? `within ${splitRadius} mile${splitRadius === 1 ? '' : 's'}` : ''
 
   if (!viewReady) return <div style={{minHeight: '500px'}} />
@@ -182,7 +265,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
     <>
       <div className="flex items-center justify-between mb-6 gap-4">
         <p className="text-sm text-stone-500 flex items-center gap-2 flex-wrap">
-          {inRadius.length} properties{location ? ' in ' + location : ' in London'}
+          {commuteLoading ? 'Calculating commute times…' : (displayResults.length + ' properties' + (location ? ' in ' + location : ' in London'))}
           {radiusLabel ? ` · ${radiusLabel}` : ''}
           <SaveSearchButton />
         </p>
@@ -208,7 +291,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 
       {view === 'map' ? (
         <SearchMapView
-          listings={sortedResults.filter((l: any) => l.latitude && l.longitude)}
+          listings={displayResults.filter((l: any) => l.latitude && l.longitude)}
           radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}
@@ -217,7 +300,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
         <>
           {inRadius.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {sortedResults.map((listing: any) => (
+              {displayResults.map((listing: any) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>

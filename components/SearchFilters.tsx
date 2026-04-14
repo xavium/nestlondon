@@ -18,6 +18,8 @@ interface Props {
   addedWithin?: number | null
   availableFrom?: string | null
   onApply?: (params: URLSearchParams) => void
+  commuteAddress?: string
+  maxCommute?: number | null
 }
 
 export default function SearchFilters(props: Props) {
@@ -38,6 +40,19 @@ export default function SearchFilters(props: Props) {
   const [maxSize, setMaxSize] = useState<number | null>(null)
   const [floorLayout, setFloorLayout] = useState<string | null>(null)
   const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
+  const [commuteAddress, setCommuteAddress] = useState<string>(sp.get('commuteAddress') || props.commuteAddress || '')
+  const [maxCommute, setMaxCommute] = useState<number | null>(sp.get('maxCommute') ? parseInt(sp.get('maxCommute')!) : (props.maxCommute || null))
+  const [editingCommute, setEditingCommute] = useState(false)
+  const [commuteDraft, setCommuteDraft] = useState(sp.get('commuteAddress') || props.commuteAddress || '')
+
+  useEffect(() => { console.log('[SF] props.commuteAddress:', props.commuteAddress, 'state:', commuteAddress) }, [props.commuteAddress])
+  // Sync commute address from profile if not in URL
+  useEffect(() => {
+    if (!sp.get('commuteAddress') && props.commuteAddress) {
+      setCommuteAddress(props.commuteAddress)
+      setCommuteDraft(props.commuteAddress)
+    }
+  }, [props.commuteAddress])
 
   // Sync with URL params when they change (e.g. NavFilters updates URL)
   useEffect(() => { setRadius(props.radius || null) }, [props.radius])
@@ -76,6 +91,7 @@ export default function SearchFilters(props: Props) {
     if (minSize) p.set('minSize', String(minSize))
     if (maxSize) p.set('maxSize', String(maxSize))
     if (floorLayout) p.set('floorLayout', floorLayout)
+    if (commuteAddress && maxCommute) { p.set('commuteAddress', commuteAddress); p.set('maxCommute', String(maxCommute)) }
     setOpen(false)
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
@@ -96,7 +112,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + features.length + styles.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + features.length + styles.length + (maxCommute ? 1 : 0)
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -192,6 +208,66 @@ export default function SearchFilters(props: Props) {
                   {opt}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Commute time</label>
+            {commuteAddress && !editingCommute ? (
+              <div className="flex items-center gap-2 bg-[#F5EBE0] rounded-xl px-3 py-2 mb-3">
+                <span className="text-xs text-[#1B2E4B] flex-1 truncate">📍 {commuteAddress}</span>
+                <button onClick={() => { setEditingCommute(true); setCommuteDraft(commuteAddress) }}
+                  className="text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={commuteDraft}
+                  onChange={e => setCommuteDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { setCommuteAddress(commuteDraft); setEditingCommute(false) } if (e.key === 'Escape') setEditingCommute(false) }}
+                  placeholder="Work postcode or station (e.g. EC1A 1BB)"
+                  className="flex-1 border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
+                  autoFocus
+                />
+                <button onClick={async () => {
+                  setCommuteAddress(commuteDraft)
+                  setEditingCommute(false)
+                  await fetch('/api/commute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ commute_address: commuteDraft })
+                  }).catch(() => {})
+                  window.location.reload()
+                }}
+                  className="px-3 py-1.5 rounded-xl text-white text-xs flex-shrink-0"
+                  style={{background:'#D3755A'}}>
+                  Set
+                </button>
+              </div>
+            )}
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-[#9B928E]">Max commute time</span>
+              <span className="text-xs font-semibold text-[#1B2E4B]">{maxCommute ? maxCommute + ' mins' : 'Any'}</span>
+            </div>
+            <input
+              type="range"
+              min={5}
+              max={90}
+              step={5}
+              value={maxCommute || 90}
+              onChange={e => setMaxCommute(parseInt(e.target.value) === 90 ? null : parseInt(e.target.value))}
+              className="w-full accent-[#D3755A]"
+            />
+            <div className="flex justify-between text-[10px] text-[#9B928E] mt-1">
+              <span>5 min</span>
+              <span>30 min</span>
+              <span>60 min</span>
+              <span>Any</span>
             </div>
           </div>
 

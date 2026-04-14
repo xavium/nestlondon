@@ -24,6 +24,8 @@ interface SearchParams {
   maxSize?: string
   floorLayout?: string
   style?: string
+  commuteAddress?: string
+  maxCommute?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -44,6 +46,25 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const maxSize = params.maxSize ? parseInt(params.maxSize) : null
   const floorLayout = params.floorLayout || null
   const style = params.style || null
+  // Get saved commute address from user profile if not in URL
+  let commuteAddress = params.commuteAddress || null
+  console.log('[SEARCH] params.commuteAddress:', params.commuteAddress, 'final commuteAddress:', commuteAddress)
+  const maxCommute = params.maxCommute ? parseInt(params.maxCommute) : null
+  if (!commuteAddress) {
+    try {
+      const cookieStore = await cookies()
+      const supabaseAuth = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { getAll: () => cookieStore.getAll() } }
+      )
+      const { data: { user } } = await supabaseAuth.auth.getUser()
+      if (user?.user_metadata?.commute_address) {
+        commuteAddress = user.user_metadata.commute_address
+        console.log('[SEARCH] loaded from user metadata:', commuteAddress)
+      }
+    } catch {}
+  }
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -323,13 +344,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               addedWithin={addedWithin}
               availableFrom={availableFrom}
               style={style}
+              commuteAddress={commuteAddress}
+              maxCommute={maxCommute}
             />
           </div>
           <NavAuthButton variant="light" />
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        <SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} />
+        <SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} />
       </div>
     </main>
   )

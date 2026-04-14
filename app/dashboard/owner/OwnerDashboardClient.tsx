@@ -200,6 +200,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
   )
 
   return (
+    <>
     <main className="min-h-screen bg-[#F5EBE0]">
       {/* Nav */}
       <nav className="bg-[#1B2E4B] px-6 py-4 flex items-center justify-between">
@@ -673,6 +674,34 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
         ))}
       </div>
     </main>
+
+    {/* Full address prompt modal */}
+    {confirmingAddress && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setConfirmingAddress(null)}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+          <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Confirm full address</h3>
+          <p className="text-xs text-[#9B928E] mb-4">The tenant will receive the full address when you propose this viewing. Please ensure the door/flat number is included.</p>
+          <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Full property address</label>
+          <input
+            value={fullAddress}
+            onChange={e => setFullAddress(e.target.value)}
+            className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-4"
+            placeholder="e.g. Flat 3, 42 Roman Road, London, E2 0RN"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmingAddress(null)}
+              className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#9B928E]">Cancel</button>
+            <button onClick={() => confirmWithAddress(confirmingAddress.id, confirmingAddress.slot)}
+              disabled={!fullAddress.trim()}
+              className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+              style={{background:'#1B2E4B'}}>
+              Send proposal →
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -791,33 +820,6 @@ function ViewingsCalendar({ requests, listings }: { requests: any[], listings: a
         </div>
       </div>
     </div>
-
-    {/* Full address prompt modal */}
-    {confirmingAddress && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setConfirmingAddress(null)}>
-        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-          <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Confirm full address</h3>
-          <p className="text-xs text-[#9B928E] mb-4">The tenant will receive the full address when you propose this viewing. Please ensure the door/flat number is included.</p>
-          <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Full property address</label>
-          <input
-            value={fullAddress}
-            onChange={e => setFullAddress(e.target.value)}
-            className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-4"
-            placeholder="e.g. Flat 3, 42 Roman Road, London, E2 0RN"
-          />
-          <div className="flex gap-2">
-            <button onClick={() => setConfirmingAddress(null)}
-              className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#9B928E]">Cancel</button>
-            <button onClick={() => confirmWithAddress(confirmingAddress.id, confirmingAddress.slot)}
-              disabled={!fullAddress.trim()}
-              className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
-              style={{background:'#1B2E4B'}}>
-              Send proposal →
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
   )
 }
 

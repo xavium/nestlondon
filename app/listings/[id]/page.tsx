@@ -12,6 +12,7 @@ import FloorplanSize from '@/components/FloorplanSize'
 import ShareButton from '@/components/ShareButton'
 import SaveButton from '@/components/SaveButton'
 import PhotoTags from '@/components/PhotoTags'
+import CommuteWidget from '@/components/CommuteWidget'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -53,6 +54,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     .maybeSingle()
 
   const { data: { user: currentUser } } = await supabase.auth.getUser()
+  const commuteAddress = currentUser?.user_metadata?.commute_address || null
 
   if (!listing) { console.log('404: listing not found', id); notFound() }
   const isAdminPreview = isAdminPreviewEarly
@@ -370,6 +372,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               features={navFeatures}
               addedWithin={navAddedWithin}
               availableFrom={navAvailableFrom}
+              commuteAddress={commuteAddress}
             />
           </div>
           <NavAuthButton variant="light" />
@@ -513,6 +516,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               />
             )}
 
+            <CommuteWidget
+              listingPostcode={listing.postcode}
+              listingLat={listing.latitude ? parseFloat(String(listing.latitude)) : null}
+              listingLng={listing.longitude ? parseFloat(String(listing.longitude)) : null}
+              initialCommuteAddress={commuteAddress}
+            />
+
             <div className="text-xs text-stone-400 pt-2">
               Listed on {listing.source}
               {(() => {
@@ -535,7 +545,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {isDirectListing ? (
               <ContactOwnerPanel listingId={listing.id} address={listing.address} />
             ) : (
-              <ExternalLinkCard listing={listing} />
+              <>
+                <ExternalLinkCard listing={listing} />
+              </>
             )}
 
             {searchListings.length > 0 && (

@@ -50,6 +50,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         phone: profile?.phone || '',
         created_at: profile?.created_at || user.created_at || '',
         role: role,
+        commute_address: user.user_metadata?.commute_address || '',
       }}
       savedProperties={(savedProperties || []) as any}
       savedSearches={(savedSearches || []).map(s => ({ ...s, alerts_enabled: s.alerts_enabled ?? false })) as any}
