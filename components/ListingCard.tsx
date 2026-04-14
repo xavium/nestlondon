@@ -109,7 +109,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           <div className="text-sm font-medium mb-0.5 truncate text-[#1C2B3A]">{listing.address}</div>
           <div className="flex gap-3 text-xs text-stone-400 mb-2">
             {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span>Studio</span> : listing.bedrooms ? <span>{listing.bedrooms} bed</span> : null}
-            {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
+            {listing.bathrooms ? <span>{listing.bathrooms} bath</span> : null}
             {listing.property_type && <span>{listing.property_type}</span>}
           </div>
           {desc && <p className="text-xs text-stone-500 leading-relaxed mb-3">{desc}</p>}
@@ -204,7 +204,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
         <div className={'text-sm font-medium mb-0.5 truncate text-[#1C2B3A]'}>{listing.address}</div>
         <div className="flex gap-3 text-xs text-stone-400 mb-2">
           {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span>Studio</span> : listing.bedrooms ? <span>{listing.bedrooms} bed</span> : null}
-          {listing.bathrooms && <span>{listing.bathrooms} bath</span>}
+          {listing.bathrooms ? <span>{listing.bathrooms} bath</span> : null}
           {listing.property_type && <span>{listing.property_type}</span>}
           {listing.furnished && <span>{(listing.furnished as string).split(',')[0].trim().charAt(0).toUpperCase() + (listing.furnished as string).split(',')[0].trim().slice(1)}</span>}
         </div>

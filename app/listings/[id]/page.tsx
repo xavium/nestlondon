@@ -394,8 +394,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {listing.price && <span className="text-stone-400 text-sm">£{Math.round(listing.price / 4.33).toLocaleString()} per week</span>}
           </div>
           <div className="flex gap-2 mt-2 flex-wrap">
-            {listing.bedrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
-            {listing.bathrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
+            {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">Studio</span> : listing.bedrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span> : null}
+            {listing.bathrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span> : null}
             {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
             {floorText && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{floorText}</span>}
             {floorsText && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{floorsText}</span>}
@@ -634,8 +634,8 @@ function ExternalLinkCard({ listing }: { listing: any }) {
         {listing.price && <div className="text-sm text-stone-400">£{Math.round(listing.price / 4.33).toLocaleString()} per week</div>}
       </div>
       <div className="flex gap-2 mb-4 flex-wrap">
-        {listing.bedrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span>}
-        {listing.bathrooms && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span>}
+        {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">Studio</span> : listing.bedrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span> : null}
+        {listing.bathrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bathrooms} bath</span> : null}
         {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
       </div>
       {['Private owner', 'Landlord'].includes(listing.source) ? (

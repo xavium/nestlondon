@@ -127,7 +127,7 @@ export default function NavSearchBar({
     : 'Beds'
 
   const radiusLabel = radius ? `Within ${radius} mi` : 'This area only'
-  const addedWithinLabel = localAddedWithin ? (localAddedWithin === 1 ? '24h' : localAddedWithin === 30 ? '1 month' : localAddedWithin === 90 ? '3 months' : localAddedWithin + 'd') : 'Added'
+  const addedWithinLabel = localAddedWithin ? (localAddedWithin === 0.042 ? '1hr' : localAddedWithin === 1 ? '24h' : localAddedWithin === 30 ? '1 month' : localAddedWithin === 90 ? '3 months' : localAddedWithin + 'd') : 'Added'
   const priceActive = !!(minPrice || maxPrice)
   const bedsActive = minBeds !== null || maxBeds !== null
 
@@ -256,11 +256,11 @@ export default function NavSearchBar({
 
       {active === 'addedWithin' && (
         <div className="absolute top-full left-1/2 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44">
-          {([null, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
+          {([null, 0.042, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
             <button key={String(d)} onClick={() => { setLocalAddedWithin(d); setActive(null); doSearch() }}
               className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (localAddedWithin === d ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
               style={localAddedWithin === d ? {background: '#D3755A'} : {}}
-            >{d === null ? 'Any time' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : d + ' days'}</button>
+            >{d === null ? 'Any time' : d === 0.042 ? '1 hour' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : d + ' days'}</button>
           ))}
         </div>
       )}

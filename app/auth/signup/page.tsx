@@ -54,7 +54,7 @@ function SignupForm() {
     const metadata: Record<string, string> = { role: roleParam, name }
     if (roleParam === 'agent' && agencyName) metadata.agency_name = agencyName
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: metadata }
@@ -63,6 +63,18 @@ function SignupForm() {
       setError(error.message)
       setLoading(false)
     } else {
+      // Auto-create agent record if signing up as agent
+      if (roleParam === 'agent' && signUpData?.user) {
+        await fetch('/api/admin/agents/create-self', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: signUpData.user.id,
+            name: agencyName || email,
+            email,
+          })
+        }).catch(() => {})
+      }
       setSuccess(true)
     }
   }

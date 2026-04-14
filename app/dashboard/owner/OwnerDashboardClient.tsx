@@ -124,7 +124,34 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
     setOwnerActioning(false)
   }
 
-  const [dashTab, setDashTab] = useState<'analytics' | 'viewings'>('analytics')
+  const [dashTab, setDashTab] = useState<'analytics' | 'listings' | 'viewings'>('analytics')
+  const [managingId, setManagingId] = useState<string | null>(null)
+
+  async function manageListing(listing_id: string, action: 'deactivate' | 'activate' | 'delete') {
+    if (action === 'delete' && !confirm('Permanently delete this listing? This cannot be undone.')) return
+    await fetch('/api/listings/manage', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id, action })
+    })
+    window.location.reload()
+  }
+  const [listingSearch, setListingSearch] = useState('')
+  const [listingMinBeds, setListingMinBeds] = useState<number | null>(null)
+  const [listingMaxPrice, setListingMaxPrice] = useState<number | null>(null)
+  const [listingStatus, setListingStatus] = useState<'all' | 'active' | 'inactive'>('active')
+
+  const filteredListings = listings.filter(l => {
+    if (listingStatus === 'active' && !l.is_active) return false
+    if (listingStatus === 'inactive' && l.is_active) return false
+    if (listingSearch) {
+      const q = listingSearch.toLowerCase()
+      if (!l.address?.toLowerCase().includes(q) && !l.borough?.toLowerCase().includes(q)) return false
+    }
+    if (listingMinBeds !== null && (l.bedrooms == null || l.bedrooms < listingMinBeds)) return false
+    if (listingMaxPrice !== null && l.price > listingMaxPrice) return false
+    return true
+  })
 
   const listing = listings.find(l => l.id === selected)
 
@@ -221,16 +248,98 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
 
         {/* Tab switcher */}
         <div className="flex gap-2 mb-6">
-          {(['analytics', 'viewings'] as const).map(t => (
-            <button key={t} onClick={() => setDashTab(t)}
-              className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors ' + (dashTab === t ? 'text-white' : 'text-[#3D3A38] bg-white border border-[#E8E2DA]')}
-              style={dashTab === t ? {background:'#1B2E4B'} : {}}>
-              {t === 'analytics' ? 'Analytics' : `Viewings (${requests.filter(r => r.status === 'confirmed' || r.status === 'proposed').length})`}
+          {([
+            { key: 'analytics', label: 'Analytics' },
+            { key: 'listings', label: `Listings (${listings.length})` },
+            { key: 'viewings', label: `Viewings (${requests.filter(r => r.status === 'confirmed' || r.status === 'proposed').length})` },
+          ] as const).map(t => (
+            <button key={t.key} onClick={() => setDashTab(t.key as any)}
+              className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors ' + (dashTab === t.key ? 'text-white' : 'text-[#3D3A38] bg-white border border-[#E8E2DA]')}
+              style={dashTab === t.key ? {background:'#1B2E4B'} : {}}>
+              {t.label}
             </button>
           ))}
         </div>
 
         {dashTab === 'viewings' && <ViewingsCalendar requests={requests} listings={listings} />}
+
+        {dashTab === 'listings' && (
+          <div>
+            <div className="bg-white border border-[#E8E2DA] rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
+              <input value={listingSearch} onChange={e => setListingSearch(e.target.value)}
+                placeholder="Search by address or area..."
+                className="flex-1 min-w-48 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-[#F5EBE0]"
+              />
+              <select value={listingMinBeds ?? ''} onChange={e => setListingMinBeds(e.target.value ? parseInt(e.target.value) : null)}
+                className="border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#3D3A38] bg-white outline-none focus:border-[#D3755A]">
+                <option value="">Any beds</option>
+                <option value="0">Studio</option>
+                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+ bed</option>)}
+              </select>
+              <input type="number" value={listingMaxPrice ?? ''} onChange={e => setListingMaxPrice(e.target.value ? parseInt(e.target.value) : null)}
+                placeholder="Max price"
+                className="w-32 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#3D3A38] bg-white outline-none focus:border-[#D3755A]"
+              />
+              <div className="flex gap-1">
+                {(['all', 'active', 'inactive'] as const).map(s => (
+                  <button key={s} onClick={() => setListingStatus(s)}
+                    className={'text-xs px-3 py-1.5 rounded-full border transition-colors capitalize ' + (listingStatus === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
+                    style={listingStatus === s ? {background:'#1B2E4B'} : {}}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-[#9B928E]">{filteredListings.length} of {listings.length}</span>
+            </div>
+            {filteredListings.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-[#E8E2DA]">
+                <p className="text-sm text-[#9B928E]">No listings match your search.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {filteredListings.map(l => {
+                  const img = getImg(l)
+                  const lViews = events.filter(e => e.listing_id === l.id && e.event_type === 'view').length
+                  const lRequests = requests.filter(r => r.listing_id === l.id).length
+                  return (
+                    <div key={l.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-4 flex gap-4 items-center">
+                      <div className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden bg-[#F5EBE0]">
+                        {img ? <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : null}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                          <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
+                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500')}>
+                            {l.is_active ? 'Live' : 'Inactive'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-[#9B928E]">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
+                        <div className="flex gap-4 mt-1 text-xs text-[#9B928E]">
+                          <span>{lViews} views</span>
+                          <span>{lRequests} viewings</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                        <Link href={'/listings/' + l.id} target="_blank"
+                          className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
+                          View →
+                        </Link>
+                        <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
+                          className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
+                          {l.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => manageListing(l.id, 'delete')}
+                          className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {dashTab === 'analytics' && (listings.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#E8E2DA]">
@@ -241,9 +350,39 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
           </div>
         ) : (
           <div>
+          {/* Search and filter bar */}
+          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
+            <input
+              value={listingSearch}
+              onChange={e => setListingSearch(e.target.value)}
+              placeholder="Search by address or area..."
+              className="flex-1 min-w-48 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-[#F5EBE0]"
+            />
+            <select value={listingMinBeds ?? ''} onChange={e => setListingMinBeds(e.target.value ? parseInt(e.target.value) : null)}
+              className="border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#3D3A38] bg-white outline-none focus:border-[#D3755A]">
+              <option value="">Any beds</option>
+              <option value="0">Studio</option>
+              {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+ bed</option>)}
+            </select>
+            <input type="number" value={listingMaxPrice ?? ''} onChange={e => setListingMaxPrice(e.target.value ? parseInt(e.target.value) : null)}
+              placeholder="Max price"
+              className="w-32 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#3D3A38] bg-white outline-none focus:border-[#D3755A]"
+            />
+            <div className="flex gap-1">
+              {(['all', 'active', 'inactive'] as const).map(s => (
+                <button key={s} onClick={() => setListingStatus(s)}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors capitalize ' + (listingStatus === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
+                  style={listingStatus === s ? {background:'#1B2E4B'} : {}}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-[#9B928E]">{filteredListings.length} of {listings.length}</span>
+          </div>
+
           {/* All listings overview */}
           <div className="flex flex-col gap-4 mb-6">
-            {listings.map(l => {
+            {filteredListings.map(l => {
               const img = getImg(l)
               const lViews = events.filter(e => e.listing_id === l.id && e.event_type === 'view').length
               const lShares = events.filter(e => e.listing_id === l.id && e.event_type === 'share').length
@@ -273,8 +412,18 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                         <span className="text-xs text-[#3D3A38]">📅 {lRequests} viewing{lRequests !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
-                    <div className="flex-shrink-0 text-[#9B928E] text-xs self-center">
-                      {selected === l.id ? '▲' : '▼'}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0 items-end">
+                      <div className="text-[#9B928E] text-xs">{selected === l.id ? '▲' : '▼'}</div>
+                      <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
+                          className={'text-[10px] px-2 py-1 rounded-lg border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
+                          {l.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => manageListing(l.id, 'delete')}
+                          className="text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </button>

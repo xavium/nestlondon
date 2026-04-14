@@ -40,7 +40,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const propertyType = params.propertyType || null
   const features = params.features ? params.features.split(',') : []
   const radius = params.radius ? parseFloat(params.radius) : null // miles
-  const addedWithin = params.addedWithin ? parseInt(params.addedWithin) : null // days
+  const addedWithin = params.addedWithin ? parseFloat(params.addedWithin) : null // days (can be fractional for hours)
   const availableFrom = params.availableFrom || null
   const minSize = params.minSize ? parseInt(params.minSize) : null
   const maxSize = params.maxSize ? parseInt(params.maxSize) : null
@@ -177,8 +177,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (propertyType) query = query.ilike('property_type', '%' + propertyType + '%')
   if (furnished) query = query.ilike('furnished', '%' + furnished + '%')
   if (addedWithin) {
-    const since = new Date(Date.now() - addedWithin * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    query = query.gte('listed_at', since)
+    const since = new Date(Date.now() - addedWithin * 24 * 60 * 60 * 1000).toISOString()
+    query = query.gte('scraped_at', since)
   }
 
   const { data: listings, error } = await query
@@ -304,6 +304,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       const photoStyle = (rd?.photo_tags?.style || '').toLowerCase()
       if (!selectedStyles.some((s: string) => photoStyle.includes(s))) return false
     }
+    // addedWithin filter in JS too (handles fractional days for hours)
+    if (addedWithin) {
+      const since = new Date(Date.now() - addedWithin * 24 * 60 * 60 * 1000)
+      const scrapedAt = listing.scraped_at ? new Date(listing.scraped_at) : null
+      if (!scrapedAt || scrapedAt < since) return false
+    }
+
     return true
   })
 

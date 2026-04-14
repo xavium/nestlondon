@@ -241,12 +241,17 @@ export async function POST(req: NextRequest) {
         processedRefs.add(agentRef)
 
         // Build address
-        const addressParts = [prop.DISPLAY_ADDRESS || prop.ADDRESS_1, prop.ADDRESS_2, prop.TOWN].filter(Boolean)
+        // Use DISPLAY_ADDRESS if available, otherwise build from parts
+        let address: string
         const postcode = [prop.POSTCODE1, prop.POSTCODE2].filter(Boolean).join(' ').trim() || null
-        if (postcode && !addressParts[addressParts.length - 1]?.includes(postcode)) {
-          addressParts.push(postcode)
+        if (prop.DISPLAY_ADDRESS) {
+          address = prop.DISPLAY_ADDRESS
+          if (postcode && !address.includes(postcode)) address += ', ' + postcode
+        } else {
+          const addressParts = [prop.ADDRESS_1, prop.ADDRESS_2, prop.TOWN].filter(Boolean)
+          if (postcode) addressParts.push(postcode)
+          address = addressParts.join(', ')
         }
-        const address = addressParts.join(', ')
         if (!address) continue
 
         // Parse numeric fields

@@ -140,12 +140,23 @@ export default function SearchFilters(props: Props) {
 
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Available from</label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setAvailableFrom(new Date().toISOString().split('T')[0])}
+                className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (availableFrom === new Date().toISOString().split('T')[0] ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                Now
+              </button>
               <input
                 type="date"
-                value={availableFrom || ''}
+                value={availableFrom && availableFrom !== new Date().toISOString().split('T')[0] ? availableFrom : ''}
                 onChange={e => setAvailableFrom(e.target.value || null)}
-                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#374151] bg-[#F5EBE0] outline-none"
+                min={new Date().toISOString().split('T')[0]}
+                className={'flex-1 text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer outline-none ' + (availableFrom && availableFrom !== new Date().toISOString().split('T')[0] ? 'border-[#D3755A]' : 'border-[#E8E2DA] hover:border-[#D3755A]')}
+                style={{
+                  background: availableFrom && availableFrom !== new Date().toISOString().split('T')[0] ? '#D3755A' : '#F5EBE0',
+                  color: availableFrom && availableFrom !== new Date().toISOString().split('T')[0] ? 'white' : '#3D3A38',
+                  colorScheme: 'light',
+                }}
               />
               {availableFrom && (
                 <button onClick={() => setAvailableFrom(null)} className="text-stone-400 hover:text-[#4A5568] text-xs">✕</button>
