@@ -59,7 +59,7 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 }
 
 export default function AgentDashboardClient({ user, agentRecord, listings, viewingRequests, messages, events, agencyAgents: initialAgencyAgents = [], comparables = {}, avgDaysOnMarket = {} }: Props) {
-  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'feed' | 'team'>('overview')
+  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'team'>('overview')
   const [listingsState, setListingsState] = useState(listings)
   const [selectedListing, setSelectedListing] = useState<string | null>(null)
 
@@ -207,7 +207,6 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
     { key: 'listings', label: `Listings (${activeListings.length})` },
     { key: 'viewings', label: `Viewings (${pendingViewings + confirmedViewings})` },
     { key: 'enquiries', label: `Enquiries (${filteredMessages.length})` },
-    { key: 'feed', label: 'BLM Feed' },
     { key: 'team', label: `Team (${agencyAgents.length})` },
   ]
 
@@ -539,16 +538,11 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
             const vacantRevenue = listingsState.filter(l => !l.is_active).reduce((s,l) => s + (l.price||0), 0)
             const avgConversion = listingStats.length ? Math.round(listingStats.reduce((s,l) => s + l.conversionRate, 0) / listingStats.length) : 0
             return (
-              <div className="bg-[#1B2E4B] rounded-2xl p-5 grid grid-cols-3 gap-4">
+              <div className="bg-[#1B2E4B] rounded-2xl p-5 grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-xs text-white/60 uppercase tracking-wide mb-1">Portfolio value</div>
                   <div className="text-2xl font-light text-white">£{totalRevenue.toLocaleString()}</div>
                   <div className="text-xs text-white/50 mt-0.5">per month</div>
-                </div>
-                <div>
-                  <div className="text-xs text-white/60 uppercase tracking-wide mb-1">Revenue at risk</div>
-                  <div className="text-2xl font-light text-white">£{vacantRevenue.toLocaleString()}</div>
-                  <div className="text-xs text-white/50 mt-0.5">from inactive listings</div>
                 </div>
                 <div>
                   <div className="text-xs text-white/60 uppercase tracking-wide mb-1">Avg conversion</div>
@@ -692,10 +686,12 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                       className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
                       {l.is_active ? 'Deactivate' : 'Activate'}
                     </button>
-                    <button onClick={() => manageListing(l.id, 'delete')}
-                      className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                      Delete
-                    </button>
+                    {!l.is_active && (
+                      <button onClick={() => manageListing(l.id, 'delete')}
+                        className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
                 {/* Expanded analytics */}
@@ -968,30 +964,6 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* BLM Feed */}
-      {tab === 'feed' && (
-        <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-[#1B2E4B] mb-2">BLM Feed integration</h2>
-          <p className="text-xs text-[#9B928E] mb-4 leading-relaxed">
-            Connect your CRM to automatically sync listings. Configure your CRM (Reapit, Jupix, Alto, Dezrez) to POST your BLM file to the endpoint below.
-          </p>
-          {agentRecord?.api_key ? (
-            <div>
-              <div className="bg-[#1B2E4B] rounded-xl p-4 mb-4">
-                <div className="text-xs text-white/60 mb-1">Feed endpoint</div>
-                <div className="font-mono text-sm text-white">{typeof window !== 'undefined' ? window.location.origin : 'https://nestlondon.co.uk'}/api/feed/blm</div>
-              </div>
-              <div className="bg-[#F5EBE0] rounded-xl p-4">
-                <div className="text-xs text-[#9B928E] mb-1">Your API key</div>
-                <div className="font-mono text-xs text-[#1B2E4B] break-all">{agentRecord.api_key}</div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-[#9B928E]">Contact NestLondon to get your BLM feed API key set up.</p>
           )}
         </div>
       )}

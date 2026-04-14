@@ -36,6 +36,15 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     .order('created_at', { ascending: false })
 
   const role = user.user_metadata?.role || 'resident'
+
+  // Fetch agent record if agent
+  let agentRecord = null
+  if (role === 'agent') {
+    const { createClient } = await import('@supabase/supabase-js')
+    const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { data } = await svc.from('agents').select('*').eq('id', user.id).maybeSingle()
+    agentRecord = data
+  }
   const validTabs = ['profile', 'account'] as const
   type Tab = typeof validTabs[number]
   const defaultTab: Tab = (role === 'resident' || role === 'tenant' || !role || role === 'user') ? 'profile' : 'account'
@@ -50,6 +59,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         phone: profile?.phone || '',
         created_at: profile?.created_at || user.created_at || '',
         role: role,
+        agentRecord: agentRecord,
         commute_address: user.user_metadata?.commute_address || '',
       }}
       savedProperties={(savedProperties || []) as any}

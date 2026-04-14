@@ -33,7 +33,7 @@ interface SavedSearch {
 }
 
 interface Props {
-  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string, commute_address?: string }
+  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string, commute_address?: string, agentRecord?: any }
   savedProperties: SavedProperty[]
   savedSearches: SavedSearch[]
   initialTab?: 'profile' | 'account'
@@ -60,6 +60,7 @@ function describeSearch(params: Record<string, string>): string {
 }
 
 export default function AccountClient({ user, savedProperties, savedSearches, initialTab }: Props) {
+  const isAgent = user.role === 'agent'
   const [tab, setTab] = useState<string>( user.role === 'resident' || user.role === 'tenant' || !user.role || user.role === 'user' ? 'profile' : 'account')
   const [props, setProps] = useState(savedProperties)
   const [searches, setSearches] = useState(savedSearches)
@@ -114,6 +115,7 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
   const TABS = [
     ...(user.role === 'resident' || user.role === 'tenant' || !user.role || user.role === 'user' ? [{ key: 'profile', label: 'Renter profile' }] : []),
     { key: 'account', label: 'Account details' },
+    ...(isAgent ? [{ key: 'feed', label: 'BLM Feed' }] : []),
   ] as const
 
   return (
@@ -251,6 +253,29 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
           <RenterProfileForm />
         )}
 
+        {tab === 'feed' && isAgent && (
+          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-[#1B2E4B] mb-2">BLM Feed integration</h2>
+            <p className="text-xs text-[#9B928E] mb-4 leading-relaxed">
+              Connect your CRM to automatically sync listings. Configure your CRM (Reapit, Jupix, Alto, Dezrez) to POST your BLM file to the endpoint below.
+            </p>
+            {user.agentRecord?.api_key ? (
+              <div className="flex flex-col gap-3">
+                <div className="bg-[#1B2E4B] rounded-xl p-4">
+                  <div className="text-xs text-white/60 mb-1">Feed endpoint</div>
+                  <div className="font-mono text-sm text-white break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/feed/blm</div>
+                </div>
+                <div className="bg-[#F5EBE0] rounded-xl p-4">
+                  <div className="text-xs text-[#9B928E] mb-1">Your API key</div>
+                  <div className="font-mono text-xs text-[#1B2E4B] break-all">{user.agentRecord.api_key}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-[#9B928E]">Contact NestLondon to get your BLM feed API key set up.</p>
+            )}
+          </div>
+        )}
+
         {tab === 'account' && (
           <AccountDetailsForm user={user} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />
         )}
@@ -260,7 +285,7 @@ export default function AccountClient({ user, savedProperties, savedSearches, in
 }
 
 function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
-  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string, commute_address?: string }
+  user: { id: string, email: string, name: string, phone: string, created_at: string, role?: string, commute_address?: string, agentRecord?: any }
   onSignOut: () => void
   onDeleteAccount: () => void
 }) {

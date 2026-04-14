@@ -328,10 +328,12 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                           className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
                           {l.is_active ? 'Deactivate' : 'Activate'}
                         </button>
-                        <button onClick={() => manageListing(l.id, 'delete')}
-                          className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                          Delete
-                        </button>
+                        {!l.is_active && (
+                          <button onClick={() => manageListing(l.id, 'delete')}
+                            className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
@@ -419,10 +421,12 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                           className={'text-[10px] px-2 py-1 rounded-lg border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
                           {l.is_active ? 'Deactivate' : 'Activate'}
                         </button>
-                        <button onClick={() => manageListing(l.id, 'delete')}
-                          className="text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                          Delete
-                        </button>
+                        {!l.is_active && (
+                          <button onClick={() => manageListing(l.id, 'delete')}
+                            className="text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
