@@ -238,7 +238,14 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ listing_id: listing.id })
                 })
-                if (res.ok) setSaved(true)
+                if (res.ok) {
+                  setSaved(true)
+                  fetch('/api/listings/event', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ listing_id: listing.id, event_type: 'save' })
+                  }).catch(() => {})
+                }
               }
               setSavingHeart(false)
             }}

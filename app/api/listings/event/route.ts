@@ -6,17 +6,15 @@ export async function POST(req: NextRequest) {
     const { listing_id, event_type } = await req.json()
     if (!listing_id || !event_type) return NextResponse.json({ ok: false })
 
-    const supabase = createClient(
+    const svc = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-
-    await supabase.from('listing_events').insert({
+    await svc.from('listing_events').insert({
       listing_id,
-      event_type, // 'view' | 'share'
-      created_at: new Date().toISOString()
+      event_type,
+      created_at: new Date().toISOString(),
     })
-
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ ok: false })

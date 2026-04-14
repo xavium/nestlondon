@@ -1,5 +1,7 @@
 import ContactOwnerPanel from '@/components/ContactOwnerPanel'
 import { cookies } from 'next/headers'
+export const dynamic = 'force-dynamic'
+
 import { createServerClient } from '@supabase/ssr'
 import { notFound } from 'next/navigation'
 import NavSearchBar from '@/components/NavSearchBar'
@@ -12,6 +14,7 @@ import FloorplanSize from '@/components/FloorplanSize'
 import ShareButton from '@/components/ShareButton'
 import SaveButton from '@/components/SaveButton'
 import PhotoTags from '@/components/PhotoTags'
+import ListingEventTracker from '@/components/ListingEventTracker'
 import CommuteWidget from '@/components/CommuteWidget'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
@@ -355,6 +358,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   return (
     <main className="min-h-screen bg-[#F5F0EB]">
+      <ListingEventTracker listingId={listing.id} />
       <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
           <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>

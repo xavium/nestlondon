@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   // Fetch all listings for this agent
   const { data: listings } = await svc
     .from('listings')
-    .select('id, address, price, bedrooms, property_type, images, is_active, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name')
+    .select('id, address, price, bedrooms, property_type, images, is_active, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name, square_feet, latitude, longitude, postcode')
     .eq('agent_id', user.id)
     .order('scraped_at', { ascending: false })
 
@@ -88,14 +88,27 @@ export default async function DashboardPage() {
   const comparables: Record<string, any[]> = {}
   const avgDaysOnMarket: Record<string, number | null> = {}
   for (const listing of (listings || [])) {
-    const { data: comps } = await svc
+    // Match by borough, or fall back to postcode district (first part of postcode)
+    const postcodeDistrict = listing.postcode?.split(' ')[0] || null
+    let compsQuery = svc
       .from('listings')
-      .select('id, price, bedrooms, square_feet, borough, scraped_at')
+      .select('id, price, bedrooms, square_feet, borough, scraped_at, latitude, longitude, postcode')
       .eq('is_active', true)
-      .eq('borough', listing.borough || '')
-      .eq('bedrooms', listing.bedrooms || 0)
       .neq('id', listing.id)
-      .limit(10)
+      .limit(20)
+
+    if (listing.borough) {
+      compsQuery = compsQuery.eq('borough', listing.borough)
+    } else if (postcodeDistrict) {
+      compsQuery = compsQuery.ilike('postcode', postcodeDistrict + '%')
+    }
+
+    const { data: allAreaComps } = await compsQuery
+
+    // Try exact bedrooms first, fall back to ±1 if not enough
+    let comps = (allAreaComps || []).filter((c: any) => c.bedrooms === (listing.bedrooms || 0))
+    if (comps.length < 3) comps = (allAreaComps || []).filter((c: any) => Math.abs((c.bedrooms||0) - (listing.bedrooms||0)) <= 1)
+    if (comps.length < 3) comps = allAreaComps || []
     comparables[listing.id] = comps || []
 
     if (comps && comps.length >= 3) {

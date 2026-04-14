@@ -2,7 +2,7 @@
 import NavAuthButton from '@/components/NavAuthButton'
 import AnimatedWord from '@/components/AnimatedWord'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import FeaturedListings from '@/components/FeaturedListings'
 import SearchFilters from '@/components/SearchFilters'
@@ -318,7 +318,7 @@ export default function HomePage() {
               </div>
               {/* More filters */}
               <div className="flex items-center px-2">
-                <SearchFilters
+                <Suspense fallback={null}><SearchFilters
                   location={location}
                   listingType="rent"
                   minBeds={minBeds}
@@ -338,7 +338,7 @@ export default function HomePage() {
                     setAddedWithin(p.get('addedWithin') ? parseInt(p.get('addedWithin')!) : null)
                     setAvailableFrom(p.get('availableFrom') || null)
                   }}
-                />
+                /></Suspense>
               </div>
 
               <div className="w-px bg-stone-200 self-stretch my-3" />

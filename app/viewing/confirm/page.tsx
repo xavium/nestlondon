@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function ViewingConfirmPage() {
+function ViewingConfirmPageInner() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const action = searchParams.get('action') || 'confirm'
@@ -59,4 +59,9 @@ export default function ViewingConfirmPage() {
       </div>
     </main>
   )
+}
+
+
+export default function ViewingConfirmPage() {
+  return <Suspense fallback={null}><ViewingConfirmPageInner /></Suspense>
 }

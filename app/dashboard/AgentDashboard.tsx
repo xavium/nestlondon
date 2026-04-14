@@ -17,6 +17,9 @@ interface Listing {
   source: string | null
   assigned_agent_id: string | null
   assigned_agent_name: string | null
+  square_feet: number | null
+  latitude: number | null
+  longitude: number | null
 }
 
 interface AgencyAgent {
@@ -145,6 +148,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       avgMktDays,
       comps: lComps,
       conversionRate: lViews > 0 ? Math.round(lEnquiries / lViews * 100) : 0,
+      myPsqm: (l as any).square_feet && l.price ? Math.round(l.price / ((l as any).square_feet * 0.0929)) : null,
+      compPsqms: lComps.filter((c: any) => c.square_feet && c.price).map((c: any) => Math.round(c.price / (c.square_feet * 0.0929))),
     }
   })
 
@@ -426,36 +431,99 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               </div>
             )}
 
-            {/* Agent performance if team exists */}
-            {agencyAgents.length > 0 && (
+            {/* Day/time heatmap */}
+            <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">When do people view? (last 30 days)</h2>
+              {(() => {
+                const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+                const hours = [8,10,12,14,16,18,20]
+                const heatmap: Record<string,number> = {}
+                const cutoff = new Date(Date.now() - 30*86400000)
+                events.filter(e => e.event_type === 'view' && new Date(e.created_at) > cutoff).forEach(e => {
+                  const d = new Date(e.created_at)
+                  const dayIdx = (d.getDay() + 6) % 7 // Mon=0
+                  const hour = d.getHours()
+                  const key = dayIdx + '-' + hour
+                  heatmap[key] = (heatmap[key] || 0) + 1
+                })
+                const maxHeat = Math.max(...Object.values(heatmap), 1)
+                return (
+                  <div>
+                    <div className="flex gap-1 mb-1 ml-10">
+                      {hours.map(h => <div key={h} className="flex-1 text-[10px] text-[#9B928E] text-center">{h}:00</div>)}
+                    </div>
+                    {days.map((day, di) => (
+                      <div key={day} className="flex items-center gap-1 mb-1">
+                        <div className="w-9 text-[10px] text-[#9B928E] text-right flex-shrink-0">{day}</div>
+                        {hours.map(h => {
+                          const val = heatmap[di + '-' + h] || 0
+                          const intensity = val / maxHeat
+                          return (
+                            <div key={h} className="flex-1 h-6 rounded" title={val + ' views'}
+                              style={{background: val === 0 ? '#F5EBE0' : `rgba(211,117,90,${0.2 + intensity * 0.8})`}} />
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Save rate */}
+            {events.filter(e => e.event_type === 'save').length > 0 && (
               <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
-                <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Agent performance</h2>
-                <div className="flex flex-col gap-3">
-                  {agencyAgents.map(a => {
-                    const aListings = listingsState.filter(l => l.assigned_agent_name === a.name)
-                    const aViews = events.filter(e => aListings.some(l => l.id === e.listing_id) && e.event_type === 'view').length
-                    const aEnquiries = messages.filter(m => aListings.some(l => l.id === m.listing_id)).length
-                    const aViewings = viewingRequests.filter(v => aListings.some(l => l.id === v.listing_id)).length
+                <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Save rate by listing</h2>
+                <div className="flex flex-col gap-2">
+                  {listingStats.filter(l => l.views > 0).sort((a,b) => {
+                    const aSaves = events.filter(e=>e.listing_id===a.id&&e.event_type==='save').length
+                    const bSaves = events.filter(e=>e.listing_id===b.id&&e.event_type==='save').length
+                    return (bSaves/b.views) - (aSaves/a.views)
+                  }).slice(0,6).map(l => {
+                    const saves = events.filter(e=>e.listing_id===l.id&&e.event_type==='save').length
+                    const rate = l.views > 0 ? Math.round(saves/l.views*100) : 0
                     return (
-                      <div key={a.id} className="flex items-center gap-4 p-3 rounded-xl border border-[#F0EBE5]">
-                        <div className="w-9 h-9 rounded-full bg-[#F5EBE0] flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-medium text-[#D3755A]">{a.name.charAt(0)}</span>
+                      <div key={l.id} className="flex items-center gap-3">
+                        <div className="flex-1 text-xs text-[#1B2E4B] truncate">{l.address}</div>
+                        <div className="w-24 bg-[#F5EBE0] rounded-full h-3 overflow-hidden">
+                          <div className="h-full rounded-full" style={{width: Math.min(rate*5,100)+'%', background:'#D3755A'}} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-[#1B2E4B]">{a.name}</div>
-                          <div className="text-xs text-[#9B928E]">{aListings.length} listings</div>
-                        </div>
-                        <div className="flex gap-4 text-xs text-right flex-shrink-0">
-                          <div><div className="font-semibold text-[#1B2E4B]">{aViews}</div><div className="text-[#9B928E]">views</div></div>
-                          <div><div className="font-semibold text-[#1B2E4B]">{aEnquiries}</div><div className="text-[#9B928E]">enquiries</div></div>
-                          <div><div className="font-semibold text-[#1B2E4B]">{aViewings}</div><div className="text-[#9B928E]">viewings</div></div>
-                        </div>
+                        <div className="text-xs font-medium text-[#1B2E4B] w-10 text-right">{saves} ♡</div>
+                        <div className="text-xs text-[#9B928E] w-10 text-right">{rate}%</div>
                       </div>
                     )
                   })}
                 </div>
               </div>
             )}
+
+            {/* Actionable alerts */}
+            {(() => {
+              const alerts: {type: 'warning'|'info', text: string}[] = []
+              listingStats.forEach(l => {
+                if (l.views > 10 && l.conversionRate === 0) alerts.push({type:'warning', text: `${l.address}: ${l.views} views but no enquiries — check photos and description`})
+                if (l.daysListed > 30 && l.views < 5) alerts.push({type:'warning', text: `${l.address}: only ${l.views} views in ${l.daysListed} days — consider relisting`})
+                if (l.priceDiff !== null && l.priceDiff > 20) alerts.push({type:'warning', text: `${l.address}: priced ${l.priceDiff}% above area average`})
+                if (l.viewings > 3 && l.enquiries > 0 && l.viewings / l.enquiries > 5) alerts.push({type:'info', text: `${l.address}: high enquiries but low viewing conversion — check your availability`})
+                const daysSinceNew = l.scraped_at ? Math.floor((Date.now()-new Date(l.scraped_at).getTime())/86400000) : 99
+                const recentViews = events.filter(e=>e.listing_id===l.id&&e.event_type==='view'&&new Date(e.created_at)>new Date(Date.now()-7*86400000)).length
+                if (daysSinceNew <= 7 && recentViews < 3) alerts.push({type:'info', text: `${l.address}: new listing getting few views — consider boosting with better photos`})
+              })
+              if (alerts.length === 0) return null
+              return (
+                <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                  <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Actionable insights</h2>
+                  <div className="flex flex-col gap-2">
+                    {alerts.slice(0,8).map((a,i) => (
+                      <div key={i} className={'flex items-start gap-3 p-3 rounded-xl text-xs ' + (a.type==='warning' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800')}>
+                        <span className="flex-shrink-0">{a.type==='warning' ? '⚠' : 'ℹ'}</span>
+                        <span>{a.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )
       })()}
@@ -719,6 +787,47 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                         )}
                       </div>
                     )}
+
+                    {/* £/sqm analysis */}
+                    {l.myPsqm && l.compPsqms && l.compPsqms.length >= 2 && (() => {
+                      const avgCompPsqm = Math.round(l.compPsqms.reduce((a: number, b: number) => a + b, 0) / l.compPsqms.length)
+                      const psqmDiff = Math.round((l.myPsqm - avgCompPsqm) / avgCompPsqm * 100)
+                      const minPsqm = Math.min(...l.compPsqms)
+                      const maxPsqm = Math.max(...l.compPsqms)
+                      const myPct = Math.round((l.myPsqm - minPsqm) / (maxPsqm - minPsqm) * 100)
+                      return (
+                        <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
+                          <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">£/sqm analysis</h3>
+                          <div className="grid grid-cols-3 gap-3 mb-3">
+                            <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
+                              <div className="text-xs text-[#9B928E] mb-1">Your £/sqm</div>
+                              <div className="text-lg font-medium text-[#1B2E4B]">£{l.myPsqm}</div>
+                            </div>
+                            <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
+                              <div className="text-xs text-[#9B928E] mb-1">Area avg</div>
+                              <div className="text-lg font-medium text-[#1B2E4B]">£{avgCompPsqm}</div>
+                            </div>
+                            <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
+                              <div className="text-xs text-[#9B928E] mb-1">vs market</div>
+                              <div className={'text-lg font-medium ' + (psqmDiff > 10 ? 'text-red-500' : psqmDiff < -10 ? 'text-green-600' : 'text-[#D3755A]')}>
+                                {psqmDiff > 0 ? '+' : ''}{psqmDiff}%
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mb-2">
+                            <div className="flex justify-between text-[10px] text-[#9B928E] mb-1">
+                              <span>£{minPsqm}/sqm</span><span>£{maxPsqm}/sqm</span>
+                            </div>
+                            <div className="relative h-3 bg-[#F5EBE0] rounded-full">
+                              <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
+                                style={{left: `calc(${Math.min(Math.max(myPct,2),98)}% - 6px)`, background:'#D3755A'}} />
+                            </div>
+                            <div className="text-[10px] text-[#9B928E] text-center mt-1">Your position in the market</div>
+                          </div>
+                          {l.square_feet && <div className="text-xs text-[#9B928E] text-center">{l.square_feet} sq ft · {Math.round(l.square_feet * 0.0929)} sqm</div>}
+                        </div>
+                      )
+                    })()}
 
                     <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
                       <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Assigned agent</h3>
