@@ -659,7 +659,7 @@ function ExternalLinkCard({ listing }: { listing: any }) {
     <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
       <div className="mb-4">
         <div className="text-2xl font-bold text-[#1C2B3A] mb-0.5" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</div>
-        <div className="text-sm text-stone-400">per month</div>
+        <div className="text-sm text-stone-400">per month{listing.price ? <> · £{Math.round(listing.price / 4.33).toLocaleString()} pw</> : null}</div>
       </div>
       <div className="flex gap-2 mb-4 flex-wrap">
         {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">Studio</span> : listing.bedrooms ? <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.bedrooms} bed</span> : null}

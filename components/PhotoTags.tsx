@@ -36,7 +36,7 @@ export default function PhotoTags({ listingId, initialTags }: { listingId: strin
       )}
       {(tags.features || []).map(f => (
         <span key={f} className="text-xs px-3 py-1 rounded-full border bg-white text-[#3D3A38] border-[#E8E2DA]">
-          {f}
+          {f.replace(/ visible$/i, '').replace(/ detected$/i, '')}
         </span>
       ))}
     </div>

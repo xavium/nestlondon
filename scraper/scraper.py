@@ -185,16 +185,21 @@ async def get_full_description(context, source_url):
 
         # Full resolution images from detail page
         try:
-            all_imgs = await page.evaluate('''() => {
-                const imgs = Array.from(document.querySelectorAll('img'))
-                return imgs.map(img => img.src).filter(src => 
-                    src.includes('media.rightmove.co.uk') && 
-                    src.includes('property-photo') &&
-                    !src.includes('floorplan') &&
-                    !src.includes('floor_plan') &&
-                    !src.includes('floor-plan')
-                )
-            }''')
+            # Scroll to trigger lazy loading
+            try:
+                for _i in range(12):
+                    await page.evaluate(f'window.scrollTo(0, {_i * 400})')
+                    await page.wait_for_timeout(150)
+                await page.evaluate('document.querySelectorAll("img[data-src]").forEach(img => { img.src = img.dataset.src })')
+                await page.wait_for_timeout(500)
+                await page.evaluate('window.scrollTo(0, 0)')
+            except:
+                pass
+            # Extract from page HTML source (catches lazy-loaded images too)
+            html_content = await page.content()
+            import re as _imgre2
+            all_imgs_raw = _imgre2.findall("https://media.rightmove.co.uk/[^ \t\n\r\f\v\"]+property-photo[^ \t\n\r\f\v\"]+", html_content)
+            all_imgs = [u for u in all_imgs_raw if 'floorplan' not in u and 'floor_plan' not in u and 'floor-plan' not in u]
             if all_imgs:
                 import re as _imre
                 def upgrade_url(u):

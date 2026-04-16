@@ -41,6 +41,7 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
             )}
           </div>
           {images.length <= 3 ? (
+            /* 1-3 images: show 3rd image full */
             <div className="rounded-xl overflow-hidden bg-stone-200 cursor-pointer" onClick={() => images[2] && open(2)}>
               {images[2] ? (
                 <img src={images[2]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
@@ -48,10 +49,34 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
                 <div className="w-full h-full bg-stone-100" />
               )}
             </div>
+          ) : images.length === 4 ? (
+            /* 4 images: split into 2 side by side */
+            <div className="rounded-xl overflow-hidden cursor-pointer grid grid-cols-2 gap-0.5 bg-stone-300" onClick={() => open(2)}>
+              {[2, 3].map(idx => (
+                <div key={idx} className="overflow-hidden bg-stone-200">
+                  <img src={images[idx]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
+                </div>
+              ))}
+            </div>
+          ) : images.length === 5 ? (
+            /* 5 images: 3rd image top half, 4th and 5th bottom quarters */
+            <div className="rounded-xl overflow-hidden cursor-pointer grid grid-rows-2 gap-0.5 bg-stone-300" onClick={() => open(2)}>
+              <div className="overflow-hidden bg-stone-200">
+                <img src={images[2]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
+              </div>
+              <div className="grid grid-cols-2 gap-0.5">
+                {[3, 4].map(idx => (
+                  <div key={idx} className="overflow-hidden bg-stone-200">
+                    <img src={images[idx]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
-            <div className="rounded-xl overflow-hidden cursor-pointer relative grid grid-cols-2 gap-0.5 bg-stone-300" onClick={() => open(2)}>
+            /* 6+ images: 2x2 grid with +more overlay on last */
+            <div className="rounded-xl overflow-hidden cursor-pointer grid grid-cols-2 gap-0.5 bg-stone-300" onClick={() => open(2)}>
               {[2, 3, 4, 5].map((idx) => (
-                <div key={idx} className="relative overflow-hidden bg-stone-200" style={{aspectRatio: '1'}}>
+                <div key={idx} className="relative overflow-hidden bg-stone-200">
                   {images[idx] ? (
                     <img src={images[idx]} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (

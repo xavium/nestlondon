@@ -236,7 +236,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
     return () => {
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-  }, [radius, locationCoords, location, listingType])
+  }, [radius, locationCoords, location, listingType, listings.length])
 
   const RADIUS_OPTIONS = [
     { label: 'This area only', value: null },

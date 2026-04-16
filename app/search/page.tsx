@@ -340,6 +340,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   const allListingsForMap = listings
 
+  // Default centre to Mayfair when no location set but radius is requested
+  if (!locationCoords && radius) locationCoords = { lat: 51.5074, lng: -0.1428 }
+
   // Fetch all listings with coords for nearby section (unfiltered by location)
   let allListingsNearby: any[] = []
   if (locationCoords) {

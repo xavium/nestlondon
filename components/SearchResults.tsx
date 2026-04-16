@@ -86,6 +86,8 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   // Split: inRadius = within selected radius (or 0.5mi default)
   //        nearby   = everything else sorted by distance
   const splitRadius = radius ?? (locationCoords ? 0.25 : null)
+  if (typeof window !== "undefined") console.log("[MAP DEBUG]", {locationCoords, splitRadius, filteredCount: filtered.length})
+
   let inRadius = filtered
   let nearby: any[] = []
 
@@ -337,7 +339,14 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 
       {view === 'map' ? (
         <SearchMapView
-          listings={displayResults.filter((l: any) => l.latitude && l.longitude)}
+          listings={(locationCoords && splitRadius
+            ? inRadius.filter((l: any) => {
+                if (!l.latitude || !l.longitude) return false
+                const d = haversineM(locationCoords!.lat, locationCoords!.lng, parseFloat(l.latitude), parseFloat(l.longitude))
+                return d <= (splitRadius as number) * 1609.34
+              })
+            : inRadius.filter((l: any) => l.latitude && l.longitude)
+          )}
           radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}
