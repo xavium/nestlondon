@@ -196,13 +196,27 @@ async def get_full_description(context, source_url):
                 )
             }''')
             if all_imgs:
-                full_res = list(dict.fromkeys([
-                    u.replace('_max_476x317.jpeg', '_max_1440x1080.jpeg')
-                     .replace('_max_476x317.jpg', '_max_1440x1080.jpg')
-                     .replace('_max_296x197.jpeg', '_max_1440x1080.jpeg')
-                     .replace('_max_296x197.jpg', '_max_1440x1080.jpg')
-                    for u in all_imgs if u.startswith('http')
-                ]))
+                import re as _imre
+                def upgrade_url(u):
+                    # Remove any size suffix to get original quality
+                    u = _imre.sub(r'_max_\d+x\d+\.(jpeg|jpg)', r'.\1', u)
+                    # Remove /dir/ prefix variation  
+                    u = u.replace('/dir/', '/')
+                    return u
+                # Filter out tiny thumbnails (135x100) and deduplicate
+                seen_ids = set()
+                full_res = []
+                for u in all_imgs:
+                    if not u.startswith('http'):
+                        continue
+                    if '_max_135x100' in u:
+                        continue
+                    upgraded = upgrade_url(u)
+                    # Use the filename hash as dedup key
+                    img_id = upgraded.split('/')[-1].split('.')[0]
+                    if img_id not in seen_ids:
+                        seen_ids.add(img_id)
+                        full_res.append(upgraded)
                 result['images'] = full_res
         except Exception as ie:
             print('  Image error: ' + str(ie))
