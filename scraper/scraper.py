@@ -198,8 +198,10 @@ async def get_full_description(context, source_url):
             # Extract from page HTML source (catches lazy-loaded images too)
             html_content = await page.content()
             import re as _imgre2
+            # Extract property ID from URL to only get images for this listing
+            _prop_id = source_url.rstrip('/').split('/')[-1].split('#')[0] if source_url else ''
             all_imgs_raw = _imgre2.findall("https://media.rightmove.co.uk/[^ \t\n\r\f\v\"]+property-photo[^ \t\n\r\f\v\"]+", html_content)
-            all_imgs = [u for u in all_imgs_raw if 'floorplan' not in u and 'floor_plan' not in u and 'floor-plan' not in u]
+            all_imgs = [u for u in all_imgs_raw if 'floorplan' not in u and 'floor_plan' not in u and 'floor-plan' not in u and (_prop_id in u if _prop_id else True)]
             if all_imgs:
                 import re as _imre
                 def upgrade_url(u):
