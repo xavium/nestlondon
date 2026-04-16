@@ -45,6 +45,14 @@ async def main():
     except Exception as e:
         print('Rightmove buy error: ' + str(e))
 
+    # EPC enrichment
+    print('\n[5/5] EPC enrichment')
+    try:
+        from epc_enricher import enrich_listings
+        enrich_listings(batch_size=100)
+    except Exception as e:
+        print('EPC enricher error: ' + str(e))
+
     print('\n' + '=' * 50)
     print('All scrapers complete.')
 

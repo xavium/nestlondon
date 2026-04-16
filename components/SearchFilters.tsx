@@ -49,7 +49,7 @@ export default function SearchFilters(props: Props) {
   const [maxCommute, setMaxCommute] = useState<number | null>(sp.get('maxCommute') ? parseInt(sp.get('maxCommute')!) : (props.maxCommute || null))
   const [editingCommute, setEditingCommute] = useState(false)
   const [commuteDraft, setCommuteDraft] = useState(sp.get('commuteAddress') || props.commuteAddress || '')
-  const [tenure, setTenure] = useState<string | null>(sp.get('tenure') || props.tenure || null)
+  const [tenures, setTenures] = useState<string[]>(sp.get('tenure') ? sp.get('tenure')!.split(',') : (props.tenure ? [props.tenure] : []))
   const [chainFree, setChainFree] = useState<boolean>(sp.get('chainFree') === 'true' || props.chainFree || false)
   const [newBuild, setNewBuild] = useState<boolean>(sp.get('newBuild') === 'true' || props.newBuild || false)
   const [leaseholdMin, setLeaseholdMin] = useState<number | null>(sp.get('leaseholdMin') ? parseInt(sp.get('leaseholdMin')!) : (props.leaseholdMin || null))
@@ -101,7 +101,7 @@ export default function SearchFilters(props: Props) {
     if (maxSize) p.set('maxSize', String(maxSize))
     if (floorLayout) p.set('floorLayout', floorLayout)
     if (commuteAddress && maxCommute) { p.set('commuteAddress', commuteAddress); p.set('maxCommute', String(maxCommute)) }
-    if (tenure) p.set('tenure', tenure)
+    if (tenures.length > 0) p.set('tenure', tenures.join(','))
     if (chainFree) p.set('chainFree', 'true')
     if (newBuild) p.set('newBuild', 'true')
     if (leaseholdMin) p.set('leaseholdMin', String(leaseholdMin))
@@ -125,7 +125,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout, tenure].filter(Boolean).length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -245,15 +245,15 @@ export default function SearchFilters(props: Props) {
                 <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Tenure</label>
                 <div className="flex flex-wrap gap-2">
                   {['Freehold','Leasehold','Share of freehold','Commonhold'].map(t => (
-                    <button key={t} onClick={() => setTenure(tenure === t ? null : t)}
-                      className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (tenure === t ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
+                    <button key={t} onClick={() => setTenures(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                      className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (tenures.includes(t) ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
                       {t}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {tenure === 'Leasehold' && (
+              {tenures.includes('Leasehold') && (
                 <div className="mb-5">
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Min lease remaining</label>
                   <div className="flex flex-wrap gap-2">
@@ -272,11 +272,11 @@ export default function SearchFilters(props: Props) {
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => setChainFree(!chainFree)}
                     className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (chainFree ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
-                    Chain-free only
+                    Chain-free
                   </button>
                   <button onClick={() => setNewBuild(!newBuild)}
                     className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (newBuild ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
-                    New build only
+                    New build
                   </button>
                 </div>
               </div>

@@ -122,6 +122,28 @@ async def get_full_description(context, source_url):
 
 
 
+        # Postcode - extract from page URL or address
+        try:
+            page_url = page.url
+            pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', page_url.upper())
+            if not pc_match:
+                page_text = await page.evaluate('() => document.title + " " + (document.querySelector("h1") ? document.querySelector("h1").innerText : "")')
+                pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', page_text.upper())
+            if not pc_match:
+                # Try meta or structured data
+                ld = await page.evaluate('() => { const s = document.querySelector('script[type="application/ld+json"]'); return s ? s.innerText : "" }')
+                pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', ld.upper())
+            if not pc_match:
+                # Try full body text - postcodes often appear near the top
+                body_start = lt[:2000] if lt else ''
+                if not body_start:
+                    body_start = await page.evaluate('() => document.body.innerText.slice(0, 2000)')
+                pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', body_start.upper())
+            if pc_match:
+                result['postcode'] = pc_match.group(0).strip()
+        except Exception as pce:
+            print('  Postcode parse error: ' + str(pce))
+
         # Letting details - parse from full page text
         letting = {}
         lt = ''
@@ -437,6 +459,8 @@ async def scrape_buy(pages=5):
                             listing['listed_at'] = full_data['listed_at']
                         if full_data.get('floorplans'):
                             listing['floorplans'] = full_data['floorplans']
+                        if full_data.get('postcode'):
+                            listing['postcode'] = full_data['postcode']
                     if (i+1) % 5 == 0:
                         print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
                     await asyncio.sleep(0.5)
@@ -495,6 +519,8 @@ async def main():
                             listing['listed_at'] = full_data['listed_at']
                         if full_data.get('floorplans'):
                             listing['floorplans'] = full_data['floorplans']
+                        if full_data.get('postcode'):
+                            listing['postcode'] = full_data['postcode']
                     if (i+1) % 5 == 0:
                         print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
                     await asyncio.sleep(0.5)

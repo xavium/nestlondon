@@ -284,7 +284,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                    allText.match(/[Ee]nergy\s+[Rr]ating\s+([A-G])\b/i) ||
                    allText.match(/[Ee]nergy\s+[Ee]fficiency\s+[Rr]ating\s+([A-G])\b/i) ||
                    allText.match(/[Ee]nergy\s+[Rr]ating\s+([A-G])\b/i)
-  structuredDetails['EPC Rating'] = epcMatch ? 'Band ' + epcMatch[1].toUpperCase() : 'Ask agent'
+  if (listing.epc_rating) {
+    structuredDetails['EPC Rating'] = 'Band ' + listing.epc_rating
+  } else {
+    structuredDetails['EPC Rating'] = epcMatch ? 'Band ' + epcMatch[1].toUpperCase() : 'Ask agent'
+  }
 
   if (!structuredDetails['Council Tax']) {
     const ctMatch = allText.match(/council.tax.band.{0,3}([A-H])/i) || allText.match(/tax.band.{0,3}([A-H])/i) || allText.match(/council.tax[^A-H]{0,30}([A-H])/i)
@@ -416,7 +420,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
       {/* Full width photos */}
       <div className="max-w-6xl mx-auto px-4 mb-6">
-        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} shareButton={<><SaveButton listingId={listing.id} /><ShareButton address={listing.address} price={listing.price} /></>} />
+        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} epcRating={listing.epc_rating} epcScore={listing.epc_score} epcPotentialRating={listing.epc_potential_rating} epcPotentialScore={listing.epc_potential_score} shareButton={<><SaveButton listingId={listing.id} /><ShareButton address={listing.address} price={listing.price} /></>} />
         <div className="flex justify-end mt-2">
         </div>
       </div>
