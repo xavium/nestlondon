@@ -452,6 +452,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   const ld = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
                   const ldTenure = ld?.letting_details?.Tenure
                   if (ldTenure) return ldTenure
+                  // Check key features for tenure
+                  const kfTenure = (ld?.key_features || []).find((f: string) => /tenure/i.test(f))
+                  if (kfTenure) { const m = kfTenure.match(/tenure[:\s]+(.+)/i); if (m) return m[1].trim() }
                   const t = (listing.description || '').match(/freehold|leasehold|share of freehold/i)
                   return t ? t[0].replace(/^\w/, (c: string) => c.toUpperCase()) : 'Ask agent'
                 })()) : (availableText || 'Ask agent')}</div>

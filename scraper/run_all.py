@@ -8,45 +8,38 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+
 async def main():
     print('=' * 50)
     print('NestLondon — Full scrape run')
     print('=' * 50)
 
-    # Rightmove
-    print('\n[1/3] Rightmove')
+    # 1. New listings
+    print('\n[1/4] New listings (last 24h)')
     try:
-        from scraper import main as rightmove_main
-        await rightmove_main()
+        from scrape_new import main as new_main
+        await new_main()
     except Exception as e:
-        print('Rightmove error: ' + str(e))
+        print('New listings error: ' + str(e))
 
-    # Zoopla
-    print('\n[2/3] Zoopla')
+    # 2. Update existing listings
+    print('\n[2/4] Update existing listings')
     try:
-        from zoopla_scraper import main as zoopla_main
-        await zoopla_main()
+        from scrape_update import main as update_main
+        await update_main(batch_size=30)
     except Exception as e:
-        print('Zoopla error: ' + str(e))
+        print('Update error: ' + str(e))
 
-    # OnTheMarket
-    print('\n[3/3] OnTheMarket')
+    # 3. Check for stale listings
+    print('\n[3/4] Stale listing check')
     try:
-        from onthemarket_scraper import main as otm_main
-        await otm_main()
+        from scrape_stale import main as stale_main
+        await stale_main(batch_size=50)
     except Exception as e:
-        print('OnTheMarket error: ' + str(e))
+        print('Stale check error: ' + str(e))
 
-    # Rightmove Buy
-    print('\n[4/4] Rightmove Sales')
-    try:
-        from scraper import scrape_buy
-        await scrape_buy(pages=5)
-    except Exception as e:
-        print('Rightmove buy error: ' + str(e))
-
-    # EPC enrichment
-    print('\n[5/5] EPC enrichment')
+    # 4. EPC enrichment
+    print('\n[4/4] EPC enrichment')
     try:
         from epc_enricher import enrich_listings
         enrich_listings(batch_size=100)
@@ -54,7 +47,8 @@ async def main():
         print('EPC enricher error: ' + str(e))
 
     print('\n' + '=' * 50)
-    print('All scrapers complete.')
+    print('All done.')
+
 
 if __name__ == '__main__':
     asyncio.run(main())

@@ -155,6 +155,11 @@ async def get_full_description(context, source_url):
                             letting[field] = val
         except Exception as le:
             print('  Letting parse error: ' + str(le))
+            # Also find tenure from Rightmove's label+newline pattern
+            import re as _re
+            tenure_match = _re.search(r'Tenure\s*\n\s*([^\n]+)', lt)
+            if tenure_match and 'Tenure' not in letting:
+                letting['Tenure'] = tenure_match.group(1).strip()
             result['letting_details'] = letting
 
         # Listed date from Rightmove
@@ -178,6 +183,30 @@ async def get_full_description(context, source_url):
         except:
             pass
 
+        # Full resolution images from detail page
+        try:
+            all_imgs = await page.evaluate('''() => {
+                const imgs = Array.from(document.querySelectorAll('img'))
+                return imgs.map(img => img.src).filter(src => 
+                    src.includes('media.rightmove.co.uk') && 
+                    src.includes('property-photo') &&
+                    !src.includes('floorplan') &&
+                    !src.includes('floor_plan') &&
+                    !src.includes('floor-plan')
+                )
+            }''')
+            if all_imgs:
+                full_res = list(dict.fromkeys([
+                    u.replace('_max_476x317.jpeg', '_max_1440x1080.jpeg')
+                     .replace('_max_476x317.jpg', '_max_1440x1080.jpg')
+                     .replace('_max_296x197.jpeg', '_max_1440x1080.jpeg')
+                     .replace('_max_296x197.jpg', '_max_1440x1080.jpg')
+                    for u in all_imgs if u.startswith('http')
+                ]))
+                result['images'] = full_res
+        except Exception as ie:
+            print('  Image error: ' + str(ie))
+
         # Floorplans
         try:
             floorplan_imgs = await page.evaluate('''() => {
@@ -185,7 +214,11 @@ async def get_full_description(context, source_url):
                 return imgs.map(img => img.src).filter(src => src.includes('floorplan') || src.includes('floor_plan') || src.includes('floor-plan'))
             }''')
             if floorplan_imgs:
-                result['floorplans'] = floorplan_imgs
+                result['floorplans'] = [
+                    u.replace('_max_476x317.jpeg', '_max_1440x1080.jpeg')
+                     .replace('_max_296x197.jpeg', '_max_1440x1080.jpeg')
+                    for u in floorplan_imgs
+                ]
         except Exception as fe:
             print('  Floorplan error: ' + str(fe))
 
@@ -333,7 +366,7 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
             image_urls = listing.get('image_urls') or []
             if not image_urls and listing.get('image_url'):
                 image_urls = [listing.get('image_url')]
-            images = [u for u in image_urls if u and u.startswith('http')]
+            images = [u.replace('_max_476x317.jpeg', '_max_1440x1080.jpeg').replace('_max_476x317.jpg', '_max_1440x1080.jpg') for u in image_urls if u and u.startswith('http')]
 
             postcode = None
             match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', address)
@@ -458,6 +491,8 @@ async def scrape_buy(pages=5):
                             listing['floorplans'] = full_data['floorplans']
                         if full_data.get('postcode'):
                             listing['postcode'] = full_data['postcode']
+                        if full_data.get('images'):
+                            listing['image_urls'] = full_data['images']
                     if (i+1) % 5 == 0:
                         print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
                     await asyncio.sleep(0.5)
@@ -518,6 +553,8 @@ async def main():
                             listing['floorplans'] = full_data['floorplans']
                         if full_data.get('postcode'):
                             listing['postcode'] = full_data['postcode']
+                        if full_data.get('images'):
+                            listing['image_urls'] = full_data['images']
                     if (i+1) % 5 == 0:
                         print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
                     await asyncio.sleep(0.5)
