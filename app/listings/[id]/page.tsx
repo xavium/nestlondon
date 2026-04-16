@@ -199,7 +199,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         }
       }
     }
-    if (sqm && sqm > 10 && sqm < 1000) {
+  if (sqm && sqm > 10 && sqm < 10000) {
       rentPerSqm = '£' + Math.round(listing.price / sqm).toLocaleString()
     }
   }

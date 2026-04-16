@@ -20,6 +20,7 @@ const SUGGESTIONS = [
 ]
 
 const PRICE_OPTIONS = [null, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
+const BUY_PRICE_OPTIONS = [null, 100000, 150000, 200000, 250000, 300000, 350000, 400000, 500000, 600000, 750000, 1000000, 1250000, 1500000, 2000000, 3000000, 5000000]
 const BED_OPTIONS = [null, 0, 1, 2, 3, 4, 5]
 
 type ActivePanel = 'location' | 'minPrice' | 'maxPrice' | 'minBeds' | 'maxBeds' | 'addedWithin' | 'radius' | null
@@ -147,11 +148,143 @@ export default function HomePage() {
             <div className="bg-white rounded-2xl shadow-2xl flex items-stretch overflow-visible relative">
               {listingMode === 'buy' && (
                 <div className="flex flex-1 items-stretch" style={{animation: 'fadeSlide 0.25s ease'}}>
-                  <div className="flex-[3] flex flex-col justify-center px-5 py-3 cursor-text rounded-l-2xl">
+                  {/* Location */}
+                  <div className={'flex-[3] flex flex-col justify-center px-5 py-3 cursor-text rounded-l-2xl transition-colors ' + (active === 'location' ? 'bg-stone-50' : 'hover:bg-stone-50')} onClick={() => setActive('location')}>
                     <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Location</div>
-                    <input value={location} onChange={handleLocationChange} placeholder="Where are you looking to buy?" className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full" autoComplete="off" />
+                    <input value={location} onChange={handleLocationChange} onFocus={() => setActive('location')} placeholder="Where are you looking to buy?" className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full" autoComplete="off" onKeyDown={e => e.key === 'Enter' && doSearch()} />
                   </div>
-                  <button type="button" onClick={doSearch} className="flex items-center gap-2 px-7 m-2 rounded-xl text-white font-medium text-sm" style={{background:'#D3755A'}}>
+                  <div className="w-px bg-stone-200 self-stretch my-3" />
+                  {/* Distance */}
+                  <div className="relative">
+                    <button onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'radius' ? null : 'radius') }}
+                      className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors ' + (active === 'radius' ? 'bg-stone-50' : 'hover:bg-stone-50')}>
+                      <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Distance</div>
+                      <div className={'text-sm ' + (radius ? 'text-[#1C2B3A]' : 'text-stone-300')}>{radius ? `Within ${radius} mi` : 'This area only'}</div>
+                    </button>
+                    {active === 'radius' && (
+                      <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44" onClick={e => e.stopPropagation()}>
+                        {([null, 0.5, 1, 2, 3, 5, 10] as (number|null)[]).map(r => (
+                          <button key={String(r)} type="button" onClick={() => { setRadius(r); setActive(null) }}
+                            className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (radius === r ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                            style={radius === r ? {background:'#D3755A'} : {}}>
+                            {r === null ? 'This area only' : `Within ${r} mi`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-px bg-stone-200 self-stretch my-3" />
+                  {/* Price */}
+                  <div className="relative">
+                  <div className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'minPrice' || active === 'maxPrice' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                    onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice') }}>
+                    <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Price</div>
+                    <div className={'text-sm ' + ((minPrice || maxPrice) ? 'text-[#1C2B3A] font-medium' : 'text-stone-300')}>{(minPrice || maxPrice) ? [minPrice ? '£'+minPrice.toLocaleString() : 'Min', maxPrice ? '£'+maxPrice.toLocaleString() : 'Max'].join(' – ') : 'Any price'}</div>
+                    {(active === 'minPrice' || active === 'maxPrice') && (
+                      <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-72" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
+                            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                              {BUY_PRICE_OPTIONS.map(p => (
+                                <button key={String(p)} onClick={() => { setMinPrice(p); setActive('maxPrice') }}
+                                  className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
+                                >{p === null ? 'No min' : '£' + p.toLocaleString()}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="w-px bg-stone-100" />
+                          <div className="flex-1">
+                            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Max</div>
+                            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                              {BUY_PRICE_OPTIONS.map(p => (
+                                <button key={String(p)} onClick={() => { setMaxPrice(p); setActive(null) }}
+                                  className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
+                                >{p === null ? 'No max' : '£' + p.toLocaleString()}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  </div>
+                  <div className="w-px bg-stone-200 self-stretch my-3" />
+                  {/* Bedrooms */}
+                  <div className="relative">
+                  <div className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'minBeds' || active === 'maxBeds' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                    onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds') }}>
+                    <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Bedrooms</div>
+                    <div className={'text-sm ' + (bedsLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{bedsLabel || 'Any beds'}</div>
+                    {(active === 'minBeds' || active === 'maxBeds') && (
+                      <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
+                            {BED_OPTIONS.map(b => (
+                              <button key={String(b)} onClick={() => { setMinBeds(b); setActive('maxBeds') }}
+                                className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
+                              >{b === null ? 'No min' : b === 0 ? 'Studio' : b + ' bed'}</button>
+                            ))}
+                          </div>
+                          <div className="w-px bg-stone-100" />
+                          <div className="flex-1">
+                            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Max</div>
+                            {BED_OPTIONS.map(b => (
+                              <button key={String(b)} onClick={() => { setMaxBeds(b); setActive(null) }}
+                                className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxBeds === b ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
+                              >{b === null ? 'No max' : b === 0 ? 'Studio' : b + ' bed'}</button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  </div>
+                  <div className="w-px bg-stone-200 self-stretch my-3" />
+                  {/* Added within */}
+                  <div className="relative">
+                  <div className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[110px] ' + (active === 'addedWithin' ? 'bg-stone-50' : 'hover:bg-stone-50')}
+                    onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'addedWithin' ? null : 'addedWithin') }}>
+                    <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-widest mb-0.5">Added</div>
+                    <div className={'text-sm ' + (addedWithinLabel ? 'text-[#3D3A38]' : 'text-stone-300')}>{addedWithinLabel || 'Any time'}</div>
+                    {active === 'addedWithin' && (
+                      <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44" onClick={e => e.stopPropagation()}>
+                        {([null, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
+                          <button key={String(d)} onClick={() => { setAddedWithin(d); setActive(null) }}
+                            className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (addedWithin === d ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                            style={addedWithin === d ? {background: '#D3755A'} : {}}
+                          >{d === null ? 'Any time' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : d + ' days'}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  </div>
+                  {/* More filters */}
+                  <div className="flex items-center px-2">
+                    <Suspense fallback={null}><SearchFilters
+                      location={location}
+                      listingType="buy"
+                      minBeds={minBeds}
+                      maxBeds={maxBeds}
+                      minPrice={minPrice}
+                      maxPrice={maxPrice}
+                      furnished={null}
+                      propertyType={propertyType}
+                      features={features}
+                      radius={null}
+                      addedWithin={addedWithin}
+                      availableFrom={null}
+                      onApply={(p) => {
+                        setPropertyType(p.get('propertyType') || null)
+                        setFeatures(p.get('features') ? p.get('features')!.split(',') : [])
+                        setAddedWithin(p.get('addedWithin') ? parseInt(p.get('addedWithin')!) : null)
+                      }}
+                    /></Suspense>
+                  </div>
+                  <div className="w-px bg-stone-200 self-stretch my-3" />
+                  {/* Search button */}
+                  <button onClick={doSearch} className="flex items-center gap-2 px-7 m-2 rounded-xl text-white font-medium text-sm flex-shrink-0" style={{background:'#D3755A'}}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth="2"/><path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round"/></svg>
                     Search
                   </button>
@@ -170,7 +303,7 @@ export default function HomePage() {
                   value={location}
                   onChange={handleLocationChange}
                   onFocus={() => setActive('location')}
-                  placeholder="Where are you looking?"
+                  placeholder="Where are you looking to rent?"
                   className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full"
                   autoComplete="off"
                 />
@@ -219,13 +352,13 @@ export default function HomePage() {
 
               <div className="w-px bg-stone-200 self-stretch my-3" />
 
-              {/* Price range */}
+              {/* Price */}
               <div className="relative">
               <div
                 className={'flex flex-col justify-center px-5 py-3 cursor-pointer transition-colors min-w-[130px] ' + (active === 'minPrice' || active === 'maxPrice' ? 'bg-stone-50' : 'hover:bg-stone-50')}
                 onClick={() => { window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice') }}
               >
-                <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Price range</div>
+                <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Price</div>
                 <div className={'text-sm ' + (priceLabel ? 'text-[#1C2B3A]' : 'text-stone-300')}>{priceLabel || 'Any price'}</div>
                 {(active === 'minPrice' || active === 'maxPrice') && (
                   <div className="absolute top-full left-0 mt-2 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-80" onClick={e => e.stopPropagation()}>
@@ -233,7 +366,7 @@ export default function HomePage() {
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Min</div>
                         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                          {PRICE_OPTIONS.map(p => (
+                          {((listingMode as string) === 'buy' ? BUY_PRICE_OPTIONS : PRICE_OPTIONS).map(p => (
                             <button key={String(p)} onClick={() => { setMinPrice(p); setActive('maxPrice') }}
                               className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
                             >{p === null ? 'No min' : '£' + p.toLocaleString()}</button>
@@ -244,7 +377,7 @@ export default function HomePage() {
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Max</div>
                         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                          {PRICE_OPTIONS.map(p => (
+                          {((listingMode as string) === 'buy' ? BUY_PRICE_OPTIONS : PRICE_OPTIONS).map(p => (
                             <button key={String(p)} onClick={() => { setMaxPrice(p); setActive(null) }}
                               className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxPrice === p ? 'bg-[#D85A30] text-white' : 'hover:bg-[#F5F0EB] text-[#374151]')}
                             >{p === null ? 'No max' : '£' + p.toLocaleString()}</button>

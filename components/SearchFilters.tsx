@@ -253,7 +253,7 @@ export default function SearchFilters(props: Props) {
                 </div>
               </div>
 
-              {(tenure === 'Leasehold' || !tenure) && (
+              {tenure === 'Leasehold' && (
                 <div className="mb-5">
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Min lease remaining</label>
                   <div className="flex flex-wrap gap-2">
