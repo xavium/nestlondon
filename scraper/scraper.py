@@ -123,16 +123,13 @@ async def get_full_description(context, source_url):
 
 
         # Postcode - extract from page URL or address
+        lt = ''
         try:
             page_url = page.url
             pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', page_url.upper())
             if not pc_match:
                 page_text = await page.evaluate('() => document.title + " " + (document.querySelector("h1") ? document.querySelector("h1").innerText : "")')
                 pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', page_text.upper())
-            if not pc_match:
-                # Try meta or structured data
-                ld = await page.evaluate('() => { const s = document.querySelector('script[type="application/ld+json"]'); return s ? s.innerText : "" }')
-                pc_match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', ld.upper())
             if not pc_match:
                 # Try full body text - postcodes often appear near the top
                 body_start = lt[:2000] if lt else ''
@@ -149,7 +146,7 @@ async def get_full_description(context, source_url):
         lt = ''
         try:
             lt = await page.evaluate('() => document.body.innerText')
-            letting_fields = ['Let available date', 'Deposit', 'Min. Tenancy', 'Let type', 'Furnish type', 'Council Tax']
+            letting_fields = ['Let available date', 'Deposit', 'Min. Tenancy', 'Let type', 'Furnish type', 'Council Tax', 'Tenure', 'Council tax band', 'Service charge', 'Ground rent']
             for line_txt in lt.split('\n'):
                 for field in letting_fields:
                     if line_txt.strip().startswith(field + ':'):

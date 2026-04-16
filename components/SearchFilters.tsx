@@ -24,6 +24,8 @@ interface Props {
   chainFree?: boolean
   newBuild?: boolean
   leaseholdMin?: number | null
+  minBaths?: number | null
+  maxBaths?: number | null
 }
 
 export default function SearchFilters(props: Props) {
@@ -36,14 +38,16 @@ export default function SearchFilters(props: Props) {
   const [minPrice, setMinPrice] = useState<number | null>(sp.get('minPrice') ? parseInt(sp.get('minPrice')!) : null)
   const [maxPrice, setMaxPrice] = useState<number | null>(sp.get('maxPrice') ? parseInt(sp.get('maxPrice')!) : null)
   const [furnished, setFurnished] = useState(props.furnished)
-  const [propertyType, setPropertyType] = useState(props.propertyType)
+  const [propertyTypes, setPropertyTypes] = useState<string[]>(props.propertyType ? [props.propertyType] : [])
   const [features, setFeatures] = useState<string[]>(props.features)
   const [styles, setStyles] = useState<string[]>(props.style ? props.style.split(',') : [])
   const [radius, setRadius] = useState<number | null>(sp.get('radius') ? parseFloat(sp.get('radius')!) : null)
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
   const [minSize, setMinSize] = useState<number | null>(null)
+  const [minBaths, setMinBaths] = useState<number | null>(sp.get('minBaths') ? parseInt(sp.get('minBaths')!) : null)
+  const [maxBaths, setMaxBaths] = useState<number | null>(sp.get('maxBaths') ? parseInt(sp.get('maxBaths')!) : null)
   const [maxSize, setMaxSize] = useState<number | null>(null)
-  const [floorLayout, setFloorLayout] = useState<string | null>(null)
+  const [floorLayouts, setFloorLayouts] = useState<string[]>(sp.get('floorLayout') ? sp.get('floorLayout')!.split(',') : [])
   const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
   const [commuteAddress, setCommuteAddress] = useState<string>(sp.get('commuteAddress') || props.commuteAddress || '')
   const [maxCommute, setMaxCommute] = useState<number | null>(sp.get('maxCommute') ? parseInt(sp.get('maxCommute')!) : (props.maxCommute || null))
@@ -75,7 +79,7 @@ export default function SearchFilters(props: Props) {
     { label: 'Character features', options: ['Fireplace', 'Bay windows', 'Sash windows', 'High ceilings', 'Period features', 'Exposed brick', 'Exposed beams', 'Parquet flooring', 'Wooden floors'] },
     { label: 'Lifestyle', options: ['Pets allowed', 'Bills included', 'Concierge', 'Gym', 'Swimming pool'] },
   ]
-  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor']
+  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed']
 
   function toggleFeature(f: string) {
     setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])
@@ -94,12 +98,14 @@ export default function SearchFilters(props: Props) {
     if (minPrice) p.set('minPrice', String(minPrice))
     if (maxPrice) p.set('maxPrice', String(maxPrice))
     if (furnished) p.set('furnished', furnished)
-    if (propertyType) p.set('propertyType', propertyType)
+    if (propertyTypes.length > 0) p.set('propertyType', propertyTypes.join(','))
     if (features.length > 0) p.set('features', features.join(','))
     if (styles.length > 0) p.set('style', styles.join(','))
     if (minSize) p.set('minSize', String(minSize))
     if (maxSize) p.set('maxSize', String(maxSize))
-    if (floorLayout) p.set('floorLayout', floorLayout)
+    if (minBaths) p.set('minBaths', String(minBaths))
+    if (maxBaths) p.set('maxBaths', String(maxBaths))
+    if (floorLayouts.length > 0) p.set('floorLayout', floorLayouts.join(','))
     if (commuteAddress && maxCommute) { p.set('commuteAddress', commuteAddress); p.set('maxCommute', String(maxCommute)) }
     if (tenures.length > 0) p.set('tenure', tenures.join(','))
     if (chainFree) p.set('chainFree', 'true')
@@ -113,7 +119,7 @@ export default function SearchFilters(props: Props) {
     setStyles([])
     window.dispatchEvent(new Event('nestlondon:clearFilters'))
     setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null); setAvailableFrom(null); setAvailableFrom(null)
-    setFurnished(null); setPropertyType(null); setFeatures([]); setRadius(null); setAddedWithin(null)
+    setFurnished(null); setPropertyTypes([]); setFeatures([]); setRadius(null); setAddedWithin(null)
     const p = new URLSearchParams()
     if (radius) p.set('radius', String(radius))
     if (addedWithin) p.set('addedWithin', String(addedWithin))
@@ -125,7 +131,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, propertyType, addedWithin, availableFrom, minSize, maxSize, floorLayout].filter(Boolean).length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -203,11 +209,28 @@ export default function SearchFilters(props: Props) {
           </div>
 
           <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Bathrooms</label>
+            <div className="flex gap-2 items-center">
+              <select value={minBaths || ''} onChange={e => setMinBaths(e.target.value ? Number(e.target.value) : null)}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No min</option>
+                {[1,2,3,4,5].map(b => <option key={b} value={b}>{b}+</option>)}
+              </select>
+              <span className="text-xs text-[#9B928E]">to</span>
+              <select value={maxBaths || ''} onChange={e => setMaxBaths(e.target.value ? Number(e.target.value) : null)}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No max</option>
+                {[1,2,3,4,5].map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Property type</label>
             <div className="flex flex-wrap gap-2">
               {['Flat','House','Studio','Maisonette','Bungalow'].map(t => (
-                <button key={t} onClick={() => setPropertyType(propertyType === t ? null : t)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyType === t ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
+                <button key={t} onClick={() => setPropertyTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyTypes.includes(t) ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
                 >{t}</button>
               ))}
             </div>
@@ -230,9 +253,9 @@ export default function SearchFilters(props: Props) {
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Floor layout</label>
             <div className="flex flex-wrap gap-2">
               {['Single level', 'Split-level', 'Multiple floors'].map(opt => (
-                <button key={opt} type="button" onClick={() => setFloorLayout(floorLayout === opt ? null : opt)}
-                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (floorLayout === opt ? 'text-white border-transparent' : 'bg-[#F5EBE0] text-[#4A5568] border-[#E8E2DA] hover:border-[#D3755A]')}
-                  style={floorLayout === opt ? {background:'#D3755A'} : {}}>
+                <button key={opt} type="button" onClick={() => setFloorLayouts(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt])}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (floorLayouts.includes(opt) ? 'text-white border-transparent' : 'bg-[#F5EBE0] text-[#4A5568] border-[#E8E2DA] hover:border-[#D3755A]')}
+                  style={floorLayouts.includes(opt) ? {background:'#D3755A'} : {}}>
                   {opt}
                 </button>
               ))}

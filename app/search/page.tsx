@@ -32,6 +32,8 @@ interface SearchParams {
   chainFree?: string
   newBuild?: string
   leaseholdMin?: string
+  minBaths?: string
+  maxBaths?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -56,6 +58,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const chainFree = params.chainFree === 'true'
   const newBuild = params.newBuild === 'true'
   const leaseholdMin = params.leaseholdMin ? parseInt(params.leaseholdMin) : null
+  const minBaths = params.minBaths ? parseInt(params.minBaths) : null
+  const maxBaths = params.maxBaths ? parseInt(params.maxBaths) : null
   // Get saved commute address from user profile if not in URL
   let commuteAddress = params.commuteAddress || null
   console.log('[SEARCH] params.commuteAddress:', params.commuteAddress, 'final commuteAddress:', commuteAddress)
@@ -184,6 +188,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   }
   if (minBeds) query = query.gte('bedrooms', minBeds)
   if (maxBeds) query = query.lte('bedrooms', maxBeds)
+  if (minBaths) query = query.gte('bathrooms', minBaths)
+  if (maxBaths) query = query.lte('bathrooms', maxBaths)
   if (minPrice) query = query.gte('price', minPrice)
   if (maxPrice) query = query.lte('price', maxPrice)
   if (propertyType) query = query.ilike('property_type', '%' + propertyType + '%')
@@ -299,6 +305,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         if (!/\bparking\b|\bgarage\b/.test(combined)) return false
       } else if (fl === 'bills included') {
         if (!/bills? included|bills? inc/.test(combined)) return false
+      } else if (fl === 'recently refurbished') {
+        if (!/refurb|renovated|newly decorated|recently updated|modernised/.test(combined)) return false
+      } else if (fl === 'new build') {
+        if (!/new build|newly built|brand new/.test(combined)) return false
       } else {
         if (!combined.includes(fl)) return false
       }
@@ -308,6 +318,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       if (f === 'Shared ownership' && combined.includes('shared ownership')) return false
       if (f === 'Retirement homes' && combined.includes('retirement')) return false
       if (f === 'Lower ground floor' && /lower ground floor|lower ground level|basement/.test(combined)) return false
+      if (f === 'Ground floor' && /ground floor flat|ground floor apartment|ground floor property/.test(combined)) return false
+      if (f === 'Renovation needed' && /in need of renovation|needs renovation|requires renovation|needs updating|in need of updating|modernisation required|requires modernisation|project property|in need of some tlc|needs some tlc/.test(combined)) return false
     }
     // Style filter — match any selected style
     if (style) {
@@ -333,7 +345,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (locationCoords) {
     const { data: nearbyAll } = await supabase
       .from('listings')
-      .select('id,address,price,images,bedrooms,bathrooms,property_type,latitude,longitude')
+      .select('id,address,price,images,bedrooms,bathrooms,property_type,latitude,longitude,description')
       .eq('is_active', true)
       .eq('listing_type', listingType)
       .not('latitude', 'is', null)
@@ -370,6 +382,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               chainFree={chainFree}
               newBuild={newBuild}
               leaseholdMin={leaseholdMin}
+              minBaths={minBaths}
+              maxBaths={maxBaths}
             />
           </div>
           <NavAuthButton variant="light" />

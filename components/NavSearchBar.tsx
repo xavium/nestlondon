@@ -43,6 +43,8 @@ interface Props {
   chainFree?: boolean
   newBuild?: boolean
   leaseholdMin?: number | null
+  minBaths?: number | null
+  maxBaths?: number | null
 }
 
 export default function NavSearchBar({
@@ -64,7 +66,9 @@ export default function NavSearchBar({
   tenure = null,
   chainFree = false,
   newBuild = false,
-  leaseholdMin = null,}: Props) {
+  leaseholdMin = null,
+  minBaths = null,
+  maxBaths = null,}: Props) {
   const PRICE_OPTIONS = listingType === 'buy' ? BUY_PRICE_OPTIONS : RENT_PRICE_OPTIONS
   const [location, setLocation] = useState(initLocation)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -224,6 +228,8 @@ export default function NavSearchBar({
             chainFree={chainFree}
             newBuild={newBuild}
             leaseholdMin={leaseholdMin}
+            minBaths={minBaths}
+            maxBaths={maxBaths}
           />
         </div>
 

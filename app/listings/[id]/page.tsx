@@ -448,7 +448,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Available" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{isBuyListing ? 'Tenure' : 'Available'}</div>
-                <div className="text-sm font-semibold text-[#374151]">{isBuyListing ? ((() => { const t = (listing.description || '').match(/freehold|leasehold|share of freehold/i); return t ? t[0].replace(/^\w/, (c: string) => c.toUpperCase()) : 'Ask agent' })()) : (availableText || 'Ask agent')}</div>
+                <div className="text-sm font-semibold text-[#374151]">{isBuyListing ? ((() => {
+                  const ld = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+                  const ldTenure = ld?.letting_details?.Tenure
+                  if (ldTenure) return ldTenure
+                  const t = (listing.description || '').match(/freehold|leasehold|share of freehold/i)
+                  return t ? t[0].replace(/^\w/, (c: string) => c.toUpperCase()) : 'Ask agent'
+                })()) : (availableText || 'Ask agent')}</div>
               </div>
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bedrooms" />
