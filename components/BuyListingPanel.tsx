@@ -39,7 +39,7 @@ export default function BuyListingPanel({ price, address, sourceUrl, source }: P
   const ltv = 100 - depositPct
 
   return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6 flex flex-col gap-5">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 flex flex-col gap-5">
       {/* Price */}
       <div>
         <div className="text-3xl font-bold text-[#1C2B3A]" style={{fontFamily: 'Georgia, serif'}}>

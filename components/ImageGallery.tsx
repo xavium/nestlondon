@@ -33,15 +33,40 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
           )}
         </div>
         <div className="grid grid-rows-2 gap-2" style={{height: '480px'}}>
-          {[1, 2].map(i => (
-            <div key={i} className="rounded-xl overflow-hidden bg-stone-200 cursor-pointer" onClick={() => images[i] && open(i)}>
-              {images[i] ? (
-                <img src={images[i]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
+          <div className="rounded-xl overflow-hidden bg-stone-200 cursor-pointer" onClick={() => images[1] && open(1)}>
+            {images[1] ? (
+              <img src={images[1]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-full h-full bg-stone-100" />
+            )}
+          </div>
+          {images.length <= 3 ? (
+            <div className="rounded-xl overflow-hidden bg-stone-200 cursor-pointer" onClick={() => images[2] && open(2)}>
+              {images[2] ? (
+                <img src={images[2]} alt="" className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
               ) : (
                 <div className="w-full h-full bg-stone-100" />
               )}
             </div>
-          ))}
+          ) : (
+            <div className="rounded-xl overflow-hidden cursor-pointer relative grid grid-cols-2 gap-0.5 bg-stone-300" onClick={() => open(2)}>
+              {[2, 3, 4, 5].map((idx) => (
+                <div key={idx} className="relative overflow-hidden bg-stone-200" style={{aspectRatio: '1'}}>
+                  {images[idx] ? (
+                    <img src={images[idx]} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-full h-full bg-stone-100" />
+                  )}
+                  {idx === 5 && images.length > 6 && (
+                    <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-0.5 hover:bg-black/65 transition-colors">
+                      <span className="text-white font-bold text-xl">+{images.length - 5}</span>
+                      <span className="text-white/80 text-xs">more photos</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

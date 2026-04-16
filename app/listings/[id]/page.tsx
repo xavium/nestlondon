@@ -656,7 +656,7 @@ function KeyFeatures({ features }: { features: string[] }) {
 
 function ExternalLinkCard({ listing }: { listing: any }) {
   return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
       <div className="mb-4">
         <div className="text-2xl font-bold text-[#1C2B3A] mb-0.5" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</div>
         <div className="text-sm text-stone-400">per month</div>
