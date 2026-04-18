@@ -17,6 +17,8 @@ import PhotoTags from '@/components/PhotoTags'
 import ListingEventTracker from '@/components/ListingEventTracker'
 import CommuteWidget from '@/components/CommuteWidget'
 import BuyListingPanel from '@/components/BuyListingPanel'
+import BoroughGuideInline from '@/components/BoroughGuideInline'
+import { getBoroughByPostcode } from '@/data/boroughGuides'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
