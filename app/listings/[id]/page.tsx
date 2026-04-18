@@ -430,19 +430,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           <div className="lg:col-span-2 flex flex-col gap-5">
 
 
-            {Object.keys(lettingDetails).length > 0 && (
-              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
-                <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">{isBuyListing ? 'Property details' : 'Letting details'}</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {Object.entries(lettingDetails).map(([k, v]) => (
-                    <div key={k}>
-                      <div className="text-xs text-stone-400">{k}</div>
-                      <div className="text-sm text-[#1C2B3A] font-semibold">{v as string}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 items-stretch">
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">

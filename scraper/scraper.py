@@ -155,12 +155,26 @@ async def get_full_description(context, source_url):
                             letting[field] = val
         except Exception as le:
             print('  Letting parse error: ' + str(le))
-            # Also find tenure from Rightmove's label+newline pattern
-            import re as _re
-            tenure_match = _re.search(r'Tenure\s*\n\s*([^\n]+)', lt)
-            if tenure_match and 'Tenure' not in letting:
-                letting['Tenure'] = tenure_match.group(1).strip()
-            result['letting_details'] = letting
+
+        # Also find tenure/council tax from various patterns (runs always)
+        import re as _re
+        if 'Tenure' not in letting:
+            m = _re.search(r'Tenure:\s*([^\n]+)', lt)
+            if m:
+                letting['Tenure'] = m.group(1).strip()
+            else:
+                m2 = _re.search(r'TENURE\s*\n+\s*([^\n]+)', lt)
+                if m2:
+                    letting['Tenure'] = m2.group(1).strip()
+        if 'Council Tax Band' not in letting and 'Council Tax' not in letting:
+            m = _re.search(r'Council Tax Band:\s*([A-H])', lt)
+            if m:
+                letting['Council Tax Band'] = 'Band ' + m.group(1)
+        if 'EPC' not in letting:
+            m = _re.search(r'EPC:\s*([A-G])', lt)
+            if m:
+                letting['EPC'] = m.group(1)
+        result['letting_details'] = letting
 
         # Listed date from Rightmove
         try:
@@ -187,8 +201,9 @@ async def get_full_description(context, source_url):
         try:
             # Scroll to trigger lazy loading
             try:
-                for _i in range(12):
-                    await page.evaluate(f'window.scrollTo(0, {_i * 400})')
+                _height = await page.evaluate('() => document.body.scrollHeight')
+                for _i in range(20):
+                    await page.evaluate(f'window.scrollTo(0, {_i * _height // 20})')
                     await page.wait_for_timeout(150)
                 await page.evaluate('document.querySelectorAll("img[data-src]").forEach(img => { img.src = img.dataset.src })')
                 await page.wait_for_timeout(500)
@@ -199,7 +214,9 @@ async def get_full_description(context, source_url):
             html_content = await page.content()
             import re as _imgre2
             # Extract property ID from URL to only get images for this listing
-            _prop_id = source_url.rstrip('/').split('/')[-1].split('#')[0] if source_url else ''
+            import re as _urlre
+            _prop_id_m = _urlre.search(r'/properties/(\d+)', source_url) if source_url else None
+            _prop_id = _prop_id_m.group(1) if _prop_id_m else ''
             all_imgs_raw = _imgre2.findall("https://media.rightmove.co.uk/[^ \t\n\r\f\v\"]+property-photo[^ \t\n\r\f\v\"]+", html_content)
             all_imgs = [u for u in all_imgs_raw if 'floorplan' not in u and 'floor_plan' not in u and 'floor-plan' not in u and (_prop_id in u if _prop_id else True)]
             if all_imgs:
