@@ -9,15 +9,25 @@ interface Props {
   source?: string | null
 }
 
-function calcStampDuty(price: number, isFirstBuyer: boolean): number {
-  if (isFirstBuyer && price <= 425000) return 0
-  const thresholds = isFirstBuyer
-    ? [[0, 425000, 0], [425000, 625000, 0.05], [625000, 925000, 0.05], [925000, 1500000, 0.10], [1500000, Infinity, 0.12]]
-    : [[0, 250000, 0], [250000, 925000, 0.05], [925000, 1500000, 0.10], [1500000, Infinity, 0.12]]
+function calcStampDuty(price: number, isFirstBuyer: boolean, isAdditional: boolean): number {
+  // Rates from April 2025
+  let thresholds: [number, number, number][]
+  if (isFirstBuyer && price <= 500000) {
+    // First-time buyer relief: 0% up to £300k, 5% on £300k-£500k
+    thresholds = [[0, 300000, 0], [300000, 500000, 0.05]]
+  } else if (isFirstBuyer && price > 500000) {
+    // FTB relief does not apply above £500k - standard rates on full price
+    thresholds = [[0, 125000, 0], [125000, 250000, 0.02], [250000, 925000, 0.05], [925000, 1500000, 0.10], [1500000, Infinity, 0.12]]
+  } else {
+    // Standard rates
+    thresholds = [[0, 125000, 0], [125000, 250000, 0.02], [250000, 925000, 0.05], [925000, 1500000, 0.10], [1500000, Infinity, 0.12]]
+  }
   let total = 0
   for (const [from, to, rate] of thresholds) {
     if (price > from) total += (Math.min(price, to) - from) * rate
   }
+  // Additional property surcharge: +3% on full price
+  if (isAdditional) total += price * 0.03
   return Math.round(total)
 }
 
@@ -26,6 +36,7 @@ export default function BuyListingPanel({ price, address, sourceUrl, source }: P
   const [rate, setRate] = useState(4.5)
   const [term, setTerm] = useState(25)
   const [isFirstBuyer, setIsFirstBuyer] = useState(false)
+  const [isAdditional, setIsAdditional] = useState(false)
 
   const loanAmount = price - deposit
   const monthlyRate = rate / 100 / 12
@@ -34,7 +45,7 @@ export default function BuyListingPanel({ price, address, sourceUrl, source }: P
     ? Math.round(loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1))
     : 0
 
-  const stampDuty = calcStampDuty(price, isFirstBuyer)
+  const stampDuty = calcStampDuty(price, isFirstBuyer, isAdditional)
   const depositPct = Math.round((deposit / price) * 100)
   const ltv = 100 - depositPct
 
@@ -131,7 +142,7 @@ export default function BuyListingPanel({ price, address, sourceUrl, source }: P
           <div className="text-2xl font-bold text-[#1C2B3A]">
             {stampDuty === 0 ? '£0' : '£' + stampDuty.toLocaleString()}
           </div>
-          {isFirstBuyer && price <= 425000 && (
+          {isFirstBuyer && price <= 300000 && (
             <div className="text-xs text-emerald-600 mt-1">No stamp duty as a first-time buyer</div>
           )}
         </div>

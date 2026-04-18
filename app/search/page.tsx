@@ -393,21 +393,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {isBuyMode && filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{background: 'rgba(211,117,90,0.12)'}}>
-              <svg className="w-8 h-8" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            </div>
-            <h2 className="text-2xl font-light text-[#1C2B3A] mb-3" style={{fontFamily: 'Georgia, serif'}}>Sales listings coming soon</h2>
-            <p className="text-stone-400 text-sm max-w-md leading-relaxed mb-8">We&apos;re working on aggregating sales listings from Rightmove, Zoopla and OnTheMarket. Register your interest and we&apos;ll notify you when buy listings go live in your area.</p>
-            <div className="flex items-center gap-2 bg-white rounded-xl border border-[#E8E2DA] p-1.5 shadow-sm w-full max-w-sm">
-              <input type="email" placeholder="Your email address" className="flex-1 px-4 py-2 text-sm text-[#374151] outline-none bg-transparent placeholder-stone-300" />
-              <button className="px-5 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity flex-shrink-0" style={{background: '#D3755A'}}>Notify me</button>
-            </div>
-          </div>
-        ) : (
-          <SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
-        )}
+        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
+        }
       </div>
     </main>
   )
