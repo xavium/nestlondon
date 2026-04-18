@@ -34,6 +34,8 @@ interface SearchParams {
   leaseholdMin?: string
   minBaths?: string
   maxBaths?: string
+  maxPricePerSqm?: string
+  minPricePerSqm?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -60,6 +62,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const leaseholdMin = params.leaseholdMin ? parseInt(params.leaseholdMin) : null
   const minBaths = params.minBaths ? parseInt(params.minBaths) : null
   const maxBaths = params.maxBaths ? parseInt(params.maxBaths) : null
+  const maxPricePerSqm = params.maxPricePerSqm ? parseInt(params.maxPricePerSqm) : null
+  const minPricePerSqm = params.minPricePerSqm ? parseInt(params.minPricePerSqm) : null
   // Get saved commute address from user profile if not in URL
   let commuteAddress = params.commuteAddress || null
   console.log('[SEARCH] params.commuteAddress:', params.commuteAddress, 'final commuteAddress:', commuteAddress)
@@ -254,6 +258,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       if (!sqft) return false  // exclude listings with no size info when size filter is active
       if (minSize && sqft < minSize) return false
       if (maxSize && sqft > maxSize) return false
+    if ((minPricePerSqm || maxPricePerSqm) && sqft && listing.price) {
+      // values stored as per-sqm always (sqft options converted at filter time)
+      const sqm = sqft / 10.764
+      const ppsqm = listing.price / sqm
+      if (minPricePerSqm && ppsqm < minPricePerSqm) return false
+      if (maxPricePerSqm && ppsqm > maxPricePerSqm) return false
+    }
     }
 
     // Available from filter — match 'available now/immediately' or no specific future date mentioned
@@ -387,6 +398,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               leaseholdMin={leaseholdMin}
               minBaths={minBaths}
               maxBaths={maxBaths}
+              maxPricePerSqm={maxPricePerSqm}
+              minPricePerSqm={minPricePerSqm}
             />
           </div>
           <NavAuthButton variant="light" />

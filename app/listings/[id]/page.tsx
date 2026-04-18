@@ -153,14 +153,28 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     if (sqftM) {
       const sqftVal = parseFloat(sqftM[1].replace(',',''))
       const sqmVal = Math.round(sqftVal * 0.0929)
-      sizeText = sqftVal.toLocaleString() + ' sq ft / ' + sqmVal + ' sq m'
+      sizeText = sqftVal.toLocaleString() + ' sq ft'
     } else if (sqmM) {
       const sqmVal = parseFloat(sqmM[1].replace(',',''))
       const sqftVal = Math.round(sqmVal * 10.764)
-      sizeText = sqftVal.toLocaleString() + ' sq ft / ' + sqmVal + ' sq m'
+      sizeText = sqftVal.toLocaleString() + ' sq ft'
     } else {
       sizeText = sizeTextRaw
     }
+  }
+
+  // Price per sqm/sqft
+  let pricePerSqm: number | null = null
+  let pricePerSqft: number | null = null
+  if (sizeTextRaw && listing.price) {
+    const sqftM2 = sizeTextRaw.match(/([\d,]+)\s*sq\s*ft/i)
+    const sqmM2 = sizeTextRaw.match(/([\d,]+)\s*sq\s*m(?!ft)/i)
+    let sqmV: number | null = null
+    let sqftV: number | null = null
+    if (sqftM2) { sqftV = parseFloat(sqftM2[1].replace(',','')); sqmV = Math.round(sqftV * 0.0929) }
+    else if (sqmM2) { sqmV = parseFloat(sqmM2[1].replace(',','')); sqftV = Math.round(sqmV * 10.764) }
+    if (sqmV && sqmV > 0) pricePerSqm = Math.round(listing.price / sqmV)
+    if (sqftV && sqftV > 0) pricePerSqft = Math.round(listing.price / sqftV)
   }
 
   function extractSqm(text: string): number | null {
@@ -186,7 +200,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       sqm = extractSqm(listing.description)
       if (sqm) {
         const sqftFromDesc = Math.round(sqm * 10.764)
-        resolvedSize = sqftFromDesc.toLocaleString() + ' sq ft / ' + sqm + ' sq m'
+        resolvedSize = sqftFromDesc.toLocaleString() + ' sq ft'
       }
     }
     if (!sqm && keyFeatures.length > 0) {
@@ -194,7 +208,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         sqm = extractSqm(f)
         if (sqm) {
           const sqftFromFeat = Math.round(sqm * 10.764)
-          resolvedSize = sqftFromFeat.toLocaleString() + ' sq ft / ' + sqm + ' sq m'
+          resolvedSize = sqftFromFeat.toLocaleString() + ' sq ft'
           break
         }
       }
@@ -462,11 +476,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                     <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
                     <div className="text-sm font-semibold text-[#374151]">{resolvedSize}</div>
+                    {resolvedSize && resolvedSize.includes('sq ft') && <div className="text-xs text-stone-400 mt-0.5">{Math.round(parseFloat(resolvedSize.replace(/,/g,'')) * 0.0929).toLocaleString()} sq m</div>}
                   </div>
                   <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                     <TileIcon name="£/sqm" />
-                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
-                    <div className="text-sm font-semibold text-[#374151]">{rentPerSqm}</div>
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Price / size</div>
+                    <div className="text-sm font-semibold text-[#374151]">{pricePerSqft ? '£' + pricePerSqft.toLocaleString() + ' / sq ft' : 'Ask agent'}</div>
+                    {pricePerSqm && <div className="text-xs text-stone-400 mt-0.5">£{pricePerSqm.toLocaleString()} / sq m</div>}
                   </div>
                 </>
               ) : floorplans.length > 0 ? (
@@ -480,7 +496,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   </div>
                   <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                     <TileIcon name="£/sqm" />
-                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">£/sqm</div>
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Price / size</div>
                     <div className="text-sm font-semibold text-[#374151]">Ask agent</div>
                   </div>
                 </>

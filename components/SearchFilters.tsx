@@ -26,6 +26,8 @@ interface Props {
   leaseholdMin?: number | null
   minBaths?: number | null
   maxBaths?: number | null
+  maxPricePerSqm?: number | null
+  minPricePerSqm?: number | null
 }
 
 export default function SearchFilters(props: Props) {
@@ -44,6 +46,9 @@ export default function SearchFilters(props: Props) {
   const [radius, setRadius] = useState<number | null>(sp.get('radius') ? parseFloat(sp.get('radius')!) : null)
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
   const [minSize, setMinSize] = useState<number | null>(null)
+  const [sizeUnit, setSizeUnit] = useState<'sqft' | 'sqm'>('sqft')
+  const [minPricePerSqm, setMinPricePerSqm] = useState<number | null>(sp.get('minPricePerSqm') ? parseInt(sp.get('minPricePerSqm')!) : null)
+  const [maxPricePerSqm, setMaxPricePerSqm] = useState<number | null>(sp.get('maxPricePerSqm') ? parseInt(sp.get('maxPricePerSqm')!) : null)
   const [minBaths, setMinBaths] = useState<number | null>(sp.get('minBaths') ? parseInt(sp.get('minBaths')!) : null)
   const [maxBaths, setMaxBaths] = useState<number | null>(sp.get('maxBaths') ? parseInt(sp.get('maxBaths')!) : null)
   const [maxSize, setMaxSize] = useState<number | null>(null)
@@ -102,6 +107,10 @@ export default function SearchFilters(props: Props) {
     if (features.length > 0) p.set('features', features.join(','))
     if (styles.length > 0) p.set('style', styles.join(','))
     if (minSize) p.set('minSize', String(minSize))
+    // Always store price per sqm in URL (convert from sqft if needed)
+    const ppsqmFactor = sizeUnit === 'sqft' ? 10.764 : 1
+    if (minPricePerSqm) p.set('minPricePerSqm', String(Math.round(minPricePerSqm * ppsqmFactor)))
+    if (maxPricePerSqm) p.set('maxPricePerSqm', String(Math.round(maxPricePerSqm * ppsqmFactor)))
     if (maxSize) p.set('maxSize', String(maxSize))
     if (minBaths) p.set('minBaths', String(minBaths))
     if (maxBaths) p.set('maxBaths', String(maxBaths))
@@ -131,7 +140,7 @@ export default function SearchFilters(props: Props) {
     setOpen(false)
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -188,22 +197,57 @@ export default function SearchFilters(props: Props) {
 
 
           <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Size (sq ft)</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Size</label>
+              <div className="flex rounded-lg overflow-hidden border border-[#E8E2DA] text-xs">
+                {(['sqft', 'sqm'] as const).map(u => (
+                  <button key={u} onClick={() => { setSizeUnit(u); setMinSize(null); setMaxSize(null) }}
+                    className={'px-2.5 py-1 transition-colors ' + (sizeUnit === u ? 'bg-[#D3755A] text-white' : 'bg-[#F5EBE0] text-stone-500')}>
+                    {u === 'sqft' ? 'sq ft' : 'sq m'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2 items-center">
-              <select value={minSize || ''} onChange={e => { setMinSize(e.target.value ? Number(e.target.value) : null) }}
+              <select value={minSize || ''} onChange={e => setMinSize(e.target.value ? Number(e.target.value) : null)}
                 className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
                 <option value="">No min</option>
-                {[200,300,400,500,600,700,800,900,1000,1250,1500,2000].map(s => (
-                  <option key={s} value={s}>{s.toLocaleString()} sq ft</option>
-                ))}
+                {(sizeUnit === 'sqft'
+                  ? [200,300,400,500,600,700,800,900,1000,1250,1500,2000]
+                  : [20,30,40,50,60,70,80,90,100,120,150,200]
+                ).map(s => <option key={s} value={sizeUnit === 'sqm' ? Math.round(s * 10.764) : s}>{s.toLocaleString()} {sizeUnit === 'sqft' ? 'sq ft' : 'sq m'}</option>)}
               </select>
               <span className="text-xs text-[#9B928E]">to</span>
-              <select value={maxSize || ''} onChange={e => { setMaxSize(e.target.value ? Number(e.target.value) : null) }}
+              <select value={maxSize || ''} onChange={e => setMaxSize(e.target.value ? Number(e.target.value) : null)}
                 className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
                 <option value="">No max</option>
-                {[200,300,400,500,600,700,800,900,1000,1250,1500,2000].map(s => (
-                  <option key={s} value={s}>{s.toLocaleString()} sq ft</option>
-                ))}
+                {(sizeUnit === 'sqft'
+                  ? [200,300,400,500,600,700,800,900,1000,1250,1500,2000]
+                  : [20,30,40,50,60,70,80,90,100,120,150,200]
+                ).map(s => <option key={s} value={sizeUnit === 'sqm' ? Math.round(s * 10.764) : s}>{s.toLocaleString()} {sizeUnit === 'sqft' ? 'sq ft' : 'sq m'}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Price per {sizeUnit === 'sqft' ? 'sq ft' : 'sq m'}</label>
+            <div className="flex gap-2 items-center">
+              <select value={minPricePerSqm || ''} onChange={e => { setMinPricePerSqm(e.target.value ? Number(e.target.value) : null); setMaxPricePerSqm(null) }}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No min</option>
+                {(sizeUnit === 'sqft'
+                  ? [100,150,200,250,300,400,500,600,700,800,900,1000,1200,1500]
+                  : [2000,3000,4000,5000,6000,7000,7500,8000,8500,9000,9500,10000,11000,12000,12500,15000,20000]
+                ).map(v => <option key={v} value={v}>£{v.toLocaleString()}/{sizeUnit === 'sqft' ? 'ft²' : 'm²'}</option>)}
+              </select>
+              <span className="text-xs text-[#9B928E]">to</span>
+              <select value={maxPricePerSqm || ''} onChange={e => setMaxPricePerSqm(e.target.value ? Number(e.target.value) : null)}
+                className="flex-1 border border-[#E8E2DA] rounded-lg px-2 py-2 text-xs text-[#3D3A38] bg-[#F5EBE0] outline-none">
+                <option value="">No max</option>
+                {(sizeUnit === 'sqft'
+                  ? [100,150,200,250,300,400,500,600,700,800,900,1000,1200,1500]
+                  : [2000,3000,4000,5000,6000,7000,7500,8000,8500,9000,9500,10000,11000,12000,12500,15000,20000]
+                ).map(v => <option key={v} value={v}>£{v.toLocaleString()}/{sizeUnit === 'sqft' ? 'ft²' : 'm²'}</option>)}
               </select>
             </div>
           </div>
@@ -280,10 +324,10 @@ export default function SearchFilters(props: Props) {
                 <div className="mb-5">
                   <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Min lease remaining</label>
                   <div className="flex flex-wrap gap-2">
-                    {[null, 50, 75, 100, 125, 150, 200, 250].map(y => (
+                    {[null, 50, 75, 100, 150].map(y => (
                       <button key={String(y)} onClick={() => setLeaseholdMin(y)}
                         className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (leaseholdMin === y ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
-                        {y === null ? 'Any' : y + ' yrs'}
+                        {y === null ? 'Any' : y === 150 ? '150+ yrs' : y + ' yrs'}
                       </button>
                     ))}
                   </div>

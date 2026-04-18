@@ -45,6 +45,8 @@ interface Props {
   leaseholdMin?: number | null
   minBaths?: number | null
   maxBaths?: number | null
+  maxPricePerSqm?: number | null
+  minPricePerSqm?: number | null
 }
 
 export default function NavSearchBar({
@@ -68,7 +70,9 @@ export default function NavSearchBar({
   newBuild = false,
   leaseholdMin = null,
   minBaths = null,
-  maxBaths = null,}: Props) {
+  maxBaths = null,
+  maxPricePerSqm = null,
+  minPricePerSqm = null,}: Props) {
   const PRICE_OPTIONS = listingType === 'buy' ? BUY_PRICE_OPTIONS : RENT_PRICE_OPTIONS
   const [location, setLocation] = useState(initLocation)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -230,6 +234,8 @@ export default function NavSearchBar({
             leaseholdMin={leaseholdMin}
             minBaths={minBaths}
             maxBaths={maxBaths}
+            maxPricePerSqm={maxPricePerSqm}
+            minPricePerSqm={minPricePerSqm}
           />
         </div>
 
