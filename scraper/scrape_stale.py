@@ -39,6 +39,10 @@ async def check_listing(context, listing):
             if pattern in text:
                 return 'removed'
         
+        # If page is very short or has no property details, likely redirected to homepage
+        if len(text) < 500 or 'bedroom' not in text and 'bath' not in text and 'property' not in text[:1000]:
+            return 'removed'
+        
         return 'active'
     except Exception as e:
         return f'error: {str(e)[:50]}'
