@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
         source: '/img/:path*',
         destination: 'https://media.rightmove.co.uk/:path*',
       },
+      {
+        source: '/wiki-img/:path*',
+        destination: 'https://upload.wikimedia.org/:path*',
+      },
     ]
   },
 }
