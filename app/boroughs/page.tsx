@@ -18,7 +18,9 @@ export default function BoroughsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {boroughGuides.map(borough => (
             <Link key={borough.slug} href={`/boroughs/${borough.slug}`}
-              className="bg-white rounded-2xl p-6 border border-[#E8E2DA] hover:border-[#D3755A] hover:shadow-md transition-all group">
+              className="bg-white rounded-2xl overflow-hidden border border-[#E8E2DA] hover:border-[#D3755A] hover:shadow-md transition-all group">
+              {borough.heroImage && <div className="h-36 overflow-hidden"><img src={borough.heroImage} alt={borough.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /></div>}
+              <div className="p-6">
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {borough.postcodes.slice(0, 3).map(pc => (
                   <span key={pc} className="text-xs bg-[#F5EBE0] text-stone-500 px-2 py-0.5 rounded-full">{pc}</span>
@@ -31,6 +33,7 @@ export default function BoroughsPage() {
                 {borough.bestFor.slice(0, 2).map(item => (
                   <span key={item} className="text-xs bg-[#F5EBE0] text-[#D3755A] px-2 py-0.5 rounded-full">{item}</span>
                 ))}
+              </div>
               </div>
             </Link>
           ))}

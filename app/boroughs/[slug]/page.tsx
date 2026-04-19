@@ -6,8 +6,9 @@ export async function generateStaticParams() {
   return boroughGuides.map(b => ({ slug: b.slug }))
 }
 
-export default function BoroughPage({ params }: { params: { slug: string } }) {
-  const borough = getBoroughBySlug(params.slug)
+export default async function BoroughPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const borough = getBoroughBySlug(slug)
   if (!borough) notFound()
 
   return (
@@ -18,7 +19,9 @@ export default function BoroughPage({ params }: { params: { slug: string } }) {
           <Link href="/boroughs" className="text-sm text-stone-500 hover:text-[#D3755A] transition-colors">← All boroughs</Link>
         </div>
       </nav>
-      <div className="bg-[#1B2E4B] text-white py-16 px-4">
+      <div className="relative text-white py-16 px-4" style={{background: "#1B2E4B"}}>
+        {borough.heroImage && <img src={borough.heroImage} alt={borough.name} className="absolute inset-0 w-full h-full object-cover opacity-20" />}
+        <div className="relative z-10">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-wrap gap-2 mb-4">
             {borough.postcodes.map(pc => (
@@ -27,7 +30,7 @@ export default function BoroughPage({ params }: { params: { slug: string } }) {
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{fontFamily: 'Georgia, serif'}}>{borough.name}</h1>
           <p className="text-xl text-white/70 max-w-2xl">{borough.tagline}</p>
-        </div>
+        </div></div>
       </div>
       <div className="max-w-4xl mx-auto px-4 py-12 flex flex-col gap-8">
         <div className="bg-white rounded-2xl p-8 border border-[#E8E2DA]">

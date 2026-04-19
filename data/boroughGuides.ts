@@ -11,11 +11,13 @@ export interface BoroughGuide {
   transport: string
   bestFor: string[]
   avoidIf: string[]
+  heroImage?: string
 }
 
 export const boroughGuides: BoroughGuide[] = [
   {
     slug: "city-of-london",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/d/de/Bank_junction_-_2020-09-20_%282%29.jpg",
     name: "City of London",
     tagline: "The Square Mile — ancient streets, soaring towers, and 2,000 years of history",
     postcodes: ["EC1", "EC2", "EC3", "EC4"],
@@ -43,6 +45,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "westminster",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/7/70/Trafalgar_Square%2C_London_-_geograph.org.uk_-_6357014.jpg",
     name: "Westminster",
     tagline: "Power, pageantry, and some of London's most coveted addresses",
     postcodes: ["SW1", "W1", "WC2"],
@@ -69,6 +72,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "camden",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/3/30/St_Pancras_Renaissance_London_Hotel_2011-06-19.jpg",
     name: "Camden",
     tagline: "Counterculture capital with a beating heart of markets, music, and canal life",
     postcodes: ["NW1", "NW3", "NW5", "NW6"],
@@ -95,6 +99,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "islington",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/7/7d/Islington_Town_Hall%2C_April_2021.jpg",
     name: "Islington",
     tagline: "Georgian terraces, political passions, and the best pub crawl in London",
     postcodes: ["N1", "EC1V", "N5", "N7"],
@@ -120,6 +125,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "hackney",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/b/b7/Hackney_from_the_air_-_geograph.org.uk_-_4604451.jpg",
     name: "Hackney",
     tagline: "East London's creative powerhouse — raw, vibrant, and unapologetically itself",
     postcodes: ["E8", "E9", "E5", "N16", "E2"],
@@ -146,10 +152,11 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "tower-hamlets",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/6/63/Tower_Bridge_from_Shad_Thames.jpg",
     name: "Tower Hamlets",
     tagline: "Contrasts define this borough — from the City's glass towers to Brick Lane's spice markets",
     postcodes: ["E1", "E14", "E3", "E2"],
-    description: "Tower Hamlets is one of London's most complex boroughs — where extreme wealth and deprivation coexist. Canary Wharf, Brick Lane, Whitechapel, and the historic Docklands all sit within this single borough.",
+    description: "Tower Hamlets is one of London's most dynamic and culturally rich boroughs — a place of extraordinary contrasts, where Canary Wharf's financial towers, Brick Lane's Bangladeshi restaurants, Whitechapel's galleries, and the historic Docklands all sit within a single borough.",
     history: "The East End has always been London's arrival point for immigrants. Canary Wharf was built in the 1980s as a financial district to rival the City.",
     landmarks: [
       { name: "Canary Wharf", description: "Europe's largest financial centre — extraordinary architecture, especially at night." },
@@ -171,6 +178,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "southwark",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/5/52/Borough_Market_%28geograph_6006777%29.jpg",
     name: "Southwark",
     tagline: "Shakespeare's Bankside, Borough Market, and a new generation of Bermondsey cool",
     postcodes: ["SE1", "SE5", "SE15", "SE16", "SE17"],
@@ -196,6 +204,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "lambeth",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/3/3b/06_2023_London_Eye_seen_from_the_West_IMG_7510.jpg",
     name: "Lambeth",
     tagline: "Where the South Bank meets Brixton's vibrant soul — music, markets, and the Thames",
     postcodes: ["SW2", "SW4", "SW8", "SW9", "SE11", "SE24"],
@@ -221,6 +230,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "wandsworth",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Battersea_Power_Station_IMG_0739.jpg",
     name: "Wandsworth",
     tagline: "Riverside ambition, Battersea's renaissance, and the best park in south London",
     postcodes: ["SW11", "SW12", "SW17", "SW18"],
@@ -246,6 +256,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "kensington-and-chelsea",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/6/65/London%27s_Chelsea_Bridge_5.jpg",
     name: "Kensington & Chelsea",
     tagline: "The Royal Borough — where world-class museums meet immaculate garden squares",
     postcodes: ["SW3", "SW5", "SW7", "SW10", "W8", "W11", "W14"],
@@ -271,6 +282,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "hammersmith-and-fulham",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/a/a6/OdeonHammersmith.jpg",
     name: "Hammersmith & Fulham",
     tagline: "West London's understated gem — riverside living, village pubs, and excellent transport",
     postcodes: ["W6", "W12", "W14", "SW6"],
@@ -294,6 +306,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "ealing",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/e/e9/Town_hall_ealing_804.JPG",
     name: "Ealing",
     tagline: "The Queen of the Suburbs — leafy, diverse, and surprisingly cosmopolitan",
     postcodes: ["W3", "W5", "W7", "W13", "UB1", "UB2"],
@@ -317,6 +330,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "brent",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/d/d2/London_Wembley.jpg",
     name: "Brent",
     tagline: "Wembley's global ambitions, Kilburn's Irish heart, and Kensal Rise's creative cool",
     postcodes: ["NW6", "NW9", "NW10", "HA0", "HA9"],
@@ -339,6 +353,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "greenwich",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/6/69/O2_Arena.jpg",
     name: "Greenwich",
     tagline: "Where time begins — maritime majesty, royal parks, and south-east London's finest villages",
     postcodes: ["SE3", "SE7", "SE9", "SE10", "SE18"],
@@ -364,6 +379,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "lewisham",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/e/e2/A21%2C_Lewisham_-_geograph.org.uk_-_3932112.jpg",
     name: "Lewisham",
     tagline: "Brockley's Victorian charm, Deptford's creative energy, and south London's best-value streets",
     postcodes: ["SE4", "SE6", "SE8", "SE12", "SE13", "SE14", "SE23"],
@@ -386,6 +402,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "bromley",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/4/47/Bromley_Town_Hall_%28East_Face_-_01%29.jpg",
     name: "Bromley",
     tagline: "David Bowie's borough and south London's most spacious, gracious suburb",
     postcodes: ["BR1", "BR2", "BR3", "BR4", "BR5", "BR6", "SE20"],
@@ -408,6 +425,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "croydon",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/5/50/DM2025_Central_Croydon_from_Morland_Road.jpg",
     name: "Croydon",
     tagline: "London's southern gateway — ambitious, diverse, and genuinely undervalued",
     postcodes: ["CR0", "CR2", "CR7", "SE25"],
@@ -429,6 +447,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "merton",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/f/f8/Wimbledon_Common_Windmill_-_geograph.org.uk_-_1252596.jpg",
     name: "Merton",
     tagline: "Wimbledon's tennis glamour and an emerging south London scene",
     postcodes: ["SW19", "SW20", "SM4", "CR4"],
@@ -451,6 +470,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "richmond-upon-thames",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/1/1a/London_Borough_of_Richmond_upon_Thames_%2C_Richmond_Park_-_geograph.org.uk_-_5893241.jpg",
     name: "Richmond upon Thames",
     tagline: "London's most beautiful borough — deer, riverside, and the finest green spaces anywhere",
     postcodes: ["TW9", "TW10", "TW1", "TW2", "SW13", "SW14", "SW15"],
@@ -474,6 +494,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "kingston-upon-thames",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/2/2b/River_Thames_at_Kingston-upon-Thames_-_geograph.org.uk_-_4639104.jpg",
     name: "Kingston upon Thames",
     tagline: "Medieval market town, riverside beauty, and the finest high street in outer London",
     postcodes: ["KT1", "KT2", "KT3"],
@@ -496,6 +517,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "hounslow",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/f/fc/London_%2C_Hounslow_-_City_Scenery_-_geograph.org.uk_-_5118444.jpg",
     name: "Hounslow",
     tagline: "The gateway borough — Heathrow connections, Thames-side Chiswick, and Brentford's renaissance",
     postcodes: ["TW3", "TW4", "TW5", "TW6", "TW7", "TW8", "W4"],
@@ -518,6 +540,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "waltham-forest",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/0/08/William_Morris_Gallery_-_geograph.org.uk_-_4244012.jpg",
     name: "Waltham Forest",
     tagline: "Walthamstow Village, the Marshes, and east London's most exciting creative insurgency",
     postcodes: ["E4", "E10", "E11", "E17"],
@@ -540,6 +563,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "newham",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/c/c0/Olympic_Stadium_London_2012.jpg",
     name: "Newham",
     tagline: "Olympic ambition, Westfield energy, and one of London's most exciting transformations",
     postcodes: ["E6", "E7", "E13", "E15", "E16"],
@@ -561,6 +585,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "barnet",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/6/6e/Hampstead_Garden_Suburb_-_geograph.org.uk_-_186099.jpg",
     name: "Barnet",
     tagline: "North London's leafy suburban heartland with a surprising amount of character",
     postcodes: ["N2", "N3", "N12", "N20", "EN4", "EN5"],
@@ -583,6 +608,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "haringey",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/1/1b/Alexandra_Palace_-_geograph.org.uk_-_749995.jpg",
     name: "Haringey",
     tagline: "Wood Green's energy, Muswell Hill's elegance, and Tottenham's raw ambition",
     postcodes: ["N4", "N8", "N10", "N15", "N17", "N22"],
@@ -606,6 +632,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "enfield",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/f/fa/View_of_Enfield.jpg",
     name: "Enfield",
     tagline: "The edge of London — market town history, Lee Valley wilderness, and surprising countryside",
     postcodes: ["EN1", "EN2", "EN3", "N9", "N13", "N14", "N18", "N21"],
@@ -628,6 +655,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "sutton",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/8/8b/Honeywood_House.jpg",
     name: "Sutton",
     tagline: "Surrey's London outpost — clean air, excellent schools, and genuine suburban character",
     postcodes: ["SM1", "SM2", "SM3", "SM5", "SM6"],
@@ -649,6 +677,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "redbridge",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/5/55/Valentines_Park_-_geograph.org.uk_-_1084567.jpg",
     name: "Redbridge",
     tagline: "Ilford's urban energy, Woodford's quiet woods, and a borough in confident transition",
     postcodes: ["IG1", "IG2", "IG3", "IG4", "IG5", "IG6", "E11", "E18"],
@@ -670,6 +699,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "barking-and-dagenham",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/e/e6/Barking_Abbey_ruins.jpg",
     name: "Barking & Dagenham",
     tagline: "East London's most affordable frontier — industrial heritage meets regeneration ambition",
     postcodes: ["IG11", "RM8", "RM9", "RM10"],
@@ -692,6 +722,7 @@ export const boroughGuides: BoroughGuide[] = [
   },
   {
     slug: "havering",
+    heroImage: "https://upload.wikimedia.org/wikipedia/commons/8/8d/Upminster_Windmill_-_geograph.org.uk_-_458832.jpg",
     name: "Havering",
     tagline: "Essex country houses, riverside marshes, and London's most genuine market town",
     postcodes: ["RM1", "RM2", "RM3", "RM11", "RM12"],

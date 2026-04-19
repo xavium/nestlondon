@@ -550,6 +550,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               initialCommuteAddress={commuteAddress}
             />
 
+            {(() => {
+              const _borough = getBoroughByPostcode(listing.postcode || listing.address || '')
+              return _borough ? <BoroughGuideInline borough={_borough} /> : null
+            })()}
+
             <div className="text-xs text-stone-400 pt-2">
               Listed on {listing.source}
               {(() => {
