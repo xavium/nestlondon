@@ -1,0 +1,167 @@
+'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+
+export interface Slot { date: string; time: string; note?: string }
+export interface CalendarViewing {
+  id: string
+  listing_id: string
+  status: string
+  proposed_slot?: Slot
+  assigned_agent_name?: string | null
+  agent_color?: string | null
+  listings?: {
+    address: string
+    price: number
+    bedrooms: number | null
+    property_type: string | null
+  } | null
+}
+
+function formatSlot(slot: Slot): string {
+  const d = new Date(slot.date + 'T12:00:00')
+  const dateStr = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  return `${dateStr} at ${slot.time}`
+}
+
+export default function ViewingsCalendarView({ viewings }: { viewings: CalendarViewing[] }) {
+  const [selectedViewing, setSelectedViewing] = useState<CalendarViewing | null>(null)
+
+  const confirmed = viewings.filter(v => v.status === 'confirmed' && v.proposed_slot)
+  const proposed = viewings.filter(v => v.status === 'proposed' && v.proposed_slot)
+  const upcoming = [...confirmed, ...proposed].sort((a, b) =>
+    new Date(a.proposed_slot!.date).getTime() - new Date(b.proposed_slot!.date).getTime()
+  )
+
+  const today = new Date()
+  const weeks: Date[][] = []
+  const start = new Date(today)
+  start.setDate(today.getDate() - today.getDay() + 1)
+  for (let w = 0; w < 4; w++) {
+    const week: Date[] = []
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(start)
+      day.setDate(start.getDate() + w * 7 + d)
+      week.push(day)
+    }
+    weeks.push(week)
+  }
+
+  const viewingsByDate: Record<string, CalendarViewing[]> = {}
+  for (const v of upcoming) {
+    const key = v.proposed_slot!.date
+    if (!viewingsByDate[key]) viewingsByDate[key] = []
+    viewingsByDate[key].push(v)
+  }
+
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+  return (
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 mb-5 relative">
+      <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Calendar</h2>
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {dayNames.map(d => (
+          <div key={d} className="text-center text-[10px] font-semibold text-[#9B928E] uppercase tracking-wide py-1">{d}</div>
+        ))}
+      </div>
+      {weeks.map((week, wi) => (
+        <div key={wi} className="grid grid-cols-7 gap-1 mb-1">
+          {week.map((day, di) => {
+            const key = day.toISOString().split('T')[0]
+            const dayViewings = viewingsByDate[key] || []
+            const isToday = key === today.toISOString().split('T')[0]
+            const isPast = day < today && !isToday
+            return (
+              <div key={di} className={'rounded-lg p-1 min-h-[52px] text-center ' + (isToday ? 'bg-[#F5EBE0]' : isPast ? '' : 'hover:bg-stone-50')}>
+                <div className={'text-xs mb-1 ' + (isToday ? 'font-bold text-[#D3755A]' : isPast ? 'text-[#C8C4BF]' : 'text-[#3D3A38]')}>
+                  {day.getDate()}
+                </div>
+                {dayViewings.map(v => {
+                  const c = v.agent_color || ''
+                  const hasColor = !!c
+                  const style = hasColor ? { background: c + '33', color: c, borderLeft: `3px solid ${c}` } : undefined
+                  const fallback = v.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                  return (
+                    <button key={v.id} onClick={() => setSelectedViewing(v)}
+                      className={'w-full text-[9px] px-1 py-0.5 rounded mb-0.5 truncate text-left cursor-pointer hover:opacity-80 transition-opacity ' + (hasColor ? '' : fallback)}
+                      style={style}>
+                      {v.proposed_slot!.time}
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+      <div className="flex gap-3 mt-3 pt-3 border-t border-[#F0EBE5]">
+        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-green-100" />Confirmed</div>
+        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-blue-100" />Proposed</div>
+      </div>
+
+      {selectedViewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setSelectedViewing(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className={'text-xs font-semibold px-2 py-0.5 rounded-full inline-block mb-2 ' +
+                  (selectedViewing.status === 'confirmed' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700')}>
+                  {selectedViewing.status === 'confirmed' ? 'Confirmed' : 'Proposed'}
+                </div>
+                <h3 className="text-base font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>
+                  {selectedViewing.listings?.address || 'Property viewing'}
+                </h3>
+              </div>
+              <button onClick={() => setSelectedViewing(null)} className="text-[#9B928E] hover:text-[#1B2E4B] text-lg leading-none ml-4">✕</button>
+            </div>
+
+            {selectedViewing.listings && (
+              <div className="text-xs text-[#9B928E] mb-3">
+                £{selectedViewing.listings.price?.toLocaleString()}/mo
+                {selectedViewing.listings.bedrooms ? ' · ' + selectedViewing.listings.bedrooms + ' bed' : ''}
+                {selectedViewing.listings.property_type ? ' · ' + selectedViewing.listings.property_type : ''}
+              </div>
+            )}
+
+            <div className="bg-[#F5EBE0] rounded-xl p-4 mb-4">
+              <div className="text-xs text-[#9B928E] mb-1">Date & time</div>
+              <div className="text-sm font-medium text-[#1B2E4B]">
+                {formatSlot(selectedViewing.proposed_slot!)}
+              </div>
+              {selectedViewing.assigned_agent_name && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/60">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: selectedViewing.agent_color || '#F5EBE0' }}>
+                    <span className="text-[10px] font-medium text-white">{selectedViewing.assigned_agent_name.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[#9B928E]">Assigned agent</div>
+                    <div className="text-xs font-medium text-[#1B2E4B]">{selectedViewing.assigned_agent_name}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Link href={'/listings/' + selectedViewing.listing_id} target="_blank" rel="noopener noreferrer"
+                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center no-underline hover:bg-[#F5EBE0] transition-colors">
+                View property
+              </Link>
+              <button
+                onClick={() => {
+                  setSelectedViewing(null)
+                  setTimeout(() => {
+                    const el = document.getElementById('viewing-' + selectedViewing.id)
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  }, 100)
+                }}
+                className="flex-1 py-2.5 rounded-xl text-white text-xs text-center transition-opacity hover:opacity-90"
+                style={{background:'#D3755A'}}>
+                Manage viewing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

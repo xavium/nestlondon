@@ -1,9 +1,12 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+
 import { useState } from 'react'
 import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
 import NavAuthButton from '@/components/NavAuthButton'
+import ViewingsCalendarView from '@/components/ViewingsCalendarView'
 
 interface Listing {
   id: string
@@ -124,7 +127,9 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
     setOwnerActioning(false)
   }
 
-  const [dashTab, setDashTab] = useState<'analytics' | 'listings' | 'viewings'>('analytics')
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'analytics' | 'listings' | 'viewings') || 'analytics'
+  const [dashTab, setDashTab] = useState<'analytics' | 'listings' | 'viewings'>(initialTab)
   const [managingId, setManagingId] = useState<string | null>(null)
 
   async function manageListing(listing_id: string, action: 'deactivate' | 'activate' | 'delete') {
@@ -262,7 +267,18 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
           ))}
         </div>
 
-        {dashTab === 'viewings' && <ViewingsCalendar requests={requests} listings={listings} />}
+        {dashTab === 'viewings' && (
+          <ViewingsCalendarView viewings={requests.map(r => {
+            const l = listings.find(x => x.id === r.listing_id)
+            return {
+              id: r.id,
+              listing_id: r.listing_id,
+              status: r.status,
+              proposed_slot: r.proposed_slot,
+              listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null
+            }
+          })} />
+        )}
 
         {dashTab === 'listings' && (
           <div>

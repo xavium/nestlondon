@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { boroughGuides } from '@/data/boroughGuides';
 import { useRouter } from 'next/navigation';
 
 const STEPS = [
@@ -77,53 +78,40 @@ interface BoroughResult {
   searchSlug: string;
 }
 
-const BOROUGH_IMAGES: Record<string, string> = {
-  'Hackney': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Hackney_Empire.jpg/800px-Hackney_Empire.jpg',
-  'Richmond': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Richmond_Bridge_2008.jpg/800px-Richmond_Bridge_2008.jpg',
-  'Brixton': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Brixton_market_day.jpg/800px-Brixton_market_day.jpg',
-  'Islington': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Upper_St_Islington.jpg/800px-Upper_St_Islington.jpg',
-  'Clapham': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Clapham_Common_-_geograph.org.uk_-_1008.jpg/800px-Clapham_Common_-_geograph.org.uk_-_1008.jpg',
-  'Bermondsey': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Shad_Thames_-_geograph.org.uk_-_1531079.jpg/800px-Shad_Thames_-_geograph.org.uk_-_1531079.jpg',
-  'Walthamstow': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Walthamstow_Central.jpg/800px-Walthamstow_Central.jpg',
-  'Lewisham': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Lewisham_Clock_Tower.jpg/800px-Lewisham_Clock_Tower.jpg',
-  'Battersea': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Battersea_Power_Station_2016.jpg/800px-Battersea_Power_Station_2016.jpg',
-  'Bethnal Green': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Victoria_Park%2C_Bethnal_Green.jpg/800px-Victoria_Park%2C_Bethnal_Green.jpg',
-  'Peckham': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Peckham_-_Rye_Lane.jpg/800px-Peckham_-_Rye_Lane.jpg',
-  'Dalston': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Dalston_Junction.jpg/800px-Dalston_Junction.jpg',
-  'Stoke Newington': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Stoke_Newington_Church_Street.jpg/800px-Stoke_Newington_Church_Street.jpg',
-  'Camberwell': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Camberwell_Green_2.jpg/800px-Camberwell_Green_2.jpg',
-  'Shoreditch': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Shoreditch_High_Street_station.jpg/800px-Shoreditch_High_Street_station.jpg',
-  'Camden': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Camden_Lock_2.jpg/800px-Camden_Lock_2.jpg',
-  'Notting Hill': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Portobello_road.jpg/800px-Portobello_road.jpg',
-  'Greenwich': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Greenwich_Park_August_2012.jpg/800px-Greenwich_Park_August_2012.jpg',
-  'Hampstead': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Hampstead_Heath_-_geograph.org.uk_-_990829.jpg/800px-Hampstead_Heath_-_geograph.org.uk_-_990829.jpg',
-  'Fulham': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Fulham_Palace_-_geograph.org.uk_-_1570898.jpg/800px-Fulham_Palace_-_geograph.org.uk_-_1570898.jpg',
-  'Wandsworth': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Wandsworth_town_centre.jpg/800px-Wandsworth_town_centre.jpg',
-  'Wimbledon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Wimbledon_village.jpg/800px-Wimbledon_village.jpg',
-  'Canary Wharf': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Canary_Wharf_from_Reuters_Plaza.jpg/800px-Canary_Wharf_from_Reuters_Plaza.jpg',
-  'Stratford': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Stratford_Centre.jpg/800px-Stratford_Centre.jpg',
-  'Whitechapel': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Whitechapel_Road_E1.jpg/800px-Whitechapel_Road_E1.jpg',
-  'Clerkenwell': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Exmouth_Market.jpg/800px-Exmouth_Market.jpg',
-  'Hammersmith': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Hammersmith_Bridge_-_geograph.org.uk_-_1070916.jpg/800px-Hammersmith_Bridge_-_geograph.org.uk_-_1070916.jpg',
-  'Shepherd Bush': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Shepherds_Bush_Green.jpg/800px-Shepherds_Bush_Green.jpg',
-  'Chiswick': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Chiswick_House_-_geograph.org.uk_-_1126891.jpg/800px-Chiswick_House_-_geograph.org.uk_-_1126891.jpg',
-  'Ealing': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Ealing_Broadway_Centre.jpg/800px-Ealing_Broadway_Centre.jpg',
-  'Tooting': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Tooting_Bec_Common.jpg/800px-Tooting_Bec_Common.jpg',
-  'Balham': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Balham_Station.jpg/800px-Balham_Station.jpg',
-  'Highbury': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Highbury_Fields.jpg/800px-Highbury_Fields.jpg',
-  'Primrose Hill': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Primrose_Hill_-_geograph.org.uk_-_1083833.jpg/800px-Primrose_Hill_-_geograph.org.uk_-_1083833.jpg',
-  'Kingston': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Kingston_upon_Thames_-_geograph.org.uk_-_1008.jpg/800px-Kingston_upon_Thames_-_geograph.org.uk_-_1008.jpg',
-  'Twickenham': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Twickenham_riverside.jpg/800px-Twickenham_riverside.jpg',
-  'Vauxhall': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Vauxhall_Bridge_-_geograph.org.uk_-_1531079.jpg/800px-Vauxhall_Bridge_-_geograph.org.uk_-_1531079.jpg',
-  'Elephant and Castle': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Elephant_and_Castle_-_geograph.org.uk_-_1765.jpg/800px-Elephant_and_Castle_-_geograph.org.uk_-_1765.jpg',
-  'Borough': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Borough_Market_-_geograph.org.uk_-_1139346.jpg/800px-Borough_Market_-_geograph.org.uk_-_1139346.jpg',
-  'Tower Hamlets': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Tower_of_London_-_2012.jpg/800px-Tower_of_London_-_2012.jpg',
-  'Bow': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Bow_Church_Cheapside.jpg/800px-Bow_Church_Cheapside.jpg',
-  'Crystal Palace': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Crystal_Palace_Park_-_geograph.org.uk_-_1416522.jpg/800px-Crystal_Palace_Park_-_geograph.org.uk_-_1416522.jpg',
-  'Kennington': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Kennington_Park.jpg/800px-Kennington_Park.jpg',
-  'Forest Hill': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Horniman_Museum_and_Gardens.jpg/800px-Horniman_Museum_and_Gardens.jpg',
-  'Kew': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Kew_Gardens_Palm_House%2C_London_-_Sept_2008.jpg/800px-Kew_Gardens_Palm_House%2C_London_-_Sept_2008.jpg',
+// Neighborhood -> borough mapping (fallback if AI returns a neighborhood instead of a borough)
+const NEIGHBORHOOD_TO_BOROUGH: Record<string, string> = {
+  'Brixton': 'Lambeth', 'Clapham': 'Lambeth', 'Vauxhall': 'Lambeth', 'Kennington': 'Lambeth',
+  'Shoreditch': 'Hackney', 'Dalston': 'Hackney', 'Stoke Newington': 'Hackney', 'Hackney Central': 'Hackney',
+  'Bermondsey': 'Southwark', 'Peckham': 'Southwark', 'Camberwell': 'Southwark', 'Borough': 'Southwark', 'Elephant and Castle': 'Southwark',
+  'Bethnal Green': 'Tower Hamlets', 'Canary Wharf': 'Tower Hamlets', 'Whitechapel': 'Tower Hamlets', 'Bow': 'Tower Hamlets',
+  'Hampstead': 'Camden', 'Primrose Hill': 'Camden', 'Kentish Town': 'Camden',
+  'Highbury': 'Islington', 'Clerkenwell': 'Islington',
+  'Battersea': 'Wandsworth', 'Tooting': 'Wandsworth', 'Balham': 'Wandsworth', 'Wandsworth': 'Wandsworth',
+  'Wimbledon': 'Merton',
+  'Fulham': 'Hammersmith and Fulham', 'Hammersmith': 'Hammersmith and Fulham', 'Shepherd Bush': 'Hammersmith and Fulham', 'Shepherds Bush': 'Hammersmith and Fulham',
+  'Chiswick': 'Hounslow',
+  'Notting Hill': 'Kensington and Chelsea',
+  'Richmond': 'Richmond upon Thames', 'Twickenham': 'Richmond upon Thames', 'Kew': 'Richmond upon Thames',
+  'Kingston': 'Kingston upon Thames',
+  'Forest Hill': 'Lewisham', 'Lewisham': 'Lewisham',
+  'Crystal Palace': 'Bromley',
+  'Stratford': 'Newham', 'Walthamstow': 'Waltham Forest',
+  'Tower Hamlets': 'Tower Hamlets',
 };
+
+function getBoroughImage(name: string): string | null {
+  // Try direct borough match
+  let match = boroughGuides.find(b => b.name.toLowerCase() === name.toLowerCase());
+  // Try neighborhood -> borough fallback
+  if (!match) {
+    const boroughName = NEIGHBORHOOD_TO_BOROUGH[name];
+    if (boroughName) {
+      match = boroughGuides.find(b => b.name === boroughName);
+    }
+  }
+  return match?.heroImage || null;
+}
+
 const DEFAULT_IMG = 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80';
 
 function fmtRent(v: number) {
@@ -190,10 +178,13 @@ Return this exact JSON shape:
 }
 
 Rules:
+- You MUST choose from these 32 London boroughs only: City of London, Westminster, Camden, Islington, Hackney, Tower Hamlets, Southwark, Lambeth, Wandsworth, Kensington and Chelsea, Hammersmith and Fulham, Ealing, Brent, Greenwich, Lewisham, Bromley, Croydon, Merton, Richmond upon Thames, Kingston upon Thames, Hounslow, Haringey, Enfield, Waltham Forest, Redbridge, Newham, Barking and Dagenham, Havering, Bexley, Sutton, Barnet, Harrow
+- Do NOT return neighborhoods (e.g. use "Lambeth" not "Brixton", "Hackney" not "Shoreditch", "Camden" not "Hampstead")
+- name: exact borough name from the list above, matching capitalisation
 - matchPercent: integer 75-98, highest first
 - tags: 3 short vibe tags (e.g. "Young crowd", "Cafe culture", "Great transport")
 - bullets: 3 specific, warm, positive reasons this borough suits them
-- searchSlug: lowercase borough name for URL
+- searchSlug: lowercase borough name for URL (e.g. "hammersmith-and-fulham")
 - Only recommend boroughs where average rents are achievable within their budget
 - If a commute destination is given, prioritise boroughs with good transport links to that destination within the stated commute time
 - If the person is a student, factor in proximity to universities, student-friendly amenities, and affordable areas
@@ -249,7 +240,7 @@ Rules:
             {results.map((b) => (
               <div key={b.name} className="bg-white rounded-2xl overflow-hidden border border-black/5 shadow-sm">
                 <img
-                  src={BOROUGH_IMAGES[b.name] || DEFAULT_IMG}
+                  src={getBoroughImage(b.name) || DEFAULT_IMG}
                   alt={b.name}
                   onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMG }}
                   className="h-48 w-full object-cover"
@@ -373,15 +364,22 @@ Rules:
           {current.type === 'slider' && (
             <>
               <div className="flex items-center gap-4 mb-3">
-                <input
-                  type="range"
-                  min={current.min}
-                  max={current.max}
-                  step={current.step}
-                  value={(answers[current.id] as number) || current.default}
-                  onChange={e => setAnswers({ ...answers, [current.id]: parseInt(e.target.value) })}
-                  className="flex-1 accent-[#D3755A]"
-                />
+                {(() => {
+                  const val = (answers[current.id] as number) || current.default;
+                  const pct = ((val - current.min) / (current.max - current.min)) * 100;
+                  return (
+                    <input
+                      type="range"
+                      min={current.min}
+                      max={current.max}
+                      step={current.step}
+                      value={val}
+                      onChange={e => setAnswers({ ...answers, [current.id]: parseInt(e.target.value) })}
+                      className="flex-1 range-fill accent-[#D3755A]"
+                      style={{ ['--value' as any]: `${pct}%` }}
+                    />
+                  );
+                })()}
                 <span className="text-xl font-medium text-[#D3755A] min-w-[90px]">
                   {fmtRent((answers[current.id] as number) || current.default)}
                 </span>

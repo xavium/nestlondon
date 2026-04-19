@@ -399,7 +399,8 @@ export default function SearchFilters(props: Props) {
               step={5}
               value={maxCommute || 90}
               onChange={e => setMaxCommute(parseInt(e.target.value) === 90 ? null : parseInt(e.target.value))}
-              className="w-full accent-[#D3755A]"
+              className="w-full range-fill accent-[#D3755A]"
+              style={{ ['--value' as any]: `${(((maxCommute || 90) - 5) / 85) * 100}%` }}
             />
             <div className="flex justify-between text-[10px] text-[#9B928E] mt-1">
               <span>5 min</span>

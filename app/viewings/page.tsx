@@ -16,6 +16,11 @@ export default async function ViewingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?next=/viewings')
 
+  // Owners and agents manage viewings from their portal, not /viewings
+  const role = user.user_metadata?.role
+  if (role === 'owner' || role === 'landlord') redirect('/dashboard/owner?tab=viewings')
+  if (role === 'agent' || role === 'admin') redirect('/dashboard?tab=viewings')
+
   const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
   const { data: viewings } = await svc

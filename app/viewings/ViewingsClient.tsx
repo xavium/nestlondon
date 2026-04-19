@@ -61,7 +61,6 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
     new Date(a.proposed_slot!.date).getTime() - new Date(b.proposed_slot!.date).getTime()
   )
 
-  if (upcoming.length === 0) return null
 
   const today = new Date()
   const weeks: Date[][] = []
@@ -238,22 +237,21 @@ export default function ViewingsClient({ viewings, currentUserId }: { viewings: 
   const pendingCount = viewings.filter(v => v.status === 'pending' || v.status === 'proposed').length
   const confirmedCount = viewings.filter(v => v.status === 'confirmed').length
 
-  if (viewings.length === 0) return (
-    <div className="text-center py-16 bg-white rounded-2xl border border-[#E8E2DA]">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(211,117,90,0.10)' }}>
-        <svg className="w-7 h-7" fill="none" stroke="#D3755A" viewBox="0 0 24 24">
-          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      </div>
-      <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{ fontFamily: 'Georgia,serif' }}>No viewing requests yet</h2>
-      <p className="text-sm text-[#9B928E] mb-6">When you request a viewing on a property it will appear here.</p>
-      <Link href="/search" className="px-6 py-3 rounded-xl text-white text-sm no-underline" style={{ background: '#D3755A' }}>Browse properties →</Link>
-    </div>
-  )
-
   return (
     <div className="flex flex-col gap-5">
       <CalendarView viewings={viewings} />
+      {viewings.length === 0 && (
+        <div className="text-center py-10 bg-white rounded-2xl border border-[#E8E2DA]">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(211,117,90,0.10)' }}>
+            <svg className="w-7 h-7" fill="none" stroke="#D3755A" viewBox="0 0 24 24">
+              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{ fontFamily: 'Georgia,serif' }}>No viewing requests yet</h2>
+          <p className="text-sm text-[#9B928E] mb-6">When you request a viewing on a property it will appear here.</p>
+          <Link href="/search" className="px-6 py-3 rounded-xl text-white text-sm no-underline" style={{ background: '#D3755A' }}>Browse properties →</Link>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2">

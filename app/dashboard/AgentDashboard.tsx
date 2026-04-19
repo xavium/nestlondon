@@ -1,7 +1,10 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+
 import { useState } from 'react'
 import Link from 'next/link'
+import ViewingsCalendarView from '@/components/ViewingsCalendarView'
 
 interface Listing {
   id: string
@@ -27,6 +30,7 @@ interface AgencyAgent {
   name: string
   email: string | null
   role: string
+  color: string | null
 }
 
 interface Props {
@@ -58,8 +62,15 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   )
 }
 
+const AGENT_COLORS = [
+  '#D3755A', '#1B2E4B', '#5B9A8B', '#E8A87C', '#C38D9E',
+  '#6C5CE7', '#00B894', '#FDCB6E', '#D63031', '#0984E3',
+]
+
 export default function AgentDashboardClient({ user, agentRecord, listings, viewingRequests, messages, events, agencyAgents: initialAgencyAgents = [], comparables = {}, avgDaysOnMarket = {} }: Props) {
-  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'team'>('overview')
+  const searchParams = useSearchParams()
+  const initialAgentTab = (searchParams.get('tab') as 'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'team') || 'overview'
+  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'team'>(initialAgentTab)
   const [listingsState, setListingsState] = useState(listings)
   const [selectedListing, setSelectedListing] = useState<string | null>(null)
 
@@ -72,22 +83,28 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const [assigningId, setAssigningId] = useState<string | null>(null)
   const [agencyAgents, setAgencyAgents] = useState<AgencyAgent[]>(initialAgencyAgents)
   const [newAgentName, setNewAgentName] = useState('')
+  const [newAgentColor, setNewAgentColor] = useState<string>(AGENT_COLORS[0])
   const [newAgentEmail, setNewAgentEmail] = useState('')
   const [addingAgent, setAddingAgent] = useState(false)
 
   async function addAgencyAgent() {
     if (!newAgentName.trim()) return
+    if (agencyAgents.some(a => a.color === newAgentColor)) {
+      alert('That color is already used by another team member. Please pick another.')
+      return
+    }
     setAddingAgent(true)
     const res = await fetch('/api/agency/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newAgentName.trim(), email: newAgentEmail.trim() || null })
+      body: JSON.stringify({ name: newAgentName.trim(), email: newAgentEmail.trim() || null, color: newAgentColor })
     })
     const data = await res.json()
     if (data.agent) {
       setAgencyAgents(a => [...a, data.agent])
       setNewAgentName('')
       setNewAgentEmail('')
+      setNewAgentColor(AGENT_COLORS[0])
     }
     setAddingAgent(false)
   }
@@ -858,6 +875,19 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       {tab === 'viewings' && (
         <div className="flex flex-col gap-4">
           {assignedAgents.length > 0 && <AgentFilterBar />}
+          <ViewingsCalendarView viewings={filteredViewings.map((v: any) => {
+            const l = listingsState.find(x => x.id === v.listing_id)
+            const agent = l?.assigned_agent_name ? agencyAgents.find(a => a.name === l.assigned_agent_name) : null
+            return {
+              id: v.id,
+              listing_id: v.listing_id,
+              status: v.status,
+              proposed_slot: v.proposed_slot,
+              assigned_agent_name: l?.assigned_agent_name || null,
+              agent_color: agent?.color || null,
+              listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null
+            }
+          })} />
           {filteredViewings.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#E8E2DA]">
               <p className="text-sm text-[#9B928E]">No viewing requests.</p>
@@ -929,6 +959,13 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               <input value={newAgentEmail} onChange={e => setNewAgentEmail(e.target.value)}
                 placeholder="Email (optional)" type="email"
                 className="flex-1 border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+              <div className="flex gap-2.5 items-center">
+                {AGENT_COLORS.filter(c => !agencyAgents.some(a => a.color === c)).map(c => (
+                  <button key={c} type="button" onClick={() => setNewAgentColor(c)}
+                    className={'w-7 h-7 rounded-full transition-transform ' + (newAgentColor === c ? 'ring-2 ring-offset-2 ring-[#1B2E4B]' : 'hover:scale-110')}
+                    style={{ background: c }} title="Pick color" />
+                ))}
+              </div>
               <button onClick={addAgencyAgent} disabled={addingAgent || !newAgentName.trim()}
                 className="px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
                 style={{ background: '#D3755A' }}>
@@ -946,8 +983,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
             <div className="flex flex-col gap-3">
               {agencyAgents.map(a => (
                 <div key={a.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-[#F5EBE0] flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-medium text-[#D3755A]">{a.name.charAt(0).toUpperCase()}</span>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: a.color || '#F5EBE0' }}>
+                    <span className="text-sm font-medium text-white">{a.name.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-[#1B2E4B]">{a.name}</div>
