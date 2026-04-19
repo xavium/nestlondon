@@ -252,11 +252,19 @@ async def get_full_description(context, source_url):
                 return imgs.map(img => img.src).filter(src => src.includes('floorplan') || src.includes('floor_plan') || src.includes('floor-plan'))
             }''')
             if floorplan_imgs:
-                result['floorplans'] = [
-                    u.replace('_max_476x317.jpeg', '_max_1440x1080.jpeg')
-                     .replace('_max_296x197.jpeg', '_max_1440x1080.jpeg')
-                    for u in floorplan_imgs
-                ]
+                # Strip _max_WxH size suffix for full-resolution; dedupe by filename hash
+                seen_fp = set()
+                full_res_fp = []
+                for u in floorplan_imgs:
+                    if not u or not u.startswith('http'):
+                        continue
+                    upgraded = re.sub(r'_max_\d+x\d+(?=\.(jpe?g|png|webp)$)', '', u)
+                    img_hash = upgraded.rsplit('/', 1)[-1].rsplit('.', 1)[0]
+                    if img_hash in seen_fp:
+                        continue
+                    seen_fp.add(img_hash)
+                    full_res_fp.append(upgraded)
+                result['floorplans'] = full_res_fp
         except Exception as fe:
             print('  Floorplan error: ' + str(fe))
 
