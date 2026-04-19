@@ -404,7 +404,18 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
             image_urls = listing.get('image_urls') or []
             if not image_urls and listing.get('image_url'):
                 image_urls = [listing.get('image_url')]
-            images = [u.replace('_max_476x317.jpeg', '_max_1440x1080.jpeg').replace('_max_476x317.jpg', '_max_1440x1080.jpg') for u in image_urls if u and u.startswith('http')]
+            # Strip _max_WxH size suffix to get full-resolution image; dedupe by filename hash
+            images = []
+            seen_hashes = set()
+            for u in image_urls:
+                if not u or not u.startswith('http'):
+                    continue
+                upgraded = re.sub(r'_max_\d+x\d+(?=\.(jpe?g|png|webp)$)', '', u)
+                img_hash = upgraded.rsplit('/', 1)[-1].rsplit('.', 1)[0]
+                if img_hash in seen_hashes:
+                    continue
+                seen_hashes.add(img_hash)
+                images.append(upgraded)
 
             postcode = None
             match = re.search(r'[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}', address)

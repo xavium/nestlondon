@@ -745,8 +745,21 @@ export const boroughGuides: BoroughGuide[] = [
 ]
 
 export function getBoroughByPostcode(postcode: string): BoroughGuide | null {
-  const district = postcode.trim().toUpperCase().match(/^([A-Z]{1,2}[0-9][0-9A-Z]?)/)?.[1] || ""
-  return boroughGuides.find(b => b.postcodes.some(pc => district.startsWith(pc))) || null
+  // Match the postcode district anywhere in the input (handles full addresses, not just bare postcodes)
+  const district = postcode.toUpperCase().match(/\b([A-Z]{1,2}[0-9][0-9A-Z]?)(?=\s*[0-9][A-Z]{2}\b|\s*,|\s*$)/)?.[1] || ""
+  if (!district) return null
+  // Prefer longest postcode prefix match (e.g. "EC1V" should match Islington's "EC1V" not City's "EC1")
+  let best: BoroughGuide | null = null
+  let bestLen = 0
+  for (const b of boroughGuides) {
+    for (const pc of b.postcodes) {
+      if (district.startsWith(pc) && pc.length > bestLen) {
+        best = b
+        bestLen = pc.length
+      }
+    }
+  }
+  return best
 }
 
 export function getBoroughBySlug(slug: string): BoroughGuide | null {
