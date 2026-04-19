@@ -22,10 +22,13 @@ export default async function OwnerDashboardPage() {
     (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
   )
 
+  const role = user.user_metadata?.role as string | undefined
+  const specialismListingType = role?.endsWith('_sales') ? 'buy' : role?.endsWith('_lettings') ? 'rent' : null
+
   // Get user's listings via direct fetch (JS client doesn't support nested JSON path filters)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
-  const fields = 'id,address,price,bedrooms,bathrooms,property_type,borough,square_feet,is_active,listed_at,images,raw_data'
+  const fields = 'id,address,price,bedrooms,bathrooms,property_type,borough,square_feet,is_active,listed_at,images,raw_data,listing_type'
   const emailEnc = encodeURIComponent(user.email!)
   console.log('Dashboard user email:', user.email, 'id:', user.id)
 
@@ -40,6 +43,7 @@ export default async function OwnerDashboardPage() {
   const allListings = [...(Array.isArray(l1) ? l1 : []), ...(Array.isArray(l2) ? l2 : []), ...(Array.isArray(l3) ? l3 : [])].filter(l => {
     if (seen.has(l.id)) return false
     seen.add(l.id)
+    if (specialismListingType && l.listing_type && l.listing_type !== specialismListingType) return false
     return true
   })
 

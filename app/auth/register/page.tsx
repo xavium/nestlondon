@@ -35,7 +35,7 @@ export default function RegisterPage() {
           </Link>
 
           {/* Private owner / Landlord */}
-          <Link href="/list/auth?redirect=/list" className="group bg-white border border-[#E8E2DA] rounded-2xl p-7 hover:shadow-lg hover:border-[#D3755A] transition-all no-underline">
+          <Link href="/auth/signup?role=owner" className="group bg-white border border-[#E8E2DA] rounded-2xl p-7 hover:shadow-lg hover:border-[#D3755A] transition-all no-underline">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{background:'rgba(211,117,90,0.12)'}}>
               <svg className="w-6 h-6" fill="none" stroke="#D3755A" viewBox="0 0 24 24">
                 <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>

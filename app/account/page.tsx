@@ -39,7 +39,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
   // Fetch agent record if agent
   let agentRecord = null
-  if (role === 'agent') {
+  if (role?.startsWith('agent')) {
     const { createClient } = await import('@supabase/supabase-js')
     const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const { data } = await svc.from('agents').select('*').eq('id', user.id).maybeSingle()

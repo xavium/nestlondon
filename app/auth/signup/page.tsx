@@ -16,6 +16,7 @@ function SignupForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [agencyName, setAgencyName] = useState('')
+  const [specialism, setSpecialism] = useState<'lettings' | 'sales'>('lettings')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -51,7 +52,8 @@ function SignupForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const metadata: Record<string, string> = { role: roleParam, name }
+    const actualRole = (roleParam === 'agent' || roleParam === 'owner') ? `${roleParam}_${specialism}` : roleParam
+    const metadata: Record<string, string> = { role: actualRole, name }
     if (roleParam === 'agent' && agencyName) metadata.agency_name = agencyName
 
     const { data: signUpData, error } = await supabase.auth.signUp({
@@ -119,6 +121,26 @@ function SignupForm() {
             <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Full name</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} required className={inputClass} placeholder="Your full name" />
           </div>
+
+          {(roleParam === 'agent' || roleParam === 'owner') && (
+            <div>
+              <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">
+                {roleParam === 'owner' ? 'What are you doing with your property?' : 'Specialism'}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['lettings', 'sales'] as const).map(s => (
+                  <button key={s} type="button" onClick={() => setSpecialism(s)}
+                    className={'py-2.5 rounded-xl text-sm font-medium border transition-colors ' + (specialism === s
+                      ? 'border-[#D3755A] bg-[#F5EBE0] text-[#1B2E4B]'
+                      : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}>
+                    {roleParam === 'owner'
+                      ? (s === 'lettings' ? 'I am letting' : 'I am selling')
+                      : (s.charAt(0).toUpperCase() + s.slice(1))}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {roleParam === 'agent' && (
             <div>

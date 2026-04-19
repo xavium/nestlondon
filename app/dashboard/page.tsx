@@ -18,8 +18,8 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
   const role = user.user_metadata?.role
-  if (role === 'owner' || role === 'landlord') redirect('/dashboard/owner')
-  if (role !== 'agent' && role !== 'admin') redirect('/')
+  if (role?.startsWith('owner') || role === 'landlord') redirect('/dashboard/owner')
+  if (!role?.startsWith('agent') && role !== 'admin') redirect('/')
 
   const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -43,12 +43,17 @@ export default async function DashboardPage() {
     }
   }
 
+  // Filter by specialism: _lettings sees rent listings, _sales sees buy listings
+  const specialismListingType = role?.endsWith('_sales') ? 'buy' : role?.endsWith('_lettings') ? 'rent' : null
+
   // Fetch all listings for this agent
-  const { data: listings } = await svc
+  let listingsQuery = svc
     .from('listings')
-    .select('id, address, price, bedrooms, property_type, images, is_active, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name, square_feet, latitude, longitude, postcode')
+    .select('id, address, price, bedrooms, property_type, images, is_active, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name, square_feet, latitude, longitude, postcode, listing_type')
     .eq('agent_id', user.id)
     .order('scraped_at', { ascending: false })
+  if (specialismListingType) listingsQuery = listingsQuery.eq('listing_type', specialismListingType)
+  const { data: listings } = await listingsQuery
 
   const ids = (listings || []).map(l => l.id)
 

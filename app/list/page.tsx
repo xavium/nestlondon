@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
 export default async function ListPage() {
   const cookieStore = await cookies()
@@ -13,6 +14,11 @@ export default async function ListPage() {
   const userName = user?.user_metadata?.full_name || user?.email || null
   const userRole = user?.user_metadata?.role || null
   const isResident = user && (userRole === 'resident' || userRole === 'tenant')
+  const isAgent = user && typeof userRole === 'string' && userRole.startsWith('agent')
+  const isOwner = user && typeof userRole === 'string' && (userRole.startsWith('owner') || userRole === 'landlord')
+
+  if (isAgent) redirect('/dashboard?tab=listings')
+  if (isOwner) redirect('/list/private')
 
   if (isResident) return (
     <main className="min-h-screen bg-[#F5EBE0] flex items-center justify-center px-4">

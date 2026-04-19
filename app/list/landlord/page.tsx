@@ -31,7 +31,7 @@ export default async function LandlordListingPage() {
           <p className="text-sm text-[#3D3A38] mt-2">Free to list. Manage multiple properties. Enquiries to your dashboard.</p>
         </div>
         <div className="bg-white border border-[#E8E2DA] rounded-2xl p-8">
-          <CreateListingForm type="landlord" />
+          <CreateListingForm lister="landlord" defaultListingType="rent" />
         </div>
       </div>
     </main>

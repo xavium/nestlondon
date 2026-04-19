@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 interface Props {
-  type: 'private' | 'landlord'
+  lister: 'private' | 'landlord' | 'agent'
+  defaultListingType?: 'rent' | 'buy'
+  defaultName?: string
+  defaultEmail?: string
+  defaultPhone?: string
 }
 
 const PROPERTY_TYPES = ['Flat', 'House', 'Studio', 'Maisonette', 'Bungalow', 'Room']
@@ -15,7 +19,7 @@ const FLOOR_LAYOUT_OPTIONS = ['Single level', 'Split-level', 'Multiple floors']
 const EPC_RATINGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 const COUNCIL_TAX_BANDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-export default function CreateListingForm({ type }: Props) {
+export default function CreateListingForm({ lister, defaultListingType = 'rent', defaultName = '', defaultEmail = '', defaultPhone = '' }: Props) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -34,7 +38,7 @@ export default function CreateListingForm({ type }: Props) {
       setAuthToken(session?.access_token || null)
       if (session?.user) {
         const u = session.user
-        const name = u.user_metadata?.full_name || ''
+        const name = u.user_metadata?.agency_name || u.user_metadata?.full_name || u.user_metadata?.name || u.email || ''
         const email = u.email || ''
         const phone = u.user_metadata?.phone || ''
         setUser({ name, email, phone })
@@ -47,11 +51,12 @@ export default function CreateListingForm({ type }: Props) {
 
   const [form, setForm] = useState({
     // Contact
-    name: '', email: '', phone: '',
+    name: defaultName, email: '', phone: '',
     company_name: '', company_reg: '',
     // Property
     address: '', borough: '', postcode: '',
     property_type: 'Flat',
+    listing_type: defaultListingType as 'rent' | 'buy',
     bedrooms: '', bathrooms: '',
     square_feet: '',
     which_floor: '',
@@ -146,7 +151,7 @@ export default function CreateListingForm({ type }: Props) {
       const res = await fetch('/api/listings/create', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ...form, images: imageUrls, listing_type: type })
+        body: JSON.stringify({ ...form, images: imageUrls, lister })
       })
       const text = await res.text()
       console.log('API response:', res.status, text)
@@ -168,7 +173,7 @@ export default function CreateListingForm({ type }: Props) {
       </div>
       <h2 className="text-2xl font-light text-[#1B2E4B] mb-3" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Listing submitted!</h2>
       <p className="text-[#3D3A38] text-sm mb-8">Your property will be reviewed and published within 24 hours. We'll email you at {form.email}.</p>
-      <button onClick={() => router.push('/dashboard/owner')} className="px-6 py-3 rounded-xl text-white text-sm" style={{background:'#D3755A'}}>View your dashboard →</button>
+      <button onClick={() => router.push(lister === 'agent' ? '/dashboard?tab=listings' : '/dashboard/owner')} className="px-6 py-3 rounded-xl text-white text-sm" style={{background:'#D3755A'}}>View your dashboard →</button>
     </div>
   )
 
@@ -210,20 +215,20 @@ export default function CreateListingForm({ type }: Props) {
       {/* Step 1: Contact */}
       {step === 1 && (
         <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Your contact details</h2>
-          <div>
+          {lister !== 'agent' && <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Your contact details</h2>}
+          {lister !== 'agent' && <div>
             <label className={labelClass}>Full name *</label>
             <input className={inputClass} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Jane Smith" />
-          </div>
-          <div>
+          </div>}
+          {lister !== 'agent' && <div>
             <label className={labelClass}>Email address *</label>
             <input type="email" className={inputClass} value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@example.com" />
-          </div>
-          <div>
+          </div>}
+          {lister !== 'agent' && <div>
             <label className={labelClass}>Phone number</label>
             <input type="tel" className={inputClass} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+44 7700 900000" />
-          </div>
-          {type === 'landlord' && <>
+          </div>}
+          {lister === 'landlord' && <>
             <div>
               <label className={labelClass}>Company name (optional)</label>
               <input className={inputClass} value={form.company_name} onChange={e => set('company_name', e.target.value)} placeholder="Smith Properties Ltd" />
@@ -252,6 +257,12 @@ export default function CreateListingForm({ type }: Props) {
             <div>
               <label className={labelClass}>Postcode *</label>
               <input className={inputClass} value={form.postcode} onChange={e => set('postcode', e.target.value)} placeholder="E8 1AB" />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Listing type</label>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5EBE0] text-sm text-[#1B2E4B]">
+              {form.listing_type === 'buy' ? 'For sale' : 'To let'}
             </div>
           </div>
           <div>

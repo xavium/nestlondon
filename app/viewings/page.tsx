@@ -18,8 +18,8 @@ export default async function ViewingsPage() {
 
   // Owners and agents manage viewings from their portal, not /viewings
   const role = user.user_metadata?.role
-  if (role === 'owner' || role === 'landlord') redirect('/dashboard/owner?tab=viewings')
-  if (role === 'agent' || role === 'admin') redirect('/dashboard?tab=viewings')
+  if (role?.startsWith('owner') || role === 'landlord') redirect('/dashboard/owner?tab=viewings')
+  if (role?.startsWith('agent') || role === 'admin') redirect('/dashboard?tab=viewings')
 
   const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 

@@ -24,7 +24,7 @@ function ListAuthPageInner() {
     setError('')
 
     if (mode === 'register') {
-      const role = redirect.includes('landlord') ? 'landlord' : 'owner'
+      const role = redirect.includes('landlord') ? 'landlord' : 'owner_lettings'
       const { error } = await supabase.auth.signUp({
         email, password,
         options: { data: { full_name: name, role } }

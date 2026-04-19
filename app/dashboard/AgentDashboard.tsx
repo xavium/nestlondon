@@ -262,7 +262,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
           </h1>
           <p className="text-sm text-[#9B928E] mt-1">{user.email}</p>
         </div>
-        <Link href="/list"
+        <Link href="/list/agent"
           className="px-5 py-2.5 rounded-xl text-white text-sm font-medium no-underline transition-opacity hover:opacity-90"
           style={{ background: '#D3755A' }}>
           + Add listing
@@ -660,7 +660,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
           {filteredListingStats.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#E8E2DA]">
               <p className="text-sm text-[#9B928E] mb-4">No listings match.</p>
-              <Link href="/list" className="px-5 py-2.5 rounded-xl text-white text-sm no-underline" style={{ background: '#D3755A' }}>Add a listing →</Link>
+              <Link href="/list/agent" className="px-5 py-2.5 rounded-xl text-white text-sm no-underline" style={{ background: '#D3755A' }}>Add a listing →</Link>
             </div>
           ) : filteredListingStats.map(l => {
             const isSelected = selectedListing === l.id

@@ -60,7 +60,7 @@ function describeSearch(params: Record<string, string>): string {
 }
 
 export default function AccountClient({ user, savedProperties, savedSearches, initialTab }: Props) {
-  const isAgent = user.role === 'agent'
+  const isAgent = user.role?.startsWith('agent') ?? false
   const [tab, setTab] = useState<string>( user.role === 'resident' || user.role === 'tenant' || !user.role || user.role === 'user' ? 'profile' : 'account')
   const [props, setProps] = useState(savedProperties)
   const [searches, setSearches] = useState(savedSearches)
@@ -357,7 +357,11 @@ function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
     }
   }
 
-  const roleLabel = user.role === 'owner' ? 'Private owner'
+  const roleLabel = user.role === 'owner_lettings' ? 'Private owner (Lettings)'
+    : user.role === 'owner_sales' ? 'Private owner (Sales)'
+    : user.role === 'agent_lettings' ? 'Letting agent'
+    : user.role === 'agent_sales' ? 'Sales agent'
+    : user.role === 'owner' ? 'Private owner'
     : user.role === 'landlord' ? 'Landlord'
     : user.role === 'agent' ? 'Letting agent'
     : 'Resident'

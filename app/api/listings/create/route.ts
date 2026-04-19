@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+
+    // Resolve current user so we can stamp agent_id for agent-created listings
+    const cookieStore = await cookies()
+    const auth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll: () => cookieStore.getAll() } }
+    )
+    const { data: { user } } = await auth.auth.getUser()
     const {
       name, email, phone, address, borough, postcode,
       property_type, bedrooms, bathrooms, square_feet,
@@ -12,7 +23,7 @@ export async function POST(req: NextRequest) {
       has_garden, has_balcony, has_terrace, has_parking, has_garage,
       has_concierge, has_lift, has_porter, pets_allowed, bills_included,
       new_build, shared_ownership,
-      company_name, company_reg, listing_type
+      company_name, company_reg, listing_type, lister
     } = body
 
     if (!name || !email || !address || !postcode || !price || !bedrooms) {
@@ -52,7 +63,6 @@ export async function POST(req: NextRequest) {
       key_features: features,
       letting_details,
       contact: { name, email, phone, company_name, company_reg },
-      listing_type,
     }
 
     const { data, error } = await supabase.from('listings').insert({
@@ -65,7 +75,9 @@ export async function POST(req: NextRequest) {
       description,
       images: JSON.stringify(images || []),
       square_feet: square_feet ? parseInt(square_feet) : null,
-      source: listing_type === 'private' ? 'Private owner' : 'Landlord',
+      listing_type: listing_type === 'buy' ? 'buy' : 'rent',
+      agent_id: lister === 'agent' && user ? user.id : null,
+      source: lister === 'private' ? 'Private owner' : lister === 'agent' ? 'Agent' : 'Landlord',
       source_url: null,
       is_active: false,
       listed_at: new Date().toISOString(),

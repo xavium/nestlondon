@@ -24,9 +24,9 @@ export default function LoginPage() {
     } else {
       const { data: { user } } = await supabase.auth.getUser()
       const role = user?.user_metadata?.role
-      if (role === 'owner' || role === 'landlord') {
+      if (role?.startsWith('owner') || role === 'landlord') {
         router.push('/dashboard/owner')
-      } else if (role === 'agent') {
+      } else if (role?.startsWith('agent')) {
         router.push('/dashboard')
       } else {
         router.push('/search')
