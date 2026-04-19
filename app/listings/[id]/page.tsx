@@ -402,6 +402,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               commuteAddress={commuteAddress}
             />
           </div>
+          <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline mr-2">Borough guides</Link>
           <NavAuthButton variant="light" />
         </div>
       </nav>

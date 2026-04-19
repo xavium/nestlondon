@@ -135,6 +135,7 @@ export default async function DashboardPage() {
           nest<span style={{ color: '#D3755A' }} className="italic">london</span>
           <span className="text-white/40 text-sm ml-3 font-sans">Agent portal</span>
         </Link>
+        <Link href="/boroughs" className="text-sm text-white/70 hover:text-white transition-colors no-underline mr-4">Borough guides</Link>
         <NavAuthButton variant="dark" />
       </nav>
       <AgentDashboardClient

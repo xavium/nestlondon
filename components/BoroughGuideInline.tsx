@@ -7,6 +7,13 @@ export default function BoroughGuideInline({ borough }: { borough: BoroughGuide 
   const [expanded, setExpanded] = useState(false)
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-2xl overflow-hidden">
+      {borough.heroImage && (
+        <div className="relative h-40 w-full overflow-hidden">
+          <img src={borough.heroImage} alt={borough.name} className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4 text-white text-sm italic" style={{fontFamily: "Georgia, serif"}}>"{borough.tagline}"</div>
+        </div>
+      )}
       <div className="p-6">
         <div className="flex items-start justify-between gap-4 mb-3">
           <div>
@@ -15,7 +22,6 @@ export default function BoroughGuideInline({ borough }: { borough: BoroughGuide 
           </div>
           <Link href={`/boroughs/${borough.slug}`} className="flex-shrink-0 text-xs text-[#D3755A] hover:underline">Full guide →</Link>
         </div>
-        <p className="text-sm text-stone-500 italic mb-3">"{borough.tagline}"</p>
         <p className="text-sm text-[#3D3A38] leading-relaxed">{borough.description}</p>
       </div>
       <div className="px-6 pb-4">
@@ -43,10 +49,22 @@ export default function BoroughGuideInline({ borough }: { borough: BoroughGuide 
             <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-4">Must-see places</h3>
             <div className="flex flex-col gap-3">
               {borough.landmarks.map(item => (
-                <div key={item.name} className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-1.5 flex-shrink-0" />
-                  <div><div className="text-sm font-semibold text-[#1C2B3A]">{item.name}</div><div className="text-xs text-stone-500 leading-relaxed">{item.description}</div></div>
-                </div>
+                item.image ? (
+                  <div key={item.name} className="flex gap-3 rounded-xl overflow-hidden border border-[#E8E2DA]">
+                    <div className="w-1/3 aspect-[4/3] flex-shrink-0 overflow-hidden" style={{maskImage: "linear-gradient(to right, black 75%, transparent 100%)", WebkitMaskImage: "linear-gradient(to right, black 75%, transparent 100%)"}}>
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col justify-center">
+                      <div className="text-sm font-semibold text-[#1C2B3A]">{item.name}</div>
+                      <div className="text-xs text-stone-500 leading-relaxed mt-1">{item.description}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={item.name} className="flex gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-1.5 flex-shrink-0" />
+                    <div><div className="text-sm font-semibold text-[#1C2B3A]">{item.name}</div><div className="text-xs text-stone-500 leading-relaxed">{item.description}</div></div>
+                  </div>
+                )
               ))}
             </div>
           </div>
@@ -54,10 +72,22 @@ export default function BoroughGuideInline({ borough }: { borough: BoroughGuide 
             <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Hidden gems</h3>
             <div className="flex flex-col gap-3">
               {borough.hiddenGems.map(item => (
-                <div key={item.name} className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-1.5 flex-shrink-0" />
-                  <div><div className="text-sm font-semibold text-white">{item.name}</div><div className="text-xs text-white/60 leading-relaxed">{item.description}</div></div>
-                </div>
+                item.image ? (
+                  <div key={item.name} className="flex gap-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+                    <div className="w-1/3 aspect-[4/3] flex-shrink-0 overflow-hidden" style={{maskImage: "linear-gradient(to right, black 75%, transparent 100%)", WebkitMaskImage: "linear-gradient(to right, black 75%, transparent 100%)"}}>
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col justify-center">
+                      <div className="text-sm font-semibold text-white">{item.name}</div>
+                      <div className="text-xs text-white/60 leading-relaxed mt-1">{item.description}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={item.name} className="flex gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-1.5 flex-shrink-0" />
+                    <div><div className="text-sm font-semibold text-white">{item.name}</div><div className="text-xs text-white/60 leading-relaxed">{item.description}</div></div>
+                  </div>
+                )
               ))}
             </div>
           </div>

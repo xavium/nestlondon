@@ -236,7 +236,8 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
         </Link>
         <div className="flex items-center gap-4">
           <Link href="/list" className="text-xs px-3 py-1.5 rounded-lg text-white border border-white/20 hover:border-white/40 transition-colors no-underline">+ New listing</Link>
-          <NavAuthButton variant="dark" />
+          <Link href="/boroughs" className="text-sm text-white/70 hover:text-white transition-colors no-underline mr-4">Borough guides</Link>
+        <NavAuthButton variant="dark" />
         </div>
       </nav>
 

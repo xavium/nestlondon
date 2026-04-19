@@ -5,8 +5,8 @@ export interface BoroughGuide {
   postcodes: string[]
   description: string
   history: string
-  landmarks: { name: string; description: string }[]
-  hiddenGems: { name: string; description: string }[]
+  landmarks: { name: string; description: string; image?: string }[]
+  hiddenGems: { name: string; description: string; image?: string }[]
   localInsights: string[]
   transport: string
   bestFor: string[]
@@ -79,14 +79,14 @@ export const boroughGuides: BoroughGuide[] = [
     description: "Camden is London's most creatively charged borough — a place where punks and professionals coexist, where the canal towpath leads from markets to Primrose Hill.",
     history: "Camden Town grew rapidly in the 19th century with the arrival of the railway and the Regent's Canal. Hampstead has been a wealthy village since Georgian times, attracting writers and artists.",
     landmarks: [
-      { name: "Camden Market", description: "Four interconnected markets spanning the canal. Go on weekdays to avoid weekend crowds." },
-      { name: "Regent's Park", description: "One of London's finest royal parks — home to London Zoo and an open-air theatre." },
-      { name: "Primrose Hill", description: "The best panoramic view of central London — especially magical at sunset." },
-      { name: "British Library", description: "Home to the Magna Carta and Shakespeare's First Folio. Free entry." },
+      { name: "Camden Market", description: "Four interconnected markets spanning the canal. Go on weekdays to avoid weekend crowds.", image: "/boroughs/places/camden-camden-market.jpg" },
+      { name: "Regent's Park", description: "One of London's finest royal parks — home to London Zoo and an open-air theatre.", image: "/boroughs/places/camden-regent-s-park.jpg" },
+      { name: "Primrose Hill", description: "The best panoramic view of central London — especially magical at sunset.", image: "/boroughs/places/camden-primrose-hill.jpg" },
+      { name: "British Library", description: "Home to the Magna Carta and Shakespeare's First Folio. Free entry.", image: "/boroughs/places/camden-british-library.jpg" },
     ],
     hiddenGems: [
-      { name: "Regent's Canal towpath", description: "Walk or cycle from Little Venice to Victoria Park — a 9-mile escape through the city's back garden." },
-      { name: "Holly Bush pub, Hampstead", description: "One of London's finest historic pubs, hidden near Hampstead Heath." },
+      { name: "Regent's Canal towpath", description: "Walk or cycle from Little Venice to Victoria Park — a 9-mile escape through the city's back garden.", image: "/boroughs/places/camden-regent-s-canal-towpath.jpg" },
+      { name: "Holly Bush pub, Hampstead", description: "One of London's finest historic pubs, hidden near Hampstead Heath.", image: "/boroughs/places/camden-holly-bush-pub-hampstead.jpg" },
     ],
     localInsights: [
       "Hampstead and Belsize Park are among London's most desirable — and expensive — residential areas.",

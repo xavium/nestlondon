@@ -70,13 +70,25 @@ export default async function BoroughPage({ params }: { params: Promise<{ slug: 
           <h2 className="text-lg font-semibold text-[#1C2B3A] mb-5" style={{fontFamily: 'Georgia, serif'}}>Must-see landmarks & places</h2>
           <div className="flex flex-col gap-4">
             {borough.landmarks.map(item => (
-              <div key={item.name} className="flex gap-4 pb-4 border-b border-[#F5EBE0] last:border-0 last:pb-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-2 flex-shrink-0" />
-                <div>
-                  <div className="text-sm font-semibold text-[#1C2B3A] mb-0.5">{item.name}</div>
-                  <div className="text-sm text-stone-500 leading-relaxed">{item.description}</div>
+              item.image ? (
+                <div key={item.name} className="flex gap-4 rounded-xl overflow-hidden border border-[#E8E2DA]">
+                  <div className="w-1/3 aspect-[4/3] flex-shrink-0 overflow-hidden" style={{maskImage: "linear-gradient(to right, black 75%, transparent 100%)", WebkitMaskImage: "linear-gradient(to right, black 75%, transparent 100%)"}}>
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 p-4 flex flex-col justify-center">
+                    <div className="text-sm font-semibold text-[#1C2B3A] mb-0.5">{item.name}</div>
+                    <div className="text-sm text-stone-500 leading-relaxed">{item.description}</div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div key={item.name} className="flex gap-4 pb-4 border-b border-[#F5EBE0] last:border-0 last:pb-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-2 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold text-[#1C2B3A] mb-0.5">{item.name}</div>
+                    <div className="text-sm text-stone-500 leading-relaxed">{item.description}</div>
+                  </div>
+                </div>
+              )
             ))}
           </div>
         </div>
@@ -84,13 +96,25 @@ export default async function BoroughPage({ params }: { params: Promise<{ slug: 
           <h2 className="text-lg font-semibold text-white mb-5" style={{fontFamily: 'Georgia, serif'}}>Hidden gems</h2>
           <div className="flex flex-col gap-4">
             {borough.hiddenGems.map(item => (
-              <div key={item.name} className="flex gap-4 pb-4 border-b border-white/10 last:border-0 last:pb-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-2 flex-shrink-0" />
-                <div>
-                  <div className="text-sm font-semibold text-white mb-0.5">{item.name}</div>
-                  <div className="text-sm text-white/60 leading-relaxed">{item.description}</div>
+              item.image ? (
+                <div key={item.name} className="flex gap-4 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+                  <div className="w-1/3 aspect-[4/3] flex-shrink-0 overflow-hidden" style={{maskImage: "linear-gradient(to right, black 75%, transparent 100%)", WebkitMaskImage: "linear-gradient(to right, black 75%, transparent 100%)"}}>
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 p-4 flex flex-col justify-center">
+                    <div className="text-sm font-semibold text-white mb-0.5">{item.name}</div>
+                    <div className="text-sm text-white/60 leading-relaxed">{item.description}</div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div key={item.name} className="flex gap-4 pb-4 border-b border-white/10 last:border-0 last:pb-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#D3755A] mt-2 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold text-white mb-0.5">{item.name}</div>
+                    <div className="text-sm text-white/60 leading-relaxed">{item.description}</div>
+                  </div>
+                </div>
+              )
             ))}
           </div>
         </div>

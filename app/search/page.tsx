@@ -375,6 +375,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             nest<span className="text-orange-700 italic">london</span>
           </Link>
           <Link href="/list" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">List your property</Link>
+          <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">Borough guides</Link>
           <div className="flex items-center flex-1">
             <NavSearchBar
               location={location}
