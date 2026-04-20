@@ -210,6 +210,21 @@ async def get_full_description(context, source_url):
                 await page.evaluate('window.scrollTo(0, 0)')
             except:
                 pass
+
+            # Open the media viewer to force all gallery photos into the DOM.
+            # Rightmove uses a hash-based route; pushing it via History API triggers the gallery.
+            try:
+                channel = 'RES_BUY' if '/property-for-sale/' in (source_url or '') or 'channel=RES_BUY' in (source_url or '') else 'RES_LET'
+                await page.evaluate(f"window.location.hash = '#/media?channel={channel}'")
+                await page.wait_for_timeout(1200)
+                # Scroll again inside the modal to trigger any remaining lazy loads
+                try:
+                    await page.evaluate('document.querySelectorAll("img[data-src]").forEach(img => { img.src = img.dataset.src })')
+                    await page.wait_for_timeout(400)
+                except:
+                    pass
+            except Exception as me:
+                print('  Media viewer open failed: ' + str(me))
             # Extract from page HTML source (catches lazy-loaded images too)
             html_content = await page.content()
             import re as _imgre2
