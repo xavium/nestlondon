@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import OwnerDashboardClient from './OwnerDashboardClient'
+import { valuate, type PropertySpec, type Comparable } from '@/lib/valuation'
 
 export default async function OwnerDashboardPage() {
   const cookieStore = await cookies()
@@ -62,11 +63,12 @@ export default async function OwnerDashboardPage() {
   // Get comparable listings for pricing analysis
   const comparables: Record<string, any[]> = {}
   const avgDaysOnMarket: Record<string, number | null> = {}
+  const valuations: Record<string, ReturnType<typeof valuate>> = {}
   for (const listing of allListings) {
     if (!listing.borough || !listing.price) continue
     const { data: comps } = await adminClient
       .from('listings')
-      .select('id,price,bedrooms,square_feet,borough,listed_at')
+      .select('id,price,bedrooms,square_feet,borough,listed_at,property_type,postcode,listing_type,epc_rating')
       .eq('is_active', true)
       .eq('borough', listing.borough)
       .not('id', 'eq', listing.id)
@@ -74,6 +76,27 @@ export default async function OwnerDashboardPage() {
       .lte('bedrooms', (listing.bedrooms || 1) + 1)
       .limit(50)
     comparables[listing.id] = comps || []
+    // Valuation (broader pool: refetch without the bedrooms filter for better coverage)
+    try {
+      const { data: broadPool } = await adminClient
+        .from('listings')
+        .select('id,listing_type,price,bedrooms,square_feet,property_type,borough,postcode,epc_rating')
+        .eq('is_active', true)
+        .eq('listing_type', listing.listing_type || 'rent')
+        .or(`borough.eq.${listing.borough},postcode.ilike.${(listing.postcode||'').split(' ')[0]}%`)
+        .not('id', 'eq', listing.id)
+        .limit(200)
+      const spec: PropertySpec = {
+        listing_type: (listing.listing_type === 'buy' ? 'buy' : 'rent'),
+        bedrooms: listing.bedrooms,
+        square_feet: listing.square_feet,
+        property_type: listing.property_type,
+        borough: listing.borough,
+        postcode: listing.postcode,
+        epc_rating: (listing as any).epc_rating,
+      }
+      valuations[listing.id] = valuate(spec, (broadPool || []) as Comparable[])
+    } catch { valuations[listing.id] = null }
     // Calculate avg days on market for similar listings
     const withDates = (comps || []).filter((c: any) => c.listed_at)
     if (withDates.length > 0) {
@@ -124,6 +147,7 @@ export default async function OwnerDashboardPage() {
       listings={allListings}
       events={events}
       comparables={comparables}
+        valuations={valuations}
       avgDaysOnMarket={avgDaysOnMarket}
       viewingRequests={viewingRequests}
       renterProfiles={renterProfiles}

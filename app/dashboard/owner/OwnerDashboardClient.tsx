@@ -7,6 +7,7 @@ import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
 import NavAuthButton from '@/components/NavAuthButton'
 import ViewingsCalendarView from '@/components/ViewingsCalendarView'
+import type { ValuationResult } from '@/lib/valuation'
 
 interface Listing {
   id: string
@@ -21,6 +22,8 @@ interface Listing {
   listed_at: string
   images: string
   raw_data: any
+  listing_type?: string | null
+  postcode?: string | null
 }
 
 interface Event {
@@ -47,6 +50,7 @@ interface Props {
   listings: Listing[]
   events: Event[]
   comparables: Record<string, any[]>
+  valuations?: Record<string, ValuationResult | null>
   avgDaysOnMarket?: Record<string, number | null>
   viewingRequests: ViewingRequest[]
   renterProfiles?: Record<string, any>
@@ -72,7 +76,7 @@ function getPercentile(value: number, arr: number[]): number {
   return Math.round((below / sorted.length) * 100)
 }
 
-export default function OwnerDashboardClient({ user, listings, events, comparables, avgDaysOnMarket = {}, viewingRequests, renterProfiles = {} }: Props) {
+export default function OwnerDashboardClient({ user, listings, events, comparables, valuations = {}, avgDaysOnMarket = {}, viewingRequests, renterProfiles = {} }: Props) {
   const [requests, setRequests] = useState<ViewingRequest[]>(viewingRequests)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [confirmingAddress, setConfirmingAddress] = useState<{id: string, slot: any, address: string} | null>(null)
@@ -526,6 +530,37 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                     <p className="text-sm text-[#9B928E]">Not enough comparable listings in this area to show pricing analysis.</p>
                   ) : (
                     <div className="flex flex-col gap-4">
+
+                      {/* Valuation estimate */}
+                      {valuations[listing.id] && (() => {
+                        const v = valuations[listing.id]!
+                        const listingType = listing.listing_type === 'buy' ? 'buy' : 'rent'
+                        const suffix = listingType === 'rent' ? '/mo' : ''
+                        return (
+                          <div className="bg-[#1B2E4B] text-white rounded-xl p-5">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs uppercase tracking-widest text-white/60">Suggested {listingType === 'rent' ? 'asking rent' : 'asking price'}</span>
+                              <span className="text-[10px] text-white/50">Based on {v.n_comparables} comparables in {v.area_label}</span>
+                            </div>
+                            <div className="flex items-baseline gap-3 mb-3">
+                              <div className="text-3xl font-light" style={{fontFamily:'Georgia,serif'}}>£{v.mid.toLocaleString()}{suffix}</div>
+                              <div className="text-sm text-white/60">£{v.low.toLocaleString()} – £{v.high.toLocaleString()}</div>
+                            </div>
+                            {v.adjustments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {v.adjustments.map((a, i) => (
+                                  <span key={i} className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">
+                                    {a.label} {a.pct > 0 ? '+' : ''}{a.pct}%
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-white/50 leading-relaxed">
+                              Estimate based on median £/sqm of comparables, with adjustments for property features. This is a guide — not a formal valuation.
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       {/* Price vs market */}
                       <div className="bg-[#F5EBE0] rounded-xl p-4">

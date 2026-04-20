@@ -25,6 +25,33 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [valuation, setValuation] = useState<{ low: number; mid: number; high: number; n_comparables: number; area_label: string } | null>(null)
+  const [valuationLoading, setValuationLoading] = useState(false)
+  const [valuationError, setValuationError] = useState<string | null>(null)
+
+  async function fetchValuation() {
+    setValuationLoading(true); setValuationError(null); setValuation(null)
+    try {
+      const res = await fetch('/api/valuation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listing_type: form.listing_type,
+          bedrooms: form.bedrooms ? parseInt(form.bedrooms) : null,
+          square_feet: form.square_feet ? parseInt(form.square_feet) : null,
+          property_type: form.property_type,
+          postcode: form.postcode,
+          epc_rating: form.epc_rating || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.result) setValuation(data.result)
+      else setValuationError('Not enough comparable listings in this area to estimate a price.')
+    } catch {
+      setValuationError('Could not fetch valuation.')
+    }
+    setValuationLoading(false)
+  }
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [authToken, setAuthToken] = useState<string | null>(null)
@@ -97,7 +124,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
       if (!form.bedrooms) return 'Please select the number of bedrooms'
     }
     if (step === 3) {
-      if (!form.price) return 'Please enter the monthly rent'
+      if (!form.price) return form.listing_type === 'buy' ? 'Please enter the asking price' : 'Please enter the monthly rent'
       if (!form.available_from) return 'Please enter the available from date'
     }
     if (step === 4) {
@@ -348,11 +375,29 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
         <div className="flex flex-col gap-4">
           <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Price & availability</h2>
           <div>
-            <label className={labelClass}>Monthly rent (£) *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className={labelClass}>{form.listing_type === 'buy' ? 'Asking price (£) *' : 'Monthly rent (£) *'}</label>
+              <button type="button" onClick={fetchValuation} disabled={valuationLoading || !form.square_feet || !form.bedrooms || !form.postcode}
+                className="text-xs text-[#D3755A] hover:underline disabled:text-[#C8C4BF] disabled:no-underline disabled:cursor-not-allowed">
+                {valuationLoading ? 'Calculating…' : 'Suggest a price'}
+              </button>
+            </div>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9B928E] text-sm">£</span>
-              <input type="number" className={inputClass + " pl-8"} value={form.price} onChange={e => set('price', e.target.value)} placeholder="1800" />
+              <input type="number" className={inputClass + " pl-8"} value={form.price} onChange={e => set('price', e.target.value)} placeholder={form.listing_type === 'buy' ? '450000' : '1800'} />
             </div>
+            {valuation && (
+              <div className="mt-2 bg-[#F5EBE0] rounded-xl p-3 text-xs text-[#1B2E4B]">
+                <div className="flex items-center justify-between mb-1">
+                  <span>Suggested: <span className="font-semibold">£{valuation.mid.toLocaleString()}{form.listing_type === 'rent' ? '/mo' : ''}</span></span>
+                  <button type="button" onClick={() => set('price', String(valuation.mid))} className="text-[#D3755A] hover:underline">Use this</button>
+                </div>
+                <div className="text-[10px] text-[#9B928E]">Range: £{valuation.low.toLocaleString()}–£{valuation.high.toLocaleString()} · {valuation.n_comparables} comparables in {valuation.area_label}</div>
+              </div>
+            )}
+            {valuationError && (
+              <div className="mt-2 text-xs text-[#9B928E]">{valuationError}</div>
+            )}
           </div>
           <div>
             <label className={labelClass}>Deposit (£)</label>

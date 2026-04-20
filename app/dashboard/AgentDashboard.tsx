@@ -165,8 +165,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       avgMktDays,
       comps: lComps,
       conversionRate: lViews > 0 ? Math.round(lEnquiries / lViews * 100) : 0,
-      myPsqm: (l as any).square_feet && l.price ? Math.round(l.price / ((l as any).square_feet * 0.0929)) : null,
-      compPsqms: lComps.filter((c: any) => c.square_feet && c.price).map((c: any) => Math.round(c.price / (c.square_feet * 0.0929))),
+      myPsqm: (l as any).square_feet && l.price ? l.price / ((l as any).square_feet * 0.0929) : null,
+      compPsqms: lComps.filter((c: any) => c.square_feet && c.price).map((c: any) => c.price / (c.square_feet * 0.0929)),
     }
   })
 
@@ -703,6 +703,10 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                       className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
                       {l.is_active ? 'Deactivate' : 'Activate'}
                     </button>
+                    <button onClick={(e) => { e.stopPropagation(); setSelectedListing(l.id); setAssigningId(l.id); setAssignName(l.assigned_agent_name || '') }}
+                      className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0] transition-colors">
+                      {l.assigned_agent_name ? 'Reassign' : 'Assign agent'}
+                    </button>
                     {!l.is_active && (
                       <button onClick={() => manageListing(l.id, 'delete')}
                         className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
@@ -730,11 +734,12 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                     </div>
                     <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
                       <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">Views — last 7 days</h3>
-                      <div className="flex items-end gap-2 h-16">
+                      <div className="flex items-end gap-2 h-24">
                         {viewsByDay.map((d,i) => (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                            <div className="w-full rounded-t" style={{height: Math.max(d.views/maxV*56, d.views>0?3:0)+'px', background: d.views>0?'#D3755A':'#E8E2DA'}} />
-                            <span className="text-[10px] text-[#9B928E]">{d.day}</span>
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1 group cursor-pointer">
+                            <div className="w-full rounded-t transition-all group-hover:ring-2 group-hover:ring-[#D3755A] group-hover:ring-offset-1" style={{height: Math.max(d.views/maxV*48, d.views>0?3:0)+'px', background: d.views>0?'#D3755A':'#E8E2DA'}} />
+                            <span className="text-[10px] text-[#9B928E] group-hover:text-[#1B2E4B]">{d.day}</span>
+                            <span className="text-[10px] font-medium text-[#1B2E4B] opacity-0 group-hover:opacity-100 transition-opacity h-3 whitespace-nowrap">{d.views} view{d.views === 1 ? '' : 's'}</span>
                           </div>
                         ))}
                       </div>
@@ -803,22 +808,24 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
 
                     {/* £/sqm analysis */}
                     {l.myPsqm && l.compPsqms && l.compPsqms.length >= 2 && (() => {
-                      const avgCompPsqm = Math.round(l.compPsqms.reduce((a: number, b: number) => a + b, 0) / l.compPsqms.length)
-                      const psqmDiff = Math.round((l.myPsqm - avgCompPsqm) / avgCompPsqm * 100)
-                      const minPsqm = Math.min(...l.compPsqms)
-                      const maxPsqm = Math.max(...l.compPsqms)
-                      const myPct = Math.round((l.myPsqm - minPsqm) / (maxPsqm - minPsqm) * 100)
+                      const myPsqm = l.myPsqm as number
+                      const avgCompPsqm = l.compPsqms.reduce((a: number, b: number) => a + b, 0) / l.compPsqms.length
+                      const psqmDiff = Math.round((myPsqm - avgCompPsqm) / avgCompPsqm * 100)
+                      // Percentile: share of comparables priced at or below user's £/sqm
+                      const belowOrEq = l.compPsqms.filter((p: number) => p <= myPsqm).length
+                      const myPct = Math.round((belowOrEq / l.compPsqms.length) * 100)
+                      const pctLabel = myPct === 0 ? 'Cheapest in area' : myPct === 100 ? 'Most expensive in area' : `${myPct}th percentile — priced at or above ${myPct}% of comparables`
                       return (
                         <div className="bg-white border border-[#E8E2DA] rounded-xl p-4">
                           <h3 className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">£/sqm analysis</h3>
                           <div className="grid grid-cols-3 gap-3 mb-3">
                             <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
                               <div className="text-xs text-[#9B928E] mb-1">Your £/sqm</div>
-                              <div className="text-lg font-medium text-[#1B2E4B]">£{l.myPsqm}</div>
+                              <div className="text-lg font-medium text-[#1B2E4B]">£{l.myPsqm.toFixed(2)}</div>
                             </div>
                             <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
                               <div className="text-xs text-[#9B928E] mb-1">Area avg</div>
-                              <div className="text-lg font-medium text-[#1B2E4B]">£{avgCompPsqm}</div>
+                              <div className="text-lg font-medium text-[#1B2E4B]">£{avgCompPsqm.toFixed(2)}</div>
                             </div>
                             <div className="bg-[#F5EBE0] rounded-xl p-3 text-center">
                               <div className="text-xs text-[#9B928E] mb-1">vs market</div>
@@ -829,13 +836,13 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                           </div>
                           <div className="mb-2">
                             <div className="flex justify-between text-[10px] text-[#9B928E] mb-1">
-                              <span>£{minPsqm}/sqm</span><span>£{maxPsqm}/sqm</span>
+                              <span>Cheapest</span><span>Most expensive</span>
                             </div>
                             <div className="relative h-3 bg-[#F5EBE0] rounded-full">
                               <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
                                 style={{left: `calc(${Math.min(Math.max(myPct,2),98)}% - 6px)`, background:'#D3755A'}} />
                             </div>
-                            <div className="text-[10px] text-[#9B928E] text-center mt-1">Your position in the market</div>
+                            <div className="text-[10px] text-[#9B928E] text-center mt-1">{pctLabel}</div>
                           </div>
                           {l.square_feet && <div className="text-xs text-[#9B928E] text-center">{l.square_feet} sq ft · {Math.round(l.square_feet * 0.0929)} sqm</div>}
                         </div>
