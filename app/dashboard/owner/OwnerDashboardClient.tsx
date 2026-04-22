@@ -252,8 +252,17 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{color:'#D3755A'}}>Owner dashboard</p>
-          <h1 className="text-3xl font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>Your properties</h1>
+          {(() => {
+            const hr = new Date().getHours()
+            const greeting = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'
+            const name = user.name || 'there'
+            return (
+              <>
+                <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{color:'#D3755A'}}>Owner dashboard</p>
+                <h1 className="text-3xl font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>{greeting}, {name}</h1>
+              </>
+            )
+          })()}
         </div>
 
         {/* Tab switcher */}

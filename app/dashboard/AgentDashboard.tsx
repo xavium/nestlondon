@@ -84,6 +84,37 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const [agencyAgents, setAgencyAgents] = useState<AgencyAgent[]>(initialAgencyAgents)
   const [newAgentName, setNewAgentName] = useState('')
   const [newAgentColor, setNewAgentColor] = useState<string>(AGENT_COLORS[0])
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteIsAdmin, setInviteIsAdmin] = useState(false)
+  const [invitingLoading, setInvitingLoading] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [inviteCopied, setInviteCopied] = useState(false)
+  async function sendInvite() {
+    setInviteError(null); setInviteLink(null); setInvitingLoading(true)
+    try {
+      const res = await fetch('/api/agency/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: inviteName.trim(),
+          email: inviteEmail.trim(),
+          is_admin: inviteIsAdmin,
+          color: AGENT_COLORS.filter(c => !agencyAgents.some(a => a.color === c))[0] || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Invite failed')
+      setInviteLink(data.invite_url)
+      setInviteCopied(false)
+      if (data.agent) setAgencyAgents(list => [...list, data.agent])
+      setInviteName(''); setInviteEmail(''); setInviteIsAdmin(false)
+    } catch (err: any) {
+      setInviteError(err.message || 'Something went wrong')
+    }
+    setInvitingLoading(false)
+  }
   const [newAgentEmail, setNewAgentEmail] = useState('')
   const [addingAgent, setAddingAgent] = useState(false)
 
@@ -256,11 +287,20 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#D3755A' }}>Agent portal</p>
-          <h1 className="text-3xl font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>
-            {agentRecord?.name || user.name || 'Your agency'}
-          </h1>
-          <p className="text-sm text-[#9B928E] mt-1">{user.email}</p>
+          {(() => {
+            const hr = new Date().getHours()
+            const greeting = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'
+            const name = agentRecord?.name || user.name || 'there'
+            return (
+              <>
+                <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#D3755A' }}>Agent portal</p>
+                <h1 className="text-3xl font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>
+                  {greeting}, {name}
+                </h1>
+                <p className="text-sm text-[#9B928E] mt-1">{user.email}</p>
+              </>
+            )
+          })()}
         </div>
         <Link href="/list/agent"
           className="px-5 py-2.5 rounded-xl text-white text-sm font-medium no-underline transition-opacity hover:opacity-90"
@@ -979,6 +1019,48 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                 {addingAgent ? 'Adding…' : 'Add agent'}
               </button>
             </div>
+            <p className="text-xs text-[#9B928E] mt-3">Display-only — doesn't grant login. Use "Invite" below to give a team member their own login.</p>
+          </div>
+
+          {/* Invite team member with login */}
+          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Invite team member (with login)</h2>
+            <div className="flex gap-3 flex-wrap">
+              <input value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Full name"
+                className="flex-1 border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+              <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="Email" type="email"
+                className="flex-1 border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+              <label className="flex items-center gap-2 text-sm text-[#3D3A38] cursor-pointer">
+                <input type="checkbox" checked={inviteIsAdmin} onChange={e => setInviteIsAdmin(e.target.checked)}
+                  className="w-4 h-4 accent-[#D3755A]" />
+                Admin
+              </label>
+              <button onClick={sendInvite} disabled={invitingLoading || !inviteName.trim() || !inviteEmail.trim()}
+                className="px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                style={{ background: '#1B2E4B' }}>
+                {invitingLoading ? 'Creating…' : 'Create invite'}
+              </button>
+            </div>
+            {inviteError && <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2">{inviteError}</div>}
+            {inviteLink && (
+              <div className="mt-4 bg-[#F5EBE0] rounded-xl p-4">
+                <div className="text-xs font-semibold text-[#1B2E4B] mb-2">Invitation link ready — send this to your team member:</div>
+                <div className="flex items-center gap-2">
+                  <input readOnly value={inviteLink}
+                    onFocus={e => e.currentTarget.select()}
+                    className="flex-1 border border-[#E8E2DA] rounded-lg px-3 py-2 text-xs text-[#1B2E4B] bg-white font-mono" />
+                  <button type="button" onClick={() => {
+                    navigator.clipboard.writeText(inviteLink!)
+                    setInviteCopied(true)
+                    setTimeout(() => setInviteCopied(false), 2000)
+                  }}
+                    className={'text-xs px-3 py-2 rounded-lg border transition-colors ' + (inviteCopied ? 'border-green-500 text-green-600 bg-green-50' : 'border-[#D3755A] text-[#D3755A] hover:bg-[#D3755A] hover:text-white')}>
+                    {inviteCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="text-[10px] text-[#9B928E] mt-2">The invitee will set their own password when they click the link.</div>
+              </div>
+            )}
           </div>
 
           {/* Agent list */}
