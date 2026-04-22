@@ -31,6 +31,7 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
   const [loggedIn, setLoggedIn] = useState(false)
   const [message, setMessage] = useState('')
   const [selectedSlots, setSelectedSlots] = useState<{ date: string; time: string }[]>([])
@@ -77,6 +78,25 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
     setLoading(true)
     setError('')
     try {
+      // If not logged in, create account first so the enquiry/viewing is tied to them
+      if (!loggedIn) {
+        if (password.length < 8) throw new Error('Please create a password of at least 8 characters')
+        const supabase = createClient()
+        const { data: signupData, error: signupErr } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { name, phone, role: 'resident' } }
+        })
+        const emailAlreadyExists = !signupErr && signupData?.user && Array.isArray(signupData.user.identities) && signupData.user.identities.length === 0
+        if (signupErr || emailAlreadyExists) {
+          const { error: signinErr } = await supabase.auth.signInWithPassword({ email, password })
+          if (signinErr) {
+            throw new Error('This email is already registered. Please use your existing password or sign in to continue.')
+          }
+        }
+        // Wait a beat so the session cookie is set before the API call
+        await new Promise(r => setTimeout(r, 200))
+      }
       const endpoint = mode === 'viewing' ? '/api/listings/viewing-request' : '/api/listings/enquiry'
       const body = mode === 'viewing'
         ? { listing_id: listingId, tenant_name: name, tenant_email: email, tenant_phone: phone, message, slots: selectedSlots }
@@ -145,6 +165,8 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
             <input required value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Your name" />
             <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputClass} placeholder="Email address" />
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} placeholder="Phone (optional)" />
+            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} minLength={8} className={inputClass} placeholder="Password (new or existing account)" />
+            <p className="text-xs text-[#9B928E] -mt-1">We'll create your NestLondon account or sign you in if you already have one.</p>
           </>
         )}
 

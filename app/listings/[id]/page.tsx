@@ -61,6 +61,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
+  const isOwnListing = !!(currentUser && listing.agent_id && currentUser.id === listing.agent_id)
+  const userRole = currentUser?.user_metadata?.role as string | undefined
 
   if (!listing) { console.log('404: listing not found', id); notFound() }
   const isAdminPreview = isAdminPreviewEarly
@@ -583,10 +585,21 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 source={listing.source || null}
               />
             ) : isDirectListing ? (
-              <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+              isOwnListing ? (
+                <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 text-center">
+                  <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">Your listing</p>
+                  <a href={userRole?.startsWith('agent') ? '/dashboard?tab=listings' : '/dashboard/owner'}
+                    className="block w-full text-white text-sm rounded-xl py-3 text-center transition-opacity hover:opacity-90 no-underline"
+                    style={{background:'#D3755A'}}>
+                    View in my portal →
+                  </a>
+                </div>
+              ) : (
+                <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+              )
             ) : (
               <>
-                <ExternalLinkCard listing={listing} />
+                <ExternalLinkCard listing={listing} isOwnListing={isOwnListing} userRole={userRole} />
               </>
             )}
 
@@ -665,7 +678,7 @@ function KeyFeatures({ features }: { features: string[] }) {
   )
 }
 
-function ExternalLinkCard({ listing }: { listing: any }) {
+function ExternalLinkCard({ listing, isOwnListing, userRole }: { listing: any; isOwnListing: boolean; userRole: string | undefined }) {
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
       <div className="mb-4">
@@ -678,7 +691,18 @@ function ExternalLinkCard({ listing }: { listing: any }) {
         {listing.property_type && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full">{listing.property_type}</span>}
       </div>
       {['Private owner', 'Landlord'].includes(listing.source) ? (
-        <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+        isOwnListing ? (
+          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 text-center">
+            <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">Your listing</p>
+            <a href={userRole?.startsWith('agent') ? '/dashboard?tab=listings' : '/dashboard/owner'}
+              className="block w-full text-white text-sm rounded-xl py-3 text-center transition-opacity hover:opacity-90 no-underline"
+              style={{background:'#D3755A'}}>
+              View in my portal →
+            </a>
+          </div>
+        ) : (
+          <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+        )
       ) : listing.source_url ? (
         <>
           <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
