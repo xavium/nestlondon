@@ -945,8 +945,14 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               agent_color: agent?.color || null,
               listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null,
               outcome: v.outcome || null,
+              tenant_email: v.tenant_email || null,
             }
-          })} />
+          })}
+          onManage={cv => {
+            setTab('listings')
+            setSelectedListing(cv.listing_id)
+          }}
+          />
           {filteredViewings.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#E8E2DA]">
               <p className="text-sm text-[#9B928E]">No viewing requests.</p>

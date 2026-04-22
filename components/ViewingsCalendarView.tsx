@@ -11,6 +11,7 @@ export interface CalendarViewing {
   assigned_agent_name?: string | null
   agent_color?: string | null
   outcome?: 'completed' | 'not_completed' | null
+  tenant_email?: string | null
   listings?: {
     address: string
     price: number
@@ -215,11 +216,8 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
             })()}
 
             <div className="flex gap-2">
-              <Link href={'/listings/' + selectedViewing.listing_id} target="_blank" rel="noopener noreferrer"
-                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center no-underline hover:bg-[#F5EBE0] transition-colors">
-                View property
-              </Link>
               <button
+                type="button"
                 onClick={() => {
                   const v = selectedViewing
                   setSelectedViewing(null)
@@ -232,10 +230,17 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                   }, 100)
                 }}
-                className="flex-1 py-2.5 rounded-xl text-white text-xs text-center transition-opacity hover:opacity-90"
-                style={{background:'#D3755A'}}>
-                Manage viewing
+                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center cursor-pointer hover:bg-[#F5EBE0] transition-colors">
+                View listing
               </button>
+              {selectedViewing.tenant_email && (
+                <Link
+                  href={'/messages?tenant_email=' + encodeURIComponent(selectedViewing.tenant_email) + '&listing_id=' + selectedViewing.listing_id}
+                  className="flex-1 py-2.5 rounded-xl text-white text-xs text-center transition-opacity hover:opacity-90 no-underline"
+                  style={{background:'#D3755A'}}>
+                  Message user
+                </Link>
+              )}
             </div>
           </div>
         </div>

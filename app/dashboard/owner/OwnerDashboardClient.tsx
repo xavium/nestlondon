@@ -292,15 +292,12 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                 proposed_slot: r.proposed_slot,
                 listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null,
                 outcome: r.outcome || null,
+                tenant_email: r.tenant_email || null,
               }
             })}
             onManage={v => {
               setSelected(v.listing_id)
               setDashTab('listings')
-              setTimeout(() => {
-                const el = document.getElementById('viewing-' + v.id)
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }, 250)
             }}
           />
         )}
