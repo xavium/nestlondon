@@ -66,8 +66,8 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
     )
   }
 
-  const portalHref = userRole === 'owner' || userRole === 'landlord' ? '/dashboard/owner'
-    : userRole === 'agent' ? '/dashboard'
+  const portalHref = userRole?.startsWith('owner') || userRole === 'landlord' ? '/dashboard/owner'
+    : userRole?.startsWith('agent') ? '/dashboard'
     : '/account'
 
   return (
@@ -95,13 +95,13 @@ export default function NavAuthButton({ variant = 'dark' }: { variant?: 'dark' |
               <div className="text-xs text-[#9B928E] truncate">{email}</div>
             </div>
           )}
-          {(userRole === 'owner' || userRole === 'landlord' || userRole === 'agent') && (
+          {(userRole?.startsWith('owner') || userRole === 'landlord' || userRole?.startsWith('agent')) && (
             <Link href={portalHref} onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#1B2E4B] hover:bg-[#F5EBE0] transition-colors no-underline">
               <svg className="w-4 h-4 text-[#D3755A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
-              My portal
+              {userRole?.startsWith('agent') ? 'Agent portal' : 'My portal'}
             </Link>
           )}
           <Link href="/saved" onClick={() => setOpen(false)}
