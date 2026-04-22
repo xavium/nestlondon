@@ -90,6 +90,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const [invitingLoading, setInvitingLoading] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [inviteEmailSent, setInviteEmailSent] = useState<boolean>(false)
+  const [inviteSentTo, setInviteSentTo] = useState<string>('')
   const [inviteCopied, setInviteCopied] = useState(false)
   async function sendInvite() {
     setInviteError(null); setInviteLink(null); setInvitingLoading(true)
@@ -107,6 +109,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Invite failed')
       setInviteLink(data.invite_url)
+      setInviteEmailSent(!!data.email_sent)
+      setInviteSentTo(inviteEmail.trim())
       setInviteCopied(false)
       if (data.agent) setAgencyAgents(list => [...list, data.agent])
       setInviteName(''); setInviteEmail(''); setInviteIsAdmin(false)
@@ -1003,6 +1007,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       {/* Team */}
       {tab === 'team' && (
         <div className="flex flex-col gap-5">
+          {user.isAdmin && <>
           {/* Add agent */}
           <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
             <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Add team member</h2>
@@ -1051,7 +1056,9 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
             {inviteError && <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2">{inviteError}</div>}
             {inviteLink && (
               <div className="mt-4 bg-[#F5EBE0] rounded-xl p-4">
-                <div className="text-xs font-semibold text-[#1B2E4B] mb-2">Invitation link ready — send this to your team member:</div>
+                <div className="text-xs font-semibold text-[#1B2E4B] mb-2">
+                  {inviteEmailSent ? `✓ Invitation emailed to ${inviteSentTo}` : 'Invitation link ready — send this to your team member:'}
+                </div>
                 <div className="flex items-center gap-2">
                   <input readOnly value={inviteLink}
                     onFocus={e => e.currentTarget.select()}
@@ -1069,6 +1076,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               </div>
             )}
           </div>
+
+          </>}
 
           {/* Agent list */}
           {agencyAgents.length === 0 ? (
@@ -1090,10 +1099,10 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                   <div className="text-xs text-[#9B928E]">
                     {listingsState.filter(l => l.assigned_agent_name === a.name).length} listings
                   </div>
-                  <button onClick={() => removeAgencyAgent(a.id)}
+                  {user.isAdmin && <button onClick={() => removeAgencyAgent(a.id)}
                     className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
                     Remove
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>

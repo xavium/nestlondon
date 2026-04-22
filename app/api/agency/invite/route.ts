@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { randomBytes } from 'crypto'
+import { Resend } from 'resend'
 import { resolveAgency } from '@/lib/agency'
 
 async function getUser() {
@@ -63,5 +64,39 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin
   const invite_url = `${origin}/auth/invite/${token}`
 
-  return NextResponse.json({ agent: data, invite_url })
+  // Send invitation email (best effort — if it fails, the copyable link still works)
+  let email_sent = false
+  let email_error: string | null = null
+  const resendKey = process.env.RESEND_API_KEY
+  if (resendKey) {
+    try {
+      const resend = new Resend(resendKey)
+      const inviterName = user.user_metadata?.agency_name || user.user_metadata?.name || 'Your colleague'
+      const adminLine = is_admin ? ' as an <strong>admin</strong>' : ''
+      const { error: sendErr } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+        to: email.trim().toLowerCase(),
+        subject: `You've been invited to join ${inviterName} on NestLondon`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1B2E4B;">
+            <h1 style="font-family: Georgia, serif; font-weight: 300; font-size: 28px; margin-bottom: 16px;">You're invited to ${inviterName}</h1>
+            <p style="color: #3D3A38; line-height: 1.6;">Hi ${name.trim()},</p>
+            <p style="color: #3D3A38; line-height: 1.6;">${inviterName} has invited you to join their agency on NestLondon${adminLine}. Click below to set up your account:</p>
+            <p style="text-align: center; margin: 32px 0;">
+              <a href="${invite_url}" style="display: inline-block; background: #D3755A; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 500;">Accept invitation</a>
+            </p>
+            <p style="color: #9B928E; font-size: 13px; line-height: 1.6;">Or paste this link into your browser:<br><span style="word-break: break-all;">${invite_url}</span></p>
+            <hr style="border: none; border-top: 1px solid #E8E2DA; margin: 32px 0;">
+            <p style="color: #9B928E; font-size: 12px;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+          </div>
+        `,
+      })
+      if (sendErr) email_error = sendErr.message
+      else email_sent = true
+    } catch (e: any) {
+      email_error = e?.message || 'Email send failed'
+    }
+  }
+
+  return NextResponse.json({ agent: data, invite_url, email_sent, email_error })
 }
