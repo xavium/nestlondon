@@ -10,6 +10,7 @@ export interface CalendarViewing {
   proposed_slot?: Slot
   assigned_agent_name?: string | null
   agent_color?: string | null
+  outcome?: 'completed' | 'not_completed' | null
   listings?: {
     address: string
     price: number
@@ -24,31 +25,70 @@ function formatSlot(slot: Slot): string {
   return `${dateStr} at ${slot.time}`
 }
 
-export default function ViewingsCalendarView({ viewings }: { viewings: CalendarViewing[] }) {
+export default function ViewingsCalendarView({ viewings, onManage }: { viewings: CalendarViewing[]; onManage?: (v: CalendarViewing) => void }) {
   const [selectedViewing, setSelectedViewing] = useState<CalendarViewing | null>(null)
+  const [outcomes, setOutcomes] = useState<Record<string, 'completed' | 'not_completed' | null>>({})
+  const [markingId, setMarkingId] = useState<string | null>(null)
+  async function markOutcome(viewingId: string, outcome: 'completed' | 'not_completed' | null) {
+    setMarkingId(viewingId)
+    try {
+      const res = await fetch('/api/listings/viewing-outcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ viewing_id: viewingId, outcome }),
+      })
+      if (res.ok) {
+        setOutcomes(o => ({ ...o, [viewingId]: outcome }))
+        if (selectedViewing?.id === viewingId) {
+          setSelectedViewing({ ...selectedViewing, outcome })
+        }
+      }
+    } finally {
+      setMarkingId(null)
+    }
+  }
 
   const confirmed = viewings.filter(v => v.status === 'confirmed' && v.proposed_slot)
   const proposed = viewings.filter(v => v.status === 'proposed' && v.proposed_slot)
-  const upcoming = [...confirmed, ...proposed].sort((a, b) =>
+  const allCalendarViewings = [...confirmed, ...proposed].sort((a, b) =>
     new Date(a.proposed_slot!.date).getTime() - new Date(b.proposed_slot!.date).getTime()
   )
 
   const today = new Date()
+  const [viewMonth, setViewMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
+
+  // Build a calendar grid for viewMonth — always starts on a Monday.
+  // Includes days from the previous month needed to fill the first row,
+  // and from the next month to fill the last row (max 6 weeks).
+  const firstOfMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1)
+  const firstWeekdayMondayIndex = (firstOfMonth.getDay() + 6) % 7 // Mon=0 .. Sun=6
+  const gridStart = new Date(firstOfMonth)
+  gridStart.setDate(firstOfMonth.getDate() - firstWeekdayMondayIndex)
+
+  const lastOfMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0)
+  const lastWeekdayMondayIndex = (lastOfMonth.getDay() + 6) % 7
+  const gridEnd = new Date(lastOfMonth)
+  gridEnd.setDate(lastOfMonth.getDate() + (6 - lastWeekdayMondayIndex))
+
   const weeks: Date[][] = []
-  const start = new Date(today)
-  start.setDate(today.getDate() - today.getDay() + 1)
-  for (let w = 0; w < 4; w++) {
+  const cursor = new Date(gridStart)
+  while (cursor <= gridEnd) {
     const week: Date[] = []
     for (let d = 0; d < 7; d++) {
-      const day = new Date(start)
-      day.setDate(start.getDate() + w * 7 + d)
-      week.push(day)
+      week.push(new Date(cursor))
+      cursor.setDate(cursor.getDate() + 1)
     }
     weeks.push(week)
   }
 
+  function prevMonth() { setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1)) }
+  function nextMonth() { setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1)) }
+  function goToday() { setViewMonth(new Date(today.getFullYear(), today.getMonth(), 1)) }
+
+  const monthLabel = viewMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+
   const viewingsByDate: Record<string, CalendarViewing[]> = {}
-  for (const v of upcoming) {
+  for (const v of allCalendarViewings) {
     const key = v.proposed_slot!.date
     if (!viewingsByDate[key]) viewingsByDate[key] = []
     viewingsByDate[key].push(v)
@@ -58,7 +98,18 @@ export default function ViewingsCalendarView({ viewings }: { viewings: CalendarV
 
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 mb-5 relative">
-      <h2 className="text-sm font-semibold text-[#1B2E4B] mb-4">Calendar</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-[#1B2E4B]">Calendar</h2>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={goToday}
+            className="text-xs text-[#3D3A38] hover:text-[#D3755A] px-2 py-1 rounded-lg border border-[#E8E2DA] hover:border-[#D3755A] transition-colors">Today</button>
+          <button type="button" onClick={prevMonth}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E8E2DA] hover:border-[#D3755A] text-[#3D3A38] hover:text-[#D3755A] transition-colors">‹</button>
+          <span className="text-xs font-medium text-[#1B2E4B] min-w-[96px] text-center">{monthLabel}</span>
+          <button type="button" onClick={nextMonth}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#E8E2DA] hover:border-[#D3755A] text-[#3D3A38] hover:text-[#D3755A] transition-colors">›</button>
+        </div>
+      </div>
       <div className="grid grid-cols-7 gap-1 mb-2">
         {dayNames.map(d => (
           <div key={d} className="text-center text-[10px] font-semibold text-[#9B928E] uppercase tracking-wide py-1">{d}</div>
@@ -71,9 +122,10 @@ export default function ViewingsCalendarView({ viewings }: { viewings: CalendarV
             const dayViewings = viewingsByDate[key] || []
             const isToday = key === today.toISOString().split('T')[0]
             const isPast = day < today && !isToday
+            const isOutsideMonth = day.getMonth() !== viewMonth.getMonth()
             return (
-              <div key={di} className={'rounded-lg p-1 min-h-[52px] text-center ' + (isToday ? 'bg-[#F5EBE0]' : isPast ? '' : 'hover:bg-stone-50')}>
-                <div className={'text-xs mb-1 ' + (isToday ? 'font-bold text-[#D3755A]' : isPast ? 'text-[#C8C4BF]' : 'text-[#3D3A38]')}>
+              <div key={di} className={'rounded-lg p-1 min-h-[52px] text-center ' + (isToday ? 'bg-[#F5EBE0]' : 'hover:bg-stone-50')}>
+                <div className={'text-xs mb-1 ' + (isToday ? 'font-bold text-[#D3755A]' : isOutsideMonth ? 'text-[#E8E2DA]' : isPast ? 'text-[#C8C4BF]' : 'text-[#3D3A38]')}>
                   {day.getDate()}
                 </div>
                 {dayViewings.map(v => {
@@ -141,6 +193,27 @@ export default function ViewingsCalendarView({ viewings }: { viewings: CalendarV
               )}
             </div>
 
+            {(() => {
+              const currentOutcome = outcomes[selectedViewing.id] ?? selectedViewing.outcome ?? null
+              return (
+                <div className="mb-3">
+                  <div className="text-xs text-[#9B928E] mb-2">Mark outcome</div>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={markingId === selectedViewing.id}
+                      onClick={() => markOutcome(selectedViewing.id, currentOutcome === 'completed' ? null : 'completed')}
+                      className={'flex-1 py-2 rounded-xl text-xs font-medium border transition-colors disabled:opacity-50 ' + (currentOutcome === 'completed' ? 'bg-green-600 text-white border-green-600' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-green-500 hover:text-green-600')}>
+                      ✓ Completed
+                    </button>
+                    <button type="button" disabled={markingId === selectedViewing.id}
+                      onClick={() => markOutcome(selectedViewing.id, currentOutcome === 'not_completed' ? null : 'not_completed')}
+                      className={'flex-1 py-2 rounded-xl text-xs font-medium border transition-colors disabled:opacity-50 ' + (currentOutcome === 'not_completed' ? 'bg-red-600 text-white border-red-600' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-red-500 hover:text-red-600')}>
+                      ✕ Not completed
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
+
             <div className="flex gap-2">
               <Link href={'/listings/' + selectedViewing.listing_id} target="_blank" rel="noopener noreferrer"
                 className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center no-underline hover:bg-[#F5EBE0] transition-colors">
@@ -148,9 +221,14 @@ export default function ViewingsCalendarView({ viewings }: { viewings: CalendarV
               </Link>
               <button
                 onClick={() => {
+                  const v = selectedViewing
                   setSelectedViewing(null)
+                  if (onManage) {
+                    onManage(v)
+                    return
+                  }
                   setTimeout(() => {
-                    const el = document.getElementById('viewing-' + selectedViewing.id)
+                    const el = document.getElementById('viewing-' + v.id)
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                   }, 100)
                 }}

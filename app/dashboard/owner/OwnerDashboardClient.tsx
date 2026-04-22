@@ -42,6 +42,7 @@ interface ViewingRequest {
   slots: {date: string, time: string}[]
   status: string
   proposed_slot?: {date: string, time: string, note?: string}
+  outcome?: "completed" | "not_completed" | null
   created_at: string
 }
 
@@ -281,16 +282,27 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
         </div>
 
         {dashTab === 'viewings' && (
-          <ViewingsCalendarView viewings={requests.map(r => {
-            const l = listings.find(x => x.id === r.listing_id)
-            return {
-              id: r.id,
-              listing_id: r.listing_id,
-              status: r.status,
-              proposed_slot: r.proposed_slot,
-              listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null
-            }
-          })} />
+          <ViewingsCalendarView
+            viewings={requests.map(r => {
+              const l = listings.find(x => x.id === r.listing_id)
+              return {
+                id: r.id,
+                listing_id: r.listing_id,
+                status: r.status,
+                proposed_slot: r.proposed_slot,
+                listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null,
+                outcome: r.outcome || null,
+              }
+            })}
+            onManage={v => {
+              setSelected(v.listing_id)
+              setDashTab('listings')
+              setTimeout(() => {
+                const el = document.getElementById('viewing-' + v.id)
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 250)
+            }}
+          />
         )}
 
         {dashTab === 'listings' && (
@@ -682,7 +694,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                     </h3>
                     <div className="flex flex-col gap-3">
                       {requests.filter(r => r.listing_id === selected).map(req => (
-                        <div key={req.id} className="border border-[#E8E2DA] rounded-xl p-4">
+                        <div id={"viewing-" + req.id} key={req.id} className="border border-[#E8E2DA] rounded-xl p-4">
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <div className="text-sm font-medium text-[#1B2E4B]">{req.tenant_name}</div>

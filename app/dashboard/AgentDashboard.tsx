@@ -943,7 +943,8 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               proposed_slot: v.proposed_slot,
               assigned_agent_name: l?.assigned_agent_name || null,
               agent_color: agent?.color || null,
-              listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null
+              listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null,
+              outcome: v.outcome || null,
             }
           })} />
           {filteredViewings.length === 0 ? (
@@ -954,7 +955,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
             const listing = listingsState.find(l => l.id === v.listing_id)
             const STATUS: Record<string, string> = { pending: 'bg-amber-50 text-amber-700', proposed: 'bg-blue-50 text-blue-700', confirmed: 'bg-green-50 text-green-700', cancelled: 'bg-stone-100 text-stone-500' }
             return (
-              <div key={v.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+              <div id={"viewing-" + v.id} key={v.id} className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div>
                     <div className="text-sm font-medium text-[#1B2E4B]">{v.tenant_name}</div>
