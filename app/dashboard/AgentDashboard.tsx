@@ -34,7 +34,7 @@ interface AgencyAgent {
 }
 
 interface Props {
-  user: { email: string; name: string; id: string }
+  user: { email: string; name: string; id: string; isAdmin?: boolean; isOwner?: boolean }
   agentRecord: any
   listings: Listing[]
   viewingRequests: any[]
@@ -297,7 +297,14 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                 <h1 className="text-3xl font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>
                   {greeting}, {name}
                 </h1>
-                <p className="text-sm text-[#9B928E] mt-1">{user.email}</p>
+                <p className="text-sm text-[#9B928E] mt-1 flex items-center gap-2">
+                  {user.email}
+                  {user.isAdmin && (
+                    <span className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{background: '#D3755A', color: 'white'}}>
+                      Admin
+                    </span>
+                  )}
+                </p>
               </>
             )
           })()}

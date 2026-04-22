@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { resolveAgency } from '@/lib/agency'
 import Link from 'next/link'
 import NavAuthButton from '@/components/NavAuthButton'
 import AgentDashboardClient from './AgentDashboard'
@@ -21,11 +22,16 @@ export default async function DashboardPage() {
   if (role?.startsWith('owner') || role === 'landlord') redirect('/dashboard/owner')
   if (!role?.startsWith('agent') && role !== 'admin') redirect('/')
 
+  const agencyCtx = await resolveAgency(user.id)
+  if (!agencyCtx) redirect('/')
+  const agencyId = agencyCtx.agencyId
+
   const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-  // Fetch agent record — create if doesn't exist
-  let { data: agentRecord } = await svc.from('agents').select('*').eq('id', user.id).maybeSingle()
-  if (!agentRecord) {
+  // Fetch agent record for the agency owner (not the invited member)
+  let { data: agentRecord } = await svc.from('agents').select('*').eq('id', agencyId).maybeSingle()
+  if (!agentRecord && agencyCtx.isOwner) {
+    // Auto-create only for the agency owner on first login
     const { data: byEmail } = await svc.from('agents').select('*').eq('email', user.email!).maybeSingle()
     if (byEmail) {
       agentRecord = byEmail
@@ -50,7 +56,7 @@ export default async function DashboardPage() {
   let listingsQuery = svc
     .from('listings')
     .select('id, address, price, bedrooms, property_type, images, is_active, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name, square_feet, latitude, longitude, postcode, listing_type')
-    .eq('agent_id', user.id)
+    .eq('agent_id', agencyId)
     .order('scraped_at', { ascending: false })
   if (specialismListingType) listingsQuery = listingsQuery.eq('listing_type', specialismListingType)
   const { data: listings } = await listingsQuery
@@ -130,7 +136,7 @@ export default async function DashboardPage() {
   const { data: agencyAgents } = await svc
     .from('agency_agents')
     .select('*')
-    .eq('agency_id', user.id)
+    .eq('agency_id', agencyId)
     .order('name')
 
   return (
@@ -144,7 +150,7 @@ export default async function DashboardPage() {
         <NavAuthButton variant="dark" />
       </nav>
       <AgentDashboardClient
-        user={{ email: user.email!, name: user.user_metadata?.name || '', id: user.id }}
+        user={{ email: user.email!, name: user.user_metadata?.name || '', id: user.id, isAdmin: agencyCtx.isAdmin, isOwner: agencyCtx.isOwner }}
         agentRecord={agentRecord}
         agencyAgents={agencyAgents || []}
         comparables={comparables}
