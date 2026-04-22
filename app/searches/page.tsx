@@ -101,7 +101,7 @@ export default async function SearchesPage() {
         <Link href="/" className="text-xl font-light text-white no-underline" style={{ fontFamily: 'Georgia,serif' }}>
           nest<span style={{ color: '#D3755A' }} className="italic">london</span>
         </Link>
-        <Link href="/boroughs" className="text-sm text-white/70 hover:text-white transition-colors no-underline mr-4">Borough guides</Link>
+        
         <NavAuthButton variant="dark" />
       </nav>
       <div className="max-w-4xl mx-auto px-4 py-8">

@@ -36,6 +36,7 @@ interface SearchParams {
   maxBaths?: string
   maxPricePerSqm?: string
   minPricePerSqm?: string
+  nestOnly?: string
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -64,6 +65,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const maxBaths = params.maxBaths ? parseInt(params.maxBaths) : null
   const maxPricePerSqm = params.maxPricePerSqm ? parseInt(params.maxPricePerSqm) : null
   const minPricePerSqm = params.minPricePerSqm ? parseInt(params.minPricePerSqm) : null
+  const nestOnly = params.nestOnly === '1'
   // Get saved commute address from user profile if not in URL
   let commuteAddress = params.commuteAddress || null
   console.log('[SEARCH] params.commuteAddress:', params.commuteAddress, 'final commuteAddress:', commuteAddress)
@@ -93,6 +95,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const isBuyMode = listingType === 'buy'
   let query = supabase.from('listings').select('*').eq('is_active', true).order('scraped_at', { ascending: false }).limit(200)
   query = query.eq('listing_type', isBuyMode ? 'buy' : 'rent')
+  if (nestOnly) query = query.neq('source', 'Rightmove').neq('source', 'rightmove')
 
 
   // Geocode location to lat/lng for map centering and radius filtering

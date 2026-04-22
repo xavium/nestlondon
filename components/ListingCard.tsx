@@ -168,9 +168,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
         {viewed && (
           <div className="absolute top-2 right-2 bg-stone-200/90 text-stone-500 text-xs px-2 py-0.5 rounded-full">Viewed</div>
         )}
-        {!viewed && (
-          <div className="absolute bottom-2 right-2 bg-white/90 text-stone-500 text-xs px-2 py-0.5 rounded">{listing.source}</div>
-        )}
+
         {images.length > 1 && (
           <>
             {/* Invisible hit zones on left/right 25% of image */}

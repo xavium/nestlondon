@@ -42,6 +42,7 @@ export default function SearchFilters(props: Props) {
   const [furnished, setFurnished] = useState(props.furnished)
   const [propertyTypes, setPropertyTypes] = useState<string[]>(props.propertyType ? [props.propertyType] : [])
   const [features, setFeatures] = useState<string[]>(props.features)
+  const [nestOnly, setNestOnly] = useState<boolean>(() => { const sp2 = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''); return sp2.get('nestOnly') === '1' })
   const [styles, setStyles] = useState<string[]>(props.style ? props.style.split(',') : [])
   const [radius, setRadius] = useState<number | null>(sp.get('radius') ? parseFloat(sp.get('radius')!) : null)
   const [addedWithin, setAddedWithin] = useState<number | null>(props.addedWithin || null)
@@ -121,6 +122,7 @@ export default function SearchFilters(props: Props) {
     if (newBuild) p.set('newBuild', 'true')
     if (leaseholdMin) p.set('leaseholdMin', String(leaseholdMin))
     setOpen(false)
+    if (nestOnly) p.set('nestOnly', '1')
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
 
@@ -128,7 +130,7 @@ export default function SearchFilters(props: Props) {
     setStyles([])
     window.dispatchEvent(new Event('nestlondon:clearFilters'))
     setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null); setAvailableFrom(null); setAvailableFrom(null)
-    setFurnished(null); setPropertyTypes([]); setFeatures([]); setRadius(null); setAddedWithin(null)
+    setFurnished(null); setPropertyTypes([]); setFeatures([]); setRadius(null); setAddedWithin(null); setNestOnly(false)
     const p = new URLSearchParams()
     if (radius) p.set('radius', String(radius))
     if (addedWithin) p.set('addedWithin', String(addedWithin))
@@ -445,6 +447,14 @@ export default function SearchFilters(props: Props) {
                 >{f}</button>
               ))}
             </div>
+          </div>
+
+          <div className="pt-2 pb-4 border-t border-[#E8E2DA]">
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs text-stone-600 mt-4">
+              <input type="checkbox" checked={nestOnly} onChange={e => setNestOnly(e.target.checked)}
+                className="w-4 h-4 accent-[#D3755A] cursor-pointer" />
+              <span>Show NestLondon listings only</span>
+            </label>
           </div>
 
           <div className="flex gap-3">
