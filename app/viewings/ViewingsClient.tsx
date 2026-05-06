@@ -467,6 +467,12 @@ export default function ViewingsClient({ viewings, currentUserId }: { viewings: 
                   </div>
                 )}
               </div>
+              <div className="px-4 py-3 border-t border-[#F5F0EB] bg-[#FCFAF7]">
+                <Link href={l ? `/listings/${l.id}/offer` : '#'}
+                  className="text-xs text-[#D3755A] hover:underline no-underline">
+                  Make an offer →
+                </Link>
+              </div>
             </div>
           )
         })}

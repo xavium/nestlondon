@@ -166,6 +166,12 @@ export default function MessageInbox({ currentUserId }: Props) {
                 {activeThreadData?.listings?.price && (
                   <span className="text-xs text-[#9B928E] flex-shrink-0">£{activeThreadData.listings.price.toLocaleString()}/mo</span>
                 )}
+                {activeThreadData?.listings && (
+                  <Link href={`/listings/${activeThreadData.listings.id}/offer`}
+                    className="ml-auto text-xs text-[#D3755A] hover:underline no-underline flex-shrink-0">
+                    Make an offer →
+                  </Link>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3" style={{ maxHeight: '340px' }}>
                 {messages.map(m => {
