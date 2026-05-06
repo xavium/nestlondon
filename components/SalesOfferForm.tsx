@@ -121,7 +121,7 @@ export default function SalesOfferForm({ listingId, listedPrice, user }: Props) 
         <h2 className="text-2xl font-light text-[#1B2E4B] mb-3" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Offer submitted</h2>
         <p className="text-sm text-[#3D3A38] mb-6">The seller will be notified and will respond via your dashboard.</p>
         <div className="flex gap-3 justify-center">
-          <button onClick={() => router.push('/account')} className="px-5 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#3D3A38]">View my offers</button>
+          <button onClick={() => router.push('/offers')} className="px-5 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#3D3A38]">View my offers</button>
           <button onClick={() => router.push(`/listings/${listingId}`)} className="px-5 py-2.5 rounded-xl text-white text-sm font-medium" style={{background:'#D3755A'}}>Back to listing</button>
         </div>
       </div>

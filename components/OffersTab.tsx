@@ -84,8 +84,13 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'new' | 'accepted' | 'rejected'>('all')
   const [updating, setUpdating] = useState(false)
+  const [showMessage, setShowMessage] = useState(false)
+  const [messageBody, setMessageBody] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const [messageSent, setMessageSent] = useState(false)
 
   useEffect(() => { setOffers(initialOffers) }, [initialOffers])
+  useEffect(() => { setShowMessage(false); setMessageBody(''); setMessageSent(false) }, [selectedId])
 
   const listingsById = listings.reduce<Record<string, OfferListing>>((m, l) => { m[l.id] = l; return m }, {})
 
@@ -104,8 +109,39 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
     try {
       await onStatusChange?.(selected.id, newStatus)
       setOffers(os => os.map(o => o.id === selected.id ? { ...o, status: newStatus } : o))
+      // Auto-prompt owner to message applicant after accepting/rejecting
+      if (newStatus === 'accepted' || newStatus === 'rejected') {
+        setShowMessage(true)
+        if (!messageBody) {
+          setMessageBody(newStatus === 'accepted'
+            ? 'Hi ' + (selected.offerer_name || 'there') + ', I\'m delighted to accept your offer. Let me know how you\'d like to proceed.'
+            : 'Hi ' + (selected.offerer_name || 'there') + ', thank you for your offer. Unfortunately we won\'t be moving forward at this time.')
+        }
+      }
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function sendMessage() {
+    if (!selected || !messageBody.trim()) return
+    setSendingMessage(true)
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listing_id: selected.listing_id,
+          body: messageBody.trim(),
+          to_email: selected.offerer_email,
+        }),
+      })
+      if (res.ok) {
+        setMessageSent(true)
+        setTimeout(() => { setShowMessage(false); setMessageSent(false); setMessageBody('') }, 1800)
+      }
+    } finally {
+      setSendingMessage(false)
     }
   }
 
@@ -232,6 +268,38 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
                   </button>
                 )}
               </div>
+
+              {!showMessage && (
+                <button onClick={() => setShowMessage(true)}
+                  className="w-full px-4 py-2 rounded-xl border border-[#E8E2DA] text-[#3D3A38] text-sm hover:border-[#D3755A] transition-colors flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Message applicant
+                </button>
+              )}
+
+              {showMessage && (
+                <div className="bg-[#FCFAF7] border border-[#E8E2DA] rounded-xl p-4">
+                  {messageSent ? (
+                    <div className="text-sm text-green-700 text-center py-3">✓ Message sent to {selected.offerer_name}</div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-[#9B928E] mb-2">Message to {selected.offerer_name}</p>
+                      <textarea value={messageBody} onChange={e => setMessageBody(e.target.value)} rows={4}
+                        className="w-full text-sm border border-[#E8E2DA] rounded-lg px-3 py-2 outline-none focus:border-[#D3755A] resize-none mb-3 bg-white"
+                        placeholder="Type your message…" />
+                      <div className="flex gap-2">
+                        <button onClick={() => { setShowMessage(false); setMessageBody('') }}
+                          className="flex-1 px-3 py-2 rounded-lg border border-[#E8E2DA] text-xs text-[#3D3A38]">Cancel</button>
+                        <button onClick={sendMessage} disabled={sendingMessage || !messageBody.trim()}
+                          className="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-50"
+                          style={{background:'#1B2E4B'}}>
+                          {sendingMessage ? 'Sending…' : 'Send →'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Contact */}
               <Section title="Offerer">

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
   // Allow guest enquiries — user can be null
 
   const supabase = serviceClient()
-  const { listing_id, body, to_user_id, thread_id, from_name, from_email } = await req.json()
+  const { listing_id, body, to_user_id, thread_id, from_name, from_email, to_email } = await req.json()
 
   if (!listing_id || !body) {
     return NextResponse.json({ error: 'listing_id and body required' }, { status: 400 })
@@ -124,6 +124,16 @@ export async function POST(req: NextRequest) {
   }
 
   let recipientId = to_user_id
+  if (!recipientId && to_email) {
+    // Look up recipient by email via auth admin
+    try {
+      const { data } = await supabase.auth.admin.listUsers()
+      const found = data?.users?.find(u => (u.email || '').toLowerCase() === to_email.toLowerCase())
+      if (found) recipientId = found.id
+    } catch (e) {
+      console.error('Failed to look up user by email:', e)
+    }
+  }
   if (!recipientId) {
     const { data: listing } = await supabase
       .from('listings')
