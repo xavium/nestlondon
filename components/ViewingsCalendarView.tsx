@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 export interface Slot { date: string; time: string; note?: string }
@@ -29,6 +29,49 @@ function formatSlot(slot: Slot): string {
 
 export default function ViewingsCalendarView({ viewings, onManage }: { viewings: CalendarViewing[]; onManage?: (v: CalendarViewing) => void }) {
   const [selectedViewing, setSelectedViewing] = useState<CalendarViewing | null>(null)
+  const [amending, setAmending] = useState<CalendarViewing | null>(null)
+  const [amendDate, setAmendDate] = useState('')
+  const [amendTime, setAmendTime] = useState('')
+  const [amendDoor, setAmendDoor] = useState('')
+  const [amendSubmitting, setAmendSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!amending) return
+    const slot = amending.proposed_slot
+    setAmendDate(slot?.date || '')
+    setAmendTime(slot?.time || '')
+    setAmendDoor('')
+  }, [amending])
+
+  async function submitAmend() {
+    if (!amending || !amendDate || !amendTime) return
+    setAmendSubmitting(true)
+    try {
+      // Combine door number with listing address if provided
+      let confirmed_address: string | undefined
+      if (amendDoor.trim() && amending.listings?.address) {
+        confirmed_address = amendDoor.trim() + ', ' + amending.listings.address
+      }
+      const res = await fetch('/api/listings/viewing-amend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewing_id: amending.id,
+          action: 'owner_amend',
+          proposed_slot: { date: amendDate, time: amendTime },
+          confirmed_address,
+        }),
+      })
+      if (res.ok) {
+        setAmending(null)
+        setSelectedViewing(null)
+        // Reload to reflect changes
+        if (typeof window !== 'undefined') window.location.reload()
+      }
+    } finally {
+      setAmendSubmitting(false)
+    }
+  }
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [outcomes, setOutcomes] = useState<Record<string, 'completed' | 'not_completed' | null>>({})
   const [markingId, setMarkingId] = useState<string | null>(null)
@@ -184,7 +227,11 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
                   {selectedViewing.status === 'confirmed' ? 'Confirmed' : 'Proposed'}
                 </div>
                 <h3 className="text-base font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>
-                  {selectedViewing.listings?.address || 'Property viewing'}
+                  {selectedViewing.listings ? (
+                    <Link href={'/listings/' + selectedViewing.listing_id} className="hover:text-[#D3755A] transition-colors no-underline">
+                      {selectedViewing.listings.address}
+                    </Link>
+                  ) : 'Property viewing'}
                 </h3>
               </div>
               <button onClick={() => setSelectedViewing(null)} className="text-[#9B928E] hover:text-[#1B2E4B] text-lg leading-none ml-4">✕</button>
@@ -240,20 +287,9 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  const v = selectedViewing
-                  setSelectedViewing(null)
-                  if (onManage) {
-                    onManage(v)
-                    return
-                  }
-                  setTimeout(() => {
-                    const el = document.getElementById('viewing-' + v.id)
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  }, 100)
-                }}
-                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center cursor-pointer hover:bg-[#F5EBE0] transition-colors">
-                View listing
+                onClick={() => setAmending(selectedViewing)}
+                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] text-center cursor-pointer hover:bg-[#F5EBE0] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+                Amend viewing
               </button>
               {selectedViewing.tenant_email && (
                 <Link
@@ -263,6 +299,53 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
                   Message user
                 </Link>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {amending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setAmending(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Amend viewing</h3>
+            <p className="text-xs text-[#9B928E] mb-4">Update the date, time, or door/flat number. The tenant will be notified.</p>
+
+            {amending.listings?.address && (
+              <div className="bg-[#F5EBE0] rounded-xl px-3 py-2 mb-3">
+                <p className="text-xs text-[#9B928E] uppercase tracking-wide mb-0.5">Property</p>
+                <p className="text-sm text-[#1B2E4B]">{amending.listings.address}</p>
+              </div>
+            )}
+
+            <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Date</label>
+            <input type="date" value={amendDate} onChange={e => setAmendDate(e.target.value)}
+              className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-3" />
+
+            <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Time</label>
+            <select value={amendTime} onChange={e => setAmendTime(e.target.value)}
+              className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-3">
+              <option value="">Select a time</option>
+              {Array.from({ length: 24 }, (_, h) =>
+                ['00', '30'].map(m => {
+                  const t = String(h).padStart(2, '0') + ':' + m
+                  return <option key={t} value={t}>{t}</option>
+                })
+              )}
+            </select>
+
+            <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Door / flat number (optional)</label>
+            <input value={amendDoor} onChange={e => setAmendDoor(e.target.value)}
+              className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-4"
+              placeholder="e.g. Flat 3 or 42a (leave blank to keep existing)" />
+
+            <div className="flex gap-2">
+              <button onClick={() => setAmending(null)}
+                className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#9B928E]">Cancel</button>
+              <button onClick={submitAmend} disabled={amendSubmitting || !amendDate || !amendTime}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                style={{background:'#1B2E4B'}}>
+                {amendSubmitting ? 'Saving…' : 'Save changes →'}
+              </button>
             </div>
           </div>
         </div>

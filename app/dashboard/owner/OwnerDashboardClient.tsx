@@ -7,6 +7,7 @@ import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
 import NavAuthButton from '@/components/NavAuthButton'
 import ViewingsCalendarView from '@/components/ViewingsCalendarView'
+import OffersTab from '@/components/OffersTab'
 import type { ValuationResult } from '@/lib/valuation'
 
 interface Listing {
@@ -55,6 +56,7 @@ interface Props {
   avgDaysOnMarket?: Record<string, number | null>
   viewingRequests: ViewingRequest[]
   renterProfiles?: Record<string, any>
+  offers?: any[]
 }
 
 function getImg(listing: Listing): string | null {
@@ -77,7 +79,7 @@ function getPercentile(value: number, arr: number[]): number {
   return Math.round((below / sorted.length) * 100)
 }
 
-export default function OwnerDashboardClient({ user, listings, events, comparables, valuations = {}, avgDaysOnMarket = {}, viewingRequests, renterProfiles = {} }: Props) {
+export default function OwnerDashboardClient({ user, listings, events, comparables, valuations = {}, avgDaysOnMarket = {}, viewingRequests, renterProfiles = {}, offers = [] }: Props) {
   const [requests, setRequests] = useState<ViewingRequest[]>(viewingRequests)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [confirmingAddress, setConfirmingAddress] = useState<{id: string, slot: any, address: string} | null>(null)
@@ -134,8 +136,8 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
   }
 
   const searchParams = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'analytics' | 'listings' | 'viewings') || 'analytics'
-  const [dashTab, setDashTab] = useState<'analytics' | 'listings' | 'viewings'>(initialTab)
+  const initialTab = (searchParams.get('tab') as 'analytics' | 'listings' | 'viewings' | 'offers') || 'analytics'
+  const [dashTab, setDashTab] = useState<'analytics' | 'listings' | 'viewings' | 'offers'>(initialTab)
   const [managingId, setManagingId] = useState<string | null>(null)
 
   async function manageListing(listing_id: string, action: 'deactivate' | 'activate' | 'delete') {
@@ -273,6 +275,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
             { key: 'analytics', label: 'Analytics' },
             { key: 'listings', label: `Listings (${listings.length})` },
             { key: 'viewings', label: `Viewings (${requests.filter(r => r.status === 'confirmed' || r.status === 'proposed').length})` },
+            { key: 'offers', label: `Offers (${offers.filter((o: any) => o.status === 'new' || o.status === 'viewed').length || offers.length})` },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setDashTab(t.key as any)}
               className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors ' + (dashTab === t.key ? 'text-white' : 'text-[#3D3A38] bg-white border border-[#E8E2DA]')}
@@ -345,7 +348,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                                   return (
                                     <button key={i} type="button"
                                       onClick={() => { setProposingId(req.id); setProposedSlot(s); setAlternativeMode(null) }}
-                                      className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
+                                      className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent shadow-sm' : 'border-[#E8E2DA] text-[#3D3A38] bg-[#FCF7F3] hover:border-[#D3755A] hover:bg-[#F5EBE0]')}
                                       style={isSel ? {background:'#D3755A'} : {}}>
                                       {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
                                     </button>
@@ -358,8 +361,9 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                                     placeholder="Add a note to the tenant (optional)..."
                                     className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
                                   <button onClick={() => {
-                                    const addr = (req as any).listings?.address || ''
-                                    setFullAddress(addr)
+                                    const lst = listings.find(l => l.id === req.listing_id)
+                                    const addr = lst?.address || (req as any).listings?.address || ''
+                                    setFullAddress('')
                                     setConfirmingAddress({ id: req.id, slot: proposedSlot, address: addr })
                                   }} disabled={proposeLoading}
                                     className="w-full py-2 rounded-xl text-white text-xs font-medium disabled:opacity-50"
@@ -371,7 +375,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                               {/* Propose alternative slot — always visible */}
                               {alternativeMode !== req.id && (
                                 <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
-                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors mt-1">
+                                  className="w-full py-1.5 rounded-xl border border-blue-200 text-xs text-blue-700 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-300 transition-colors mt-1">
                                   Propose alternative slot
                                 </button>
                               )}
@@ -439,7 +443,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                                     setOwnerAmendDate(slot?.date || '')
                                     setOwnerAmendTime(slot?.time || '10:00 AM')
                                   }}
-                                    className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+                                    className="flex-1 py-1.5 rounded-xl border border-amber-200 text-xs text-amber-700 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-300 transition-colors">
                                     Request amendment
                                   </button>
                                   <button onClick={() => cancelViewingOwner(req.id)} disabled={cancellingId === req.id}
@@ -504,6 +508,20 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                 )}
 
           </div>
+        )}
+
+        {dashTab === 'offers' && (
+          <OffersTab
+            offers={offers}
+            listings={listings.map(l => ({ id: l.id, address: l.address, price: l.price, listing_type: (l as any).listing_type, bedrooms: l.bedrooms, property_type: l.property_type }))}
+            onStatusChange={async (offerId: string, newStatus: string) => {
+              await fetch('/api/offers/' + offerId, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+              })
+            }}
+          />
         )}
 
         {dashTab === 'listings' && (

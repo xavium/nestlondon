@@ -124,6 +124,18 @@ export default async function OwnerDashboardPage() {
     console.log('[DASHBOARD] viewingRequests count:', viewingRequests.length, 'ids:', ids)
   }
 
+  // Offers
+  let offers: any[] = []
+  if (ids.length > 0) {
+    const idList = ids.map((id: string) => id).join(',')
+    const ofRes = await fetch(
+      supabaseUrl + '/rest/v1/offers?listing_id=in.(' + idList + ')&order=created_at.desc',
+      { headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey } }
+    )
+    const ofData = await ofRes.json()
+    offers = Array.isArray(ofData) ? ofData : []
+  }
+
   // Fetch renter profiles for all tenants who made viewing requests
   let renterProfiles: Record<string, any> = {}
   if (viewingRequests.length > 0) {
@@ -151,6 +163,7 @@ export default async function OwnerDashboardPage() {
       avgDaysOnMarket={avgDaysOnMarket}
       viewingRequests={viewingRequests}
       renterProfiles={renterProfiles}
+      offers={offers}
     />
   )
 }

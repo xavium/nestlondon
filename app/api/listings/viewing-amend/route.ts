@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
   try {
-    const { viewing_id, action, message, new_slots } = await req.json()
+    const { viewing_id, action, message, new_slots, proposed_slot, confirmed_address } = await req.json()
     // action: 'cancel' | 'request_amendment'
 
     const cookieStore = await cookies()
@@ -31,7 +31,16 @@ export async function POST(req: NextRequest) {
     if (!viewing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const listing = viewing.listings as any
-    const isOwner = listing?.agent_id === user.id
+    let isOwner = listing?.agent_id === user.id
+    if (!isOwner && listing?.agent_id) {
+      const { data: member } = await supabase.from('agency_agents')
+        .select('id').eq('agency_id', listing.agent_id).eq('auth_user_id', user.id).maybeSingle()
+      if (member) isOwner = true
+    }
+    if (!isOwner) {
+      const ownerEmail = (typeof listing?.raw_data === 'string' ? JSON.parse(listing.raw_data) : listing?.raw_data)?.contact?.email
+      if (ownerEmail && user.email && ownerEmail.toLowerCase() === user.email.toLowerCase()) isOwner = true
+    }
     const isTenant = viewing.tenant_email === user.email
     if (!isOwner && !isTenant) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
@@ -71,6 +80,47 @@ export async function POST(req: NextRequest) {
         }
       }
       return NextResponse.json({ success: true, status: 'cancelled' })
+    }
+
+    if (action === 'owner_amend') {
+      // Owner is amending an already-confirmed viewing with a new single slot
+      if (!isOwner) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      const updateData: any = {
+        status: 'proposed',
+        updated_at: new Date().toISOString(),
+      }
+      if (proposed_slot) updateData.proposed_slot = proposed_slot
+      if (confirmed_address) updateData.confirmed_address = confirmed_address
+      const { error } = await supabase.from('viewing_requests').update(updateData).eq('id', viewing_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+      if (process.env.RESEND_API_KEY) {
+        const toEmail = viewing.tenant_email
+        if (toEmail) {
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'NestLondon <onboarding@resend.dev>',
+              to: toEmail,
+              subject: `Viewing time updated — ${listing?.address}`,
+              text: [
+                `Hi ${viewing.tenant_name},`,
+                ``,
+                `The owner has proposed a new time for your viewing at ${listing?.address}.`,
+                ``,
+                `New date: ${proposed_slot?.date || 'unchanged'}`,
+                `New time: ${proposed_slot?.time || 'unchanged'}`,
+                ``,
+                `Please confirm or decline at: ${siteUrl}/viewings`,
+                ``,
+                `— NestLondon`,
+              ].join('\n'),
+            }),
+          })
+        }
+      }
+      return NextResponse.json({ success: true, status: 'proposed' })
     }
 
     if (action === 'request_amendment') {
