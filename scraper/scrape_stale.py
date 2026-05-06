@@ -48,14 +48,16 @@ async def check_listing(context, listing):
         return f'error: {str(e)[:50]}'
 
 
-async def main(batch_size=50):
-    print('Checking for stale listings...')
+async def main():
+    from datetime import datetime, timezone
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    print(f'Checking for stale listings (not scraped since {today_start})...')
     result = supabase.table('listings') \
         .select('id,source_url,address') \
         .eq('is_active', True) \
         .filter('source_url', 'neq', 'null') \
+        .lt('scraped_at', today_start) \
         .order('scraped_at') \
-        .limit(batch_size) \
         .execute()
 
     listings = result.data or []

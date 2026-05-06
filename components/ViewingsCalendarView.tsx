@@ -8,6 +8,7 @@ export interface CalendarViewing {
   listing_id: string
   status: string
   proposed_slot?: Slot
+  slots?: Slot[]
   assigned_agent_name?: string | null
   agent_color?: string | null
   outcome?: 'completed' | 'not_completed' | null
@@ -28,6 +29,7 @@ function formatSlot(slot: Slot): string {
 
 export default function ViewingsCalendarView({ viewings, onManage }: { viewings: CalendarViewing[]; onManage?: (v: CalendarViewing) => void }) {
   const [selectedViewing, setSelectedViewing] = useState<CalendarViewing | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [outcomes, setOutcomes] = useState<Record<string, 'completed' | 'not_completed' | null>>({})
   const [markingId, setMarkingId] = useState<string | null>(null)
   async function markOutcome(viewingId: string, outcome: 'completed' | 'not_completed' | null) {
@@ -54,6 +56,13 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
   const allCalendarViewings = [...confirmed, ...proposed].sort((a, b) =>
     new Date(a.proposed_slot!.date).getTime() - new Date(b.proposed_slot!.date).getTime()
   )
+
+  // Pending viewings have multiple submitted slots — expand each slot into its own dot
+  const pendingDots: { v: CalendarViewing; slot: Slot }[] = []
+  for (const v of viewings) {
+    if (v.status !== 'pending' || !v.slots) continue
+    for (const s of v.slots) pendingDots.push({ v, slot: s })
+  }
 
   const today = new Date()
   const [viewMonth, setViewMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
@@ -93,6 +102,13 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
     const key = v.proposed_slot!.date
     if (!viewingsByDate[key]) viewingsByDate[key] = []
     viewingsByDate[key].push(v)
+  }
+
+  // Pending dots — keyed by date, each entry holds the viewing + the specific slot
+  const pendingByDate: Record<string, { v: CalendarViewing; slot: Slot }[]> = {}
+  for (const p of pendingDots) {
+    if (!pendingByDate[p.slot.date]) pendingByDate[p.slot.date] = []
+    pendingByDate[p.slot.date].push(p)
   }
 
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -135,13 +151,19 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
                   const style = hasColor ? { background: c + '33', color: c, borderLeft: `3px solid ${c}` } : undefined
                   const fallback = v.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                   return (
-                    <button key={v.id} onClick={() => setSelectedViewing(v)}
+                    <button key={v.id} onClick={() => { setSelectedViewing(v); setSelectedSlot(null) }}
                       className={'w-full text-[9px] px-1 py-0.5 rounded mb-0.5 truncate text-left cursor-pointer hover:opacity-80 transition-opacity ' + (hasColor ? '' : fallback)}
                       style={style}>
                       {v.proposed_slot!.time}
                     </button>
                   )
                 })}
+                {(pendingByDate[day.toISOString().slice(0,10)] || []).map((p, i) => (
+                  <button key={'p-' + p.v.id + '-' + i} onClick={() => { setSelectedViewing(p.v); setSelectedSlot(p.slot) }}
+                    className="w-full text-[9px] px-1 py-0.5 rounded mb-0.5 truncate text-left cursor-pointer hover:opacity-80 transition-opacity bg-amber-100 text-amber-700 border border-amber-200 border-dashed">
+                    {p.slot.time}
+                  </button>
+                ))}
               </div>
             )
           })}
@@ -179,7 +201,7 @@ export default function ViewingsCalendarView({ viewings, onManage }: { viewings:
             <div className="bg-[#F5EBE0] rounded-xl p-4 mb-4">
               <div className="text-xs text-[#9B928E] mb-1">Date & time</div>
               <div className="text-sm font-medium text-[#1B2E4B]">
-                {formatSlot(selectedViewing.proposed_slot!)}
+                {formatSlot(selectedSlot || selectedViewing.proposed_slot!)}
               </div>
               {selectedViewing.assigned_agent_name && (
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/60">

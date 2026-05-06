@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import NavAuthButton from '@/components/NavAuthButton'
+import { Suspense } from 'react'
 import MessageInbox from '@/components/MessageInbox'
 
 export default async function MessagesPage() {
@@ -30,7 +31,7 @@ export default async function MessagesPage() {
           <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#D3755A' }}>Inbox</p>
           <h1 className="text-3xl font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Messages</h1>
         </div>
-        <MessageInbox currentUserId={user.id} />
+        <Suspense fallback={<div className="text-sm text-[#9B928E]">Loading…</div>}><MessageInbox currentUserId={user.id} currentUser={{ name: user.user_metadata?.name || user.email?.split('@')[0] || '', email: user.email || '', phone: user.user_metadata?.phone || '' }} /></Suspense>
       </div>
     </main>
   )

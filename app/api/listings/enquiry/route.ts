@@ -6,8 +6,13 @@ import { cookies } from 'next/headers'
 export async function POST(req: NextRequest) {
   try {
     const { listing_id, name, email, phone, message } = await req.json()
-    if (!listing_id || !name || !email || !message) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const missing = []
+    if (!listing_id) missing.push('listing_id')
+    if (!name) missing.push('name')
+    if (!email) missing.push('email')
+    if (!message) missing.push('message')
+    if (missing.length) {
+      return NextResponse.json({ error: 'Missing required fields: ' + missing.join(', ') }, { status: 400 })
     }
 
     const supabase = createClient(
@@ -64,6 +69,52 @@ export async function POST(req: NextRequest) {
     const profileSection = lines.join('\n')
 
     console.log('[ENQUIRY] ' + listing.address + ' | From: ' + name + ' <' + email + '> | To: ' + ownerEmail)
+
+    // Insert message into messages table so it appears in inbox
+    let authedUser: any = null
+    try {
+      const cookieStore = await cookies()
+      const authClient = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { getAll: () => cookieStore.getAll() } }
+      )
+      const { data: { user } } = await authClient.auth.getUser()
+      authedUser = user
+    } catch {}
+
+    try {
+      // Resolve recipient (listing's agent_id)
+      const { data: listingForMsg } = await supabase
+        .from('listings').select('agent_id').eq('id', listing_id).maybeSingle()
+      const recipientId = listingForMsg?.agent_id || null
+
+      const { data: msg } = await supabase.from('messages').insert({
+        listing_id,
+        from_user_id: authedUser?.id ?? null,
+        from_name: name,
+        from_email: email,
+        to_user_id: recipientId,
+        body: message + (profileSection ? '\n\n' + profileSection : ''),
+        thread_id: '00000000-0000-0000-0000-000000000000',
+      }).select('id').single()
+      // Set thread_id = message id for new threads
+      if (msg) await supabase.from('messages').update({ thread_id: msg.id }).eq('id', msg.id)
+    } catch (e) {
+      console.error('Failed to insert enquiry into messages table:', e)
+    }
+
+    // Auto-save the listing for the user
+    if (authedUser) {
+      try {
+        await supabase.from('saved_properties').upsert(
+          { user_id: authedUser.id, listing_id },
+          { onConflict: 'user_id,listing_id' }
+        )
+      } catch (e) {
+        console.error('Failed to auto-save listing:', e)
+      }
+    }
 
     if (ownerEmail && process.env.RESEND_API_KEY) {
       const bodyLines = [

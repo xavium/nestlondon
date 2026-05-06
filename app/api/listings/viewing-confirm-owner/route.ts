@@ -23,24 +23,42 @@ export async function POST(req: NextRequest) {
 
     const { data: viewing } = await supabase
       .from('viewing_requests')
-      .select('*, listings(address, agent_id)')
+      .select('*, listings(address, agent_id, raw_data)')
       .eq('id', request_id)
       .maybeSingle()
 
     if (!viewing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const listing = viewing.listings as any
-    if (listing?.agent_id !== user.id) {
+    let authorized = listing?.agent_id === user.id
+    if (!authorized && listing?.agent_id) {
+      // Allow agency members
+      const { data: member } = await supabase.from('agency_agents')
+        .select('id').eq('agency_id', listing.agent_id).eq('auth_user_id', user.id).maybeSingle()
+      if (member) authorized = true
+    }
+    if (!authorized) {
+      // Allow owner-listings: check raw_data.contact.email matches user email
+      const ownerEmail = listing?.raw_data?.contact?.email
+      if (ownerEmail && user.email && ownerEmail.toLowerCase() === user.email.toLowerCase()) {
+        authorized = true
+      }
+    }
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     // Update viewing with proposed slot and confirmed address
-    await supabase.from('viewing_requests').update({
+    const { error: updateErr } = await supabase.from('viewing_requests').update({
       proposed_slot,
       confirmed_address: confirmed_address || null,
-      status: 'proposed',
+      status: 'confirmed',
       updated_at: new Date().toISOString(),
     }).eq('id', request_id)
+    if (updateErr) {
+      console.error('viewing-confirm-owner update failed:', updateErr)
+      return NextResponse.json({ error: updateErr.message }, { status: 500 })
+    }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const confirmUrl = `${siteUrl}/viewing/confirm?token=${viewing.confirmation_token}`
@@ -54,19 +72,20 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           from: 'NestLondon <onboarding@resend.dev>',
           to: viewing.tenant_email,
-          subject: `Viewing proposed — ${displayAddress}`,
+          subject: `Viewing confirmed — ${displayAddress}`,
           text: [
             `Hi ${viewing.tenant_name},`,
             ``,
-            `The owner has proposed a viewing time.`,
+            `Your viewing has been confirmed.`,
             ``,
             `Property: ${displayAddress}`,
             `Date:     ${proposed_slot.date}`,
             `Time:     ${proposed_slot.time}`,
             proposed_slot.note ? `Note:     ${proposed_slot.note}` : '',
             ``,
-            `Confirm:  ${confirmUrl}`,
-            `Decline:  ${declineUrl}`,
+            `View in NestLondon: ${siteUrl}/viewings`,
+            ``,
+            `If you can no longer attend, you can cancel from your viewings page.`,
             ``,
             `— NestLondon`,
           ].filter(l => l !== null).join('\n'),

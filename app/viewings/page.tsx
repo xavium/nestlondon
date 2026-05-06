@@ -6,6 +6,8 @@ import Link from 'next/link'
 import NavAuthButton from '@/components/NavAuthButton'
 import ViewingsClient from './ViewingsClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ViewingsPage() {
   const cookieStore = await cookies()
   const supabase = createServerClient(

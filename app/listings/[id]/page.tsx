@@ -63,6 +63,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
   const isOwnListing = !!(currentUser && listing.agent_id && currentUser.id === listing.agent_id)
   const userRole = currentUser?.user_metadata?.role as string | undefined
+  const isOwnerOrAgent = !!(userRole && (userRole.startsWith('owner') || userRole.startsWith('agent') || userRole === 'landlord' || userRole === 'admin'))
+  const blockEnquiry = !!(currentUser && isOwnerOrAgent && !isOwnListing)
 
   if (!listing) { console.log('404: listing not found', id); notFound() }
   const isAdminPreview = isAdminPreviewEarly
@@ -594,12 +596,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                     View in my portal →
                   </a>
                 </div>
+              ) : blockEnquiry ? (
+                <ResidentAccountPrompt />
               ) : (
                 <ContactOwnerPanel listingId={listing.id} address={listing.address} />
               )
             ) : (
               <>
-                <ExternalLinkCard listing={listing} isOwnListing={isOwnListing} userRole={userRole} />
+                <ExternalLinkCard listing={listing} isOwnListing={isOwnListing} userRole={userRole} blockEnquiry={blockEnquiry} />
               </>
             )}
 
@@ -678,7 +682,24 @@ function KeyFeatures({ features }: { features: string[] }) {
   )
 }
 
-function ExternalLinkCard({ listing, isOwnListing, userRole }: { listing: any; isOwnListing: boolean; userRole: string | undefined }) {
+function ResidentAccountPrompt() {
+  return (
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6 text-center">
+      <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{background:'rgba(211,117,90,0.12)'}}>
+        <svg className="w-6 h-6" fill="none" stroke="#D3755A" viewBox="0 0 24 24">
+          <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
+      <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Create a resident account to enquire</h3>
+      <p className="text-xs text-[#9B928E] mb-4">Your current account is set up for listing properties. To request details, book a viewing, or make an offer, create a resident account.</p>
+      <a href="/auth/signup?role=resident" className="inline-block px-5 py-2.5 rounded-xl text-white text-sm font-medium no-underline transition-opacity hover:opacity-90" style={{background:'#D3755A'}}>
+        Create a resident account
+      </a>
+    </div>
+  )
+}
+
+function ExternalLinkCard({ listing, isOwnListing, userRole, blockEnquiry }: { listing: any; isOwnListing: boolean; userRole: string | undefined; blockEnquiry?: boolean }) {
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
       <div className="mb-4">
@@ -700,6 +721,8 @@ function ExternalLinkCard({ listing, isOwnListing, userRole }: { listing: any; i
               View in my portal →
             </a>
           </div>
+        ) : blockEnquiry ? (
+          <ResidentAccountPrompt />
         ) : (
           <ContactOwnerPanel listingId={listing.id} address={listing.address} />
         )

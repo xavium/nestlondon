@@ -7,8 +7,13 @@ import { randomBytes } from 'crypto'
 export async function POST(req: NextRequest) {
   try {
     const { listing_id, tenant_name, tenant_email, tenant_phone, message, slots } = await req.json()
-    if (!listing_id || !tenant_name || !tenant_email || !slots) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const missing = []
+    if (!listing_id) missing.push('listing_id')
+    if (!tenant_name) missing.push('tenant_name')
+    if (!tenant_email) missing.push('tenant_email')
+    if (!slots || (Array.isArray(slots) && slots.length === 0)) missing.push('slots')
+    if (missing.length) {
+      return NextResponse.json({ error: 'Missing required fields: ' + missing.join(', ') }, { status: 400 })
     }
 
     const supabase = createClient(

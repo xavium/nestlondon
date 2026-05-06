@@ -95,6 +95,17 @@ export default async function DashboardPage() {
     events = evts || []
   }
 
+  // Offers
+  let offers: any[] = []
+  if (ids.length > 0) {
+    const { data: ofs } = await svc
+      .from('offers')
+      .select('*')
+      .in('listing_id', ids)
+      .order('created_at', { ascending: false })
+    offers = ofs || []
+  }
+
   // Fetch comparables and avg days on market per listing
   const comparables: Record<string, any[]> = {}
   const avgDaysOnMarket: Record<string, number | null> = {}
@@ -159,6 +170,7 @@ export default async function DashboardPage() {
         viewingRequests={viewingRequests}
         messages={messages}
         events={events}
+        offers={offers}
       />
     </main>
   )

@@ -93,13 +93,14 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
   const [proposeNote, setProposeNote] = useState('')
   const [alternativeMode, setAlternativeMode] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(listings[0]?.id || null)
-  async function confirmWithAddress(id: string, slot: any) {
+  async function confirmWithAddress(id: string, slot: any, combinedAddress?: string) {
+    const addressToSend = combinedAddress ?? fullAddress
     await fetch('/api/listings/viewing-confirm-owner', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: id, proposed_slot: slot, confirmed_address: fullAddress })
+      body: JSON.stringify({ request_id: id, proposed_slot: slot, confirmed_address: addressToSend })
     })
-    setRequests(r => r.map(x => x.id === id ? { ...x, status: 'proposed', proposed_slot: slot } : x))
+    setRequests(r => r.map(x => x.id === id ? { ...x, status: 'confirmed', proposed_slot: slot } : x))
     setConfirmingAddress(null)
     setFullAddress('')
   }
@@ -290,6 +291,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                 listing_id: r.listing_id,
                 status: r.status,
                 proposed_slot: r.proposed_slot,
+                slots: r.slots,
                 listings: l ? { address: l.address, price: l.price, bedrooms: l.bedrooms, property_type: l.property_type } : null,
                 outcome: r.outcome || null,
                 tenant_email: r.tenant_email || null,
@@ -300,6 +302,208 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
               setDashTab('listings')
             }}
           />
+        )}
+
+        {dashTab === 'viewings' && (
+          <div className="mt-4">
+                {/* Viewing requests for this listing */}
+                {requests.filter(r => r.status === 'pending').length > 0 && (
+                  <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
+                    <h3 className="text-sm font-medium text-[#1B2E4B] mb-4">
+                      Pending viewing requests ({requests.filter(r => r.status === 'pending').length})
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                      {requests.filter(r => r.status === 'pending').map(req => { const lng = listings.find(l => l.id === req.listing_id); return (
+                        <div id={"viewing-" + req.id} key={req.id} className="border border-[#E8E2DA] rounded-xl p-4">
+                          {lng && <div className="text-xs font-medium text-[#1B2E4B] mb-2 truncate">{lng.address}</div>}
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="text-sm font-medium text-[#1B2E4B]">{req.tenant_name}</div>
+                              <div className="text-xs text-[#9B928E]">{req.tenant_email}{req.tenant_phone && ' · ' + req.tenant_phone}</div>
+                            </div>
+                            <span className={'text-xs px-2 py-0.5 rounded-full ' +
+                              (req.status === 'confirmed' ? 'bg-green-50 text-green-700' :
+                               req.status === 'proposed' ? 'bg-blue-50 text-blue-700' :
+                               req.status === 'cancelled' ? 'bg-red-50 text-red-700' :
+                               'bg-amber-50 text-amber-700')}>
+                              {req.status}
+                            </span>
+                          </div>
+                          {req.message && <p className="text-xs text-[#3D3A38] mb-2 italic">"{req.message}"</p>}
+                          {renterProfiles[req.tenant_email] && (
+                            <RenterProfileSummary
+                              profile={renterProfiles[req.tenant_email]}
+                              listingPrice={listings.find(l => l.id === req.listing_id)?.price}
+                            />
+                          )}
+                          {req.status === 'pending' && (
+                            <div>
+                              <div className="text-xs text-[#9B928E] mb-2">Their availability:</div>
+                              <div className="flex flex-col gap-1 mb-3">
+                                {req.slots.map((s, i) => {
+                                  const isSel = proposedSlot && proposingId === req.id && proposedSlot.date === s.date && proposedSlot.time === s.time
+                                  return (
+                                    <button key={i} type="button"
+                                      onClick={() => { setProposingId(req.id); setProposedSlot(s); setAlternativeMode(null) }}
+                                      className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
+                                      style={isSel ? {background:'#D3755A'} : {}}>
+                                      {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              {proposingId === req.id && proposedSlot && (
+                                <div className="flex flex-col gap-2">
+                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
+                                    placeholder="Add a note to the tenant (optional)..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
+                                  <button onClick={() => {
+                                    const addr = (req as any).listings?.address || ''
+                                    setFullAddress(addr)
+                                    setConfirmingAddress({ id: req.id, slot: proposedSlot, address: addr })
+                                  }} disabled={proposeLoading}
+                                    className="w-full py-2 rounded-xl text-white text-xs font-medium disabled:opacity-50"
+                                    style={{background:'#1B2E4B'}}>
+                                    Confirm slot →
+                                  </button>
+                                </div>
+                              )}
+                              {/* Propose alternative slot — always visible */}
+                              {alternativeMode !== req.id && (
+                                <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
+                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors mt-1">
+                                  Propose alternative slot
+                                </button>
+                              )}
+                              {alternativeMode === req.id && (
+                                <div className="flex flex-col gap-2 mt-2 border-t border-[#E8E2DA] pt-3">
+                                  <div className="text-xs text-[#9B928E] mb-1">Pick an alternative date & time:</div>
+                                  <input type="date" min={new Date().toISOString().split('T')[0]}
+                                    onChange={e => setProposedSlot(s => s ? {...s, date: e.target.value} : {date: e.target.value, time: '10:00 AM'})}
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+                                  <select onChange={e => setProposedSlot(s => s ? {...s, time: e.target.value} : {date: '', time: e.target.value})}
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                                    {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => (
+                                      <option key={t} value={t}>{t}</option>
+                                    ))}
+                                  </select>
+                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
+                                    placeholder="Reason for alternative time (optional)..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-14 bg-white" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setAlternativeMode(null); setProposedSlot(null) }}
+                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                                    <button onClick={() => proposeViewing(req.id)} disabled={!proposedSlot?.date || proposeLoading}
+                                      className="flex-1 py-1.5 rounded-xl text-white text-xs font-medium disabled:opacity-50"
+                                      style={{background:'#1B2E4B'}}>
+                                      {proposeLoading ? 'Sending...' : 'Send alternative →'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* Cancel / Amend */}
+                          {req.status !== 'cancelled' && (
+                            <div className="mt-3 pt-3 border-t border-[#F5F0EB]">
+                              {amendingOwnerId === req.id ? (
+                                <div className="flex flex-col gap-2">
+                                  <div className="text-xs font-medium text-[#9B928E] uppercase tracking-wide mb-1">Suggest new time (optional)</div>
+                                  <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <input type="date" value={ownerAmendDate} onChange={e => setOwnerAmendDate(e.target.value)}
+                                      min={new Date().toISOString().split('T')[0]}
+                                      className="border border-[#E8E2DA] rounded-xl px-2 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
+                                    <select value={ownerAmendTime} onChange={e => setOwnerAmendTime(e.target.value)}
+                                      className="border border-[#E8E2DA] rounded-xl px-2 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
+                                      {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                  </div>
+                                  <textarea value={ownerAmendMsg} onChange={e => setOwnerAmendMsg(e.target.value)}
+                                    placeholder="Additional notes..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-12 bg-white" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setAmendingOwnerId(null); setOwnerAmendMsg(''); setOwnerAmendDate(''); setOwnerAmendTime('10:00 AM') }}
+                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                                    <button onClick={() => requestAmendmentOwner(req.id)} disabled={ownerActioning}
+                                      className="flex-1 py-1.5 rounded-xl text-white text-xs disabled:opacity-50"
+                                      style={{ background: '#D3755A' }}>
+                                      {ownerActioning ? 'Sending…' : 'Send'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button onClick={() => {
+                                    const slot = req.proposed_slot || req.slots?.[0]
+                                    setAmendingOwnerId(req.id)
+                                    setOwnerAmendDate(slot?.date || '')
+                                    setOwnerAmendTime(slot?.time || '10:00 AM')
+                                  }}
+                                    className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+                                    Request amendment
+                                  </button>
+                                  <button onClick={() => cancelViewingOwner(req.id)} disabled={cancellingId === req.id}
+                                    className="flex-1 py-1.5 rounded-xl border border-red-200 text-xs text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                                    {cancellingId === req.id ? 'Cancelling…' : 'Cancel viewing'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {req.status === 'proposed' && req.proposed_slot && (
+                            <div>
+                              <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700 mb-2">
+                                ⏳ Proposed: {new Date(req.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {req.proposed_slot.time} — awaiting tenant confirmation
+                                {req.proposed_slot.note && <div className="mt-1 text-blue-600 italic">Note: "{req.proposed_slot.note}"</div>}
+                              </div>
+                              {alternativeMode !== req.id ? (
+                                <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
+                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors">
+                                  Propose alternative slot
+                                </button>
+                              ) : (
+                                <div className="flex flex-col gap-2 mt-2">
+                                  <div className="text-xs text-[#9B928E] mb-1">Select a new slot:</div>
+                                  {req.slots.map((s, i) => {
+                                    const isSel = proposedSlot && proposedSlot.date === s.date && proposedSlot.time === s.time
+                                    return (
+                                      <button key={i} type="button" onClick={() => setProposedSlot(s)}
+                                        className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
+                                        style={isSel ? {background:'#D3755A'} : {}}>
+                                        {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
+                                      </button>
+                                    )
+                                  })}
+                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
+                                    placeholder="Add a note explaining the change (optional)..."
+                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setAlternativeMode(null); setProposedSlot(null) }}
+                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
+                                    <button onClick={() => proposeViewing(req.id)} disabled={!proposedSlot || proposeLoading}
+                                      className="flex-1 py-1.5 rounded-xl text-white text-xs font-medium disabled:opacity-50"
+                                      style={{background:'#1B2E4B'}}>
+                                      {proposeLoading ? 'Sending...' : 'Send alternative →'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {req.status === 'confirmed' && req.proposed_slot && (
+                            <div className="bg-green-50 rounded-lg p-2 text-xs text-green-700">
+                              ✓ Confirmed: {new Date(req.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {req.proposed_slot.time}
+                            </div>
+                          )}
+                          <div className="text-xs text-[#9B928E] mt-2">{new Date(req.created_at).toLocaleDateString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                        </div>
+                      ); })}
+                    </div>
+                  </div>
+                )}
+
+          </div>
         )}
 
         {dashTab === 'listings' && (
@@ -429,8 +633,10 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
               const lShares = events.filter(e => e.listing_id === l.id && e.event_type === 'share').length
               const lRequests = requests.filter(r => r.listing_id === l.id).length
               return (
-                <button key={l.id} onClick={() => setSelected(selected === l.id ? null : l.id)}
-                  className={'text-left rounded-2xl border transition-all overflow-hidden w-full ' + (selected === l.id ? 'border-[#D3755A] shadow-md' : 'border-[#E8E2DA] bg-white hover:border-[#D3755A]')}
+                <div key={l.id} role="button" tabIndex={0}
+                  onClick={() => setSelected(selected === l.id ? null : l.id)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected === l.id ? null : l.id) } }}
+                  className={'text-left rounded-2xl border transition-all overflow-hidden w-full cursor-pointer ' + (selected === l.id ? 'border-[#D3755A] shadow-md' : 'border-[#E8E2DA] bg-white hover:border-[#D3755A]')}
                   style={{background:'white'}}>
                   <div className="flex gap-4 p-4">
                     <div className="w-20 h-20 rounded-xl flex-shrink-0 overflow-hidden bg-[#F5EBE0] flex items-center justify-center">
@@ -469,7 +675,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                       </div>
                     </div>
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>
@@ -683,199 +889,21 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                   )}
                 </div>
 
-                {/* Viewing requests for this listing */}
+                {/* Viewing requests summary */}
                 {requests.filter(r => r.listing_id === selected).length > 0 && (
-                  <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
-                    <h3 className="text-sm font-medium text-[#1B2E4B] mb-4">
-                      Viewing requests ({requests.filter(r => r.listing_id === selected).length})
-                    </h3>
-                    <div className="flex flex-col gap-3">
-                      {requests.filter(r => r.listing_id === selected).map(req => (
-                        <div id={"viewing-" + req.id} key={req.id} className="border border-[#E8E2DA] rounded-xl p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <div className="text-sm font-medium text-[#1B2E4B]">{req.tenant_name}</div>
-                              <div className="text-xs text-[#9B928E]">{req.tenant_email}{req.tenant_phone && ' · ' + req.tenant_phone}</div>
-                            </div>
-                            <span className={'text-xs px-2 py-0.5 rounded-full ' +
-                              (req.status === 'confirmed' ? 'bg-green-50 text-green-700' :
-                               req.status === 'proposed' ? 'bg-blue-50 text-blue-700' :
-                               req.status === 'cancelled' ? 'bg-red-50 text-red-700' :
-                               'bg-amber-50 text-amber-700')}>
-                              {req.status}
-                            </span>
-                          </div>
-                          {req.message && <p className="text-xs text-[#3D3A38] mb-2 italic">"{req.message}"</p>}
-                          {renterProfiles[req.tenant_email] && (
-                            <RenterProfileSummary
-                              profile={renterProfiles[req.tenant_email]}
-                              listingPrice={listings.find(l => l.id === req.listing_id)?.price}
-                            />
-                          )}
-                          {req.status === 'pending' && (
-                            <div>
-                              <div className="text-xs text-[#9B928E] mb-2">Their availability:</div>
-                              <div className="flex flex-col gap-1 mb-3">
-                                {req.slots.map((s, i) => {
-                                  const isSel = proposedSlot && proposingId === req.id && proposedSlot.date === s.date && proposedSlot.time === s.time
-                                  return (
-                                    <button key={i} type="button"
-                                      onClick={() => { setProposingId(req.id); setProposedSlot(s); setAlternativeMode(null) }}
-                                      className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
-                                      style={isSel ? {background:'#D3755A'} : {}}>
-                                      {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                              {proposingId === req.id && proposedSlot && (
-                                <div className="flex flex-col gap-2">
-                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
-                                    placeholder="Add a note to the tenant (optional)..."
-                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
-                                  <button onClick={() => {
-                                    const addr = (req as any).listings?.address || ''
-                                    setFullAddress(addr)
-                                    setConfirmingAddress({ id: req.id, slot: proposedSlot, address: addr })
-                                  }} disabled={proposeLoading}
-                                    className="w-full py-2 rounded-xl text-white text-xs font-medium disabled:opacity-50"
-                                    style={{background:'#1B2E4B'}}>
-                                    Propose slot →
-                                  </button>
-                                </div>
-                              )}
-                              {/* Propose alternative slot — always visible */}
-                              {alternativeMode !== req.id && (
-                                <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
-                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors mt-1">
-                                  Propose alternative slot
-                                </button>
-                              )}
-                              {alternativeMode === req.id && (
-                                <div className="flex flex-col gap-2 mt-2 border-t border-[#E8E2DA] pt-3">
-                                  <div className="text-xs text-[#9B928E] mb-1">Pick an alternative date & time:</div>
-                                  <input type="date" min={new Date().toISOString().split('T')[0]}
-                                    onChange={e => setProposedSlot(s => s ? {...s, date: e.target.value} : {date: e.target.value, time: '10:00 AM'})}
-                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
-                                  <select onChange={e => setProposedSlot(s => s ? {...s, time: e.target.value} : {date: '', time: e.target.value})}
-                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
-                                    {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => (
-                                      <option key={t} value={t}>{t}</option>
-                                    ))}
-                                  </select>
-                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
-                                    placeholder="Reason for alternative time (optional)..."
-                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-14 bg-white" />
-                                  <div className="flex gap-2">
-                                    <button onClick={() => { setAlternativeMode(null); setProposedSlot(null) }}
-                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
-                                    <button onClick={() => proposeViewing(req.id)} disabled={!proposedSlot?.date || proposeLoading}
-                                      className="flex-1 py-1.5 rounded-xl text-white text-xs font-medium disabled:opacity-50"
-                                      style={{background:'#1B2E4B'}}>
-                                      {proposeLoading ? 'Sending...' : 'Send alternative →'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {/* Cancel / Amend */}
-                          {req.status !== 'cancelled' && (
-                            <div className="mt-3 pt-3 border-t border-[#F5F0EB]">
-                              {amendingOwnerId === req.id ? (
-                                <div className="flex flex-col gap-2">
-                                  <div className="text-xs font-medium text-[#9B928E] uppercase tracking-wide mb-1">Suggest new time (optional)</div>
-                                  <div className="grid grid-cols-2 gap-2 mb-2">
-                                    <input type="date" value={ownerAmendDate} onChange={e => setOwnerAmendDate(e.target.value)}
-                                      min={new Date().toISOString().split('T')[0]}
-                                      className="border border-[#E8E2DA] rounded-xl px-2 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white" />
-                                    <select value={ownerAmendTime} onChange={e => setOwnerAmendTime(e.target.value)}
-                                      className="border border-[#E8E2DA] rounded-xl px-2 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white">
-                                      {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                  </div>
-                                  <textarea value={ownerAmendMsg} onChange={e => setOwnerAmendMsg(e.target.value)}
-                                    placeholder="Additional notes..."
-                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-12 bg-white" />
-                                  <div className="flex gap-2">
-                                    <button onClick={() => { setAmendingOwnerId(null); setOwnerAmendMsg(''); setOwnerAmendDate(''); setOwnerAmendTime('10:00 AM') }}
-                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
-                                    <button onClick={() => requestAmendmentOwner(req.id)} disabled={ownerActioning}
-                                      className="flex-1 py-1.5 rounded-xl text-white text-xs disabled:opacity-50"
-                                      style={{ background: '#D3755A' }}>
-                                      {ownerActioning ? 'Sending…' : 'Send'}
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex gap-2">
-                                  <button onClick={() => {
-                                    const slot = req.proposed_slot || req.slots?.[0]
-                                    setAmendingOwnerId(req.id)
-                                    setOwnerAmendDate(slot?.date || '')
-                                    setOwnerAmendTime(slot?.time || '10:00 AM')
-                                  }}
-                                    className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
-                                    Request amendment
-                                  </button>
-                                  <button onClick={() => cancelViewingOwner(req.id)} disabled={cancellingId === req.id}
-                                    className="flex-1 py-1.5 rounded-xl border border-red-200 text-xs text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
-                                    {cancellingId === req.id ? 'Cancelling…' : 'Cancel viewing'}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {req.status === 'proposed' && req.proposed_slot && (
-                            <div>
-                              <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700 mb-2">
-                                ⏳ Proposed: {new Date(req.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {req.proposed_slot.time} — awaiting tenant confirmation
-                                {req.proposed_slot.note && <div className="mt-1 text-blue-600 italic">Note: "{req.proposed_slot.note}"</div>}
-                              </div>
-                              {alternativeMode !== req.id ? (
-                                <button onClick={() => { setAlternativeMode(req.id); setProposingId(req.id); setProposedSlot(null); setProposeNote('') }}
-                                  className="w-full py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] transition-colors">
-                                  Propose alternative slot
-                                </button>
-                              ) : (
-                                <div className="flex flex-col gap-2 mt-2">
-                                  <div className="text-xs text-[#9B928E] mb-1">Select a new slot:</div>
-                                  {req.slots.map((s, i) => {
-                                    const isSel = proposedSlot && proposedSlot.date === s.date && proposedSlot.time === s.time
-                                    return (
-                                      <button key={i} type="button" onClick={() => setProposedSlot(s)}
-                                        className={'text-xs px-3 py-1.5 rounded-lg border text-left transition-colors ' + (isSel ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#3D3A38] hover:border-[#D3755A]')}
-                                        style={isSel ? {background:'#D3755A'} : {}}>
-                                        {new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {s.time}
-                                      </button>
-                                    )
-                                  })}
-                                  <textarea value={proposeNote} onChange={e => setProposeNote(e.target.value)}
-                                    placeholder="Add a note explaining the change (optional)..."
-                                    className="w-full border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] resize-none min-h-16 bg-white" />
-                                  <div className="flex gap-2">
-                                    <button onClick={() => { setAlternativeMode(null); setProposedSlot(null) }}
-                                      className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E]">Cancel</button>
-                                    <button onClick={() => proposeViewing(req.id)} disabled={!proposedSlot || proposeLoading}
-                                      className="flex-1 py-1.5 rounded-xl text-white text-xs font-medium disabled:opacity-50"
-                                      style={{background:'#1B2E4B'}}>
-                                      {proposeLoading ? 'Sending...' : 'Send alternative →'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {req.status === 'confirmed' && req.proposed_slot && (
-                            <div className="bg-green-50 rounded-lg p-2 text-xs text-green-700">
-                              ✓ Confirmed: {new Date(req.proposed_slot.date + 'T12:00:00').toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'})} at {req.proposed_slot.time}
-                            </div>
-                          )}
-                          <div className="text-xs text-[#9B928E] mt-2">{new Date(req.created_at).toLocaleDateString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
-                        </div>
-                      ))}
+                  <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-[#1B2E4B]">
+                        {requests.filter(r => r.listing_id === selected).length} viewing request{requests.filter(r => r.listing_id === selected).length === 1 ? '' : 's'}
+                      </h3>
+                      <p className="text-xs text-[#9B928E] mt-0.5">
+                        {requests.filter(r => r.listing_id === selected && (r.status === 'pending' || r.status === 'proposed')).length} pending response
+                      </p>
                     </div>
+                    <button onClick={() => setDashTab('viewings')}
+                      className="text-sm text-[#D3755A] hover:underline">
+                      Manage in Viewings tab →
+                    </button>
                   </div>
                 )}
 
@@ -898,27 +926,35 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
       </div>
     </main>
 
-    {/* Full address prompt modal */}
+    {/* Door/flat number prompt modal */}
     {confirmingAddress && (
       <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.4)'}} onClick={() => setConfirmingAddress(null)}>
         <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-          <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Confirm full address</h3>
-          <p className="text-xs text-[#9B928E] mb-4">The tenant will receive the full address when you propose this viewing. Please ensure the door/flat number is included.</p>
-          <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Full property address</label>
+          <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>Add door/flat number</h3>
+          <p className="text-xs text-[#9B928E] mb-4">The tenant already has the road and postcode. Add the specific door or flat number so they can find the property.</p>
+          <div className="bg-[#F5EBE0] rounded-xl px-3 py-2 mb-3">
+            <p className="text-xs text-[#9B928E] uppercase tracking-wide mb-0.5">Property</p>
+            <p className="text-sm text-[#1B2E4B]">{confirmingAddress.address}</p>
+          </div>
+          <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Door / flat number</label>
           <input
             value={fullAddress}
             onChange={e => setFullAddress(e.target.value)}
             className="w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-4"
-            placeholder="e.g. Flat 3, 42 Roman Road, London, E2 0RN"
+            placeholder="e.g. Flat 3 or 42a"
+            autoFocus
           />
           <div className="flex gap-2">
             <button onClick={() => setConfirmingAddress(null)}
               className="flex-1 py-2.5 rounded-xl border border-[#E8E2DA] text-sm text-[#9B928E]">Cancel</button>
-            <button onClick={() => confirmWithAddress(confirmingAddress.id, confirmingAddress.slot)}
+            <button onClick={() => {
+                const combined = fullAddress.trim() + ', ' + confirmingAddress.address
+                confirmWithAddress(confirmingAddress.id, confirmingAddress.slot, combined)
+              }}
               disabled={!fullAddress.trim()}
               className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
               style={{background:'#1B2E4B'}}>
-              Send proposal →
+              Confirm viewing →
             </button>
           </div>
         </div>

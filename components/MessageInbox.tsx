@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
+import ViewingBookingWidget from '@/components/ViewingBookingWidget'
 import Link from 'next/link'
 
 interface Thread {
@@ -28,7 +30,10 @@ interface Message {
   created_at: string
 }
 
-interface Props { currentUserId: string }
+interface Props {
+  currentUserId: string
+  currentUser?: { name: string; email: string; phone?: string }
+}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -47,7 +52,8 @@ function getImg(images: any): string | null {
   } catch { return null }
 }
 
-export default function MessageInbox({ currentUserId }: Props) {
+export default function MessageInbox({ currentUserId, currentUser }: Props) {
+  const [showViewing, setShowViewing] = useState(false)
   const [threads, setThreads] = useState<Thread[]>([])
   const [activeThread, setActiveThread] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -56,8 +62,18 @@ export default function MessageInbox({ currentUserId }: Props) {
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  const searchParams = useSearchParams()
+  const requestedThread = searchParams.get('thread')
+
   useEffect(() => { fetchInbox() }, [])
-  useEffect(() => { if (activeThread) fetchThread(activeThread) }, [activeThread])
+  useEffect(() => {
+    if (requestedThread && threads.length && !activeThread) {
+      const match = threads.find(t => t.thread_id === requestedThread)
+      if (match) setActiveThread(match.thread_id)
+    }
+  }, [threads, requestedThread, activeThread])
+  useEffect(() => { if (activeThread) { fetchThread(activeThread); setShowViewing(false) } }, [activeThread])
+  useEffect(() => { setShowViewing(false) }, [activeThread])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   async function fetchInbox() {
@@ -173,6 +189,33 @@ export default function MessageInbox({ currentUserId }: Props) {
                   </Link>
                 )}
               </div>
+              {activeThreadData?.listings && (
+                <div className="px-5 py-2 border-b border-[#F0EBE5] flex items-center gap-3">
+                  <button type="button" onClick={() => setShowViewing(v => !v)}
+                    className="text-xs text-[#1B2E4B] hover:text-[#D3755A] transition-colors flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                    {showViewing ? 'Cancel' : 'Request a viewing'}
+                  </button>
+                </div>
+              )}
+              {showViewing && activeThreadData?.listings && currentUser && (
+                <>
+                  <div onClick={() => setShowViewing(false)} className="fixed inset-0 bg-black/30 z-40" />
+                  <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl w-[92%] max-w-md p-5">
+                    <h3 className="text-base font-light text-[#1B2E4B] mb-4" style={{fontFamily:'Georgia,serif'}}>
+                      Request a viewing for {activeThreadData.listings.address.split(',')[0]}
+                    </h3>
+                    <ViewingBookingWidget
+                      listingId={activeThreadData.listings.id}
+                      user={currentUser}
+                      onSuccess={() => { setTimeout(() => setShowViewing(false), 2500) }}
+                      onCancel={() => setShowViewing(false)}
+                    />
+                  </div>
+                </>
+              )}
               <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3" style={{ maxHeight: '340px' }}>
                 {messages.map(m => {
                   const isMine = m.from_user_id === currentUserId

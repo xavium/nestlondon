@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
 import ViewingsCalendarView from '@/components/ViewingsCalendarView'
+import OffersTab from '@/components/OffersTab'
 
 interface Listing {
   id: string
@@ -40,6 +41,7 @@ interface Props {
   viewingRequests: any[]
   messages: any[]
   events: any[]
+  offers: any[]
   agencyAgents: AgencyAgent[]
   comparables: Record<string, any[]>
   avgDaysOnMarket: Record<string, number | null>
@@ -67,10 +69,10 @@ const AGENT_COLORS = [
   '#6C5CE7', '#00B894', '#FDCB6E', '#D63031', '#0984E3',
 ]
 
-export default function AgentDashboardClient({ user, agentRecord, listings, viewingRequests, messages, events, agencyAgents: initialAgencyAgents = [], comparables = {}, avgDaysOnMarket = {} }: Props) {
+export default function AgentDashboardClient({ user, agentRecord, listings, viewingRequests, messages, events, offers = [], agencyAgents: initialAgencyAgents = [], comparables = {}, avgDaysOnMarket = {} }: Props) {
   const searchParams = useSearchParams()
-  const initialAgentTab = (searchParams.get('tab') as 'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'team') || 'overview'
-  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'team'>(initialAgentTab)
+  const initialAgentTab = (searchParams.get('tab') as 'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'offers' | 'team') || 'overview'
+  const [tab, setTab] = useState<'overview' | 'analytics' | 'listings' | 'viewings' | 'enquiries' | 'offers' | 'team'>(initialAgentTab)
   const [listingsState, setListingsState] = useState(listings)
   const [selectedListing, setSelectedListing] = useState<string | null>(null)
 
@@ -259,6 +261,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
     { key: 'listings', label: `Listings (${activeListings.length})` },
     { key: 'viewings', label: `Viewings (${pendingViewings + confirmedViewings})` },
     { key: 'enquiries', label: `Enquiries (${filteredMessages.length})` },
+    { key: 'offers', label: `Offers (${offers.filter((o: any) => o.status === 'new' || o.status === 'viewed').length || offers.length})` },
     { key: 'team', label: `Team (${agencyAgents.length})` },
   ]
 
@@ -1009,6 +1012,21 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
             )
           })}
         </div>
+      )}
+
+      {/* Offers */}
+      {tab === 'offers' && (
+        <OffersTab
+          offers={offers}
+          listings={listings.map(l => ({ id: l.id, address: l.address, price: l.price, listing_type: (l as any).listing_type, bedrooms: l.bedrooms, property_type: l.property_type }))}
+          onStatusChange={async (offerId, newStatus) => {
+            await fetch('/api/offers/' + offerId, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus }),
+            })
+          }}
+        />
       )}
 
       {/* Team */}

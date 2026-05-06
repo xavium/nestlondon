@@ -33,6 +33,9 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loggedIn, setLoggedIn] = useState(false)
+  const [needsName, setNeedsName] = useState(false)
+  const [hasEnquired, setHasEnquired] = useState(false)
+  const [enquiryThreadId, setEnquiryThreadId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [selectedSlots, setSelectedSlots] = useState<{ date: string; time: string }[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -48,9 +51,19 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
       setLoggedIn(true)
       setEmail(user.email || '')
       if (user.user_metadata?.name) setName(user.user_metadata.name)
+      else setNeedsName(true)
       if (user.user_metadata?.phone) setPhone(user.user_metadata.phone)
+      // Check if user has already enquired on this listing
+      fetch('/api/messages?listing_id=' + listingId)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.threads && d.threads.length > 0) {
+            setHasEnquired(true)
+            setEnquiryThreadId(d.threads[0].thread_id || d.threads[0].id)
+          }
+        }).catch(() => {})
     })
-  }, [])
+  }, [listingId])
 
   const days = getNextTwoWeeks()
   const inputClass = "w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] transition-colors bg-white"
@@ -124,11 +137,16 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
       <h3 className="text-base font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>
         {mode === 'viewing' ? 'Viewing request sent!' : 'Message sent!'}
       </h3>
-      <p className="text-xs text-[#9B928E]">
+      <p className="text-xs text-[#9B928E] mb-4">
         {mode === 'viewing'
           ? "The owner will review your availability and propose a time. We'll email you when they respond."
           : `Your message has been forwarded to the owner. They'll be in touch at ${email}.`}
       </p>
+      <a href={mode === 'viewing' ? '/viewings' : '/messages'}
+        className="inline-block px-5 py-2 rounded-xl text-white text-xs font-medium no-underline transition-opacity hover:opacity-90"
+        style={{background:'#1B2E4B'}}>
+        {mode === 'viewing' ? 'View my viewings' : 'View my messages'}
+      </a>
     </div>
   )
 
@@ -152,6 +170,18 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2 mb-4">{error}</div>}
 
+      {hasEnquired && mode === 'enquiry' ? (
+        <div className="text-center py-4">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3" style={{background:'rgba(211,117,90,0.12)'}}>
+            <svg className="w-5 h-5" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+          <p className="text-sm text-[#1B2E4B] mb-1">You've already enquired</p>
+          <p className="text-xs text-[#9B928E] mb-4">Continue the conversation in your messages.</p>
+          <a href="/messages" className="inline-block px-5 py-2 rounded-xl text-white text-xs font-medium no-underline transition-opacity hover:opacity-90" style={{background:'#1B2E4B'}}>
+            View my messages
+          </a>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {loggedIn ? (
           <div className="bg-[#F5F0EB] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] flex items-center gap-2">
@@ -160,7 +190,11 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
             </svg>
             <span>{name || email}</span>
           </div>
-        ) : (
+        ) : null}
+        {loggedIn && needsName && (
+          <input required value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Your name" />
+        )}
+        {!loggedIn && (
           <>
             <input required value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Your name" />
             <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputClass} placeholder="Email address" />
@@ -234,6 +268,7 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
           {loading ? 'Sending...' : mode === 'viewing' ? 'Request viewing' : 'Send message'}
         </button>
       </form>
+      )}
       <p className="text-xs text-[#9B928E] mt-3 text-center">NestLondon does not charge tenants any fees.</p>
     </div>
   )
