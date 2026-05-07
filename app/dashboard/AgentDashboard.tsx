@@ -189,8 +189,11 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
     const daysListed = l.scraped_at ? Math.floor((Date.now() - new Date(l.scraped_at).getTime()) / 86400000) : 0
     const avgMktDays = avgDaysOnMarket[l.id] ?? null
     const lViews = events.filter(e => e.listing_id === l.id && e.event_type === 'view').length
-    const lEnquiries = messages.filter(m => m.listing_id === l.id).length
+    const lMessages = messages.filter(m => m.listing_id === l.id).length
     const lViewings = viewingRequests.filter(v => v.listing_id === l.id).length
+    // A viewing implies an enquiry; floor enquiries at the viewing count so
+    // viewings never exceed enquiries in the funnel.
+    const lEnquiries = Math.max(lMessages, lViewings)
     return {
       ...l,
       views: lViews,
@@ -369,8 +372,10 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
 
         // Conversion funnel
         const totalViews2 = events.filter(e => e.event_type === 'view').length
-        const totalEnquiries = messages.length
         const totalViewings2 = viewingRequests.length
+        // A viewing implies an enquiry; floor enquiries at viewings so the
+        // funnel never narrows then widens.
+        const totalEnquiries = Math.max(messages.length, totalViewings2)
         const totalConfirmed = viewingRequests.filter(v => v.status === 'confirmed').length
         const funnelSteps = [
           { label: 'Views', value: totalViews2, pct: 100 },
