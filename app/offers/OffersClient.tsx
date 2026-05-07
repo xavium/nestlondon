@@ -9,6 +9,7 @@ interface Offer {
   offer_type: 'rent' | 'buy'
   offer_amount: number
   status: string
+  status_reason: string | null
   created_at: string
   listings: {
     id: string
@@ -123,6 +124,20 @@ export default function OffersClient({ offers, threadByListing = {} }: { offers:
                   <Link href={'/messages?thread=' + threadByListing[o.listing_id]}
                     className="text-xs text-[#D3755A] hover:underline no-underline">
                     Message owner →
+                  </Link>
+                </div>
+              )}
+              {o.status === 'rejected' && o.status_reason && (
+                <div className="px-4 py-2.5 border-t border-[#F5F0EB] bg-[#FEF6F4]">
+                  <div className="text-xs text-[#9B928E] mb-0.5">Reason</div>
+                  <div className="text-xs text-[#3D3A38] leading-relaxed">{o.status_reason}</div>
+                </div>
+              )}
+              {o.status === 'rejected' && l?.is_active && (
+                <div className="px-4 py-2 border-t border-[#F5F0EB]">
+                  <Link href={'/listings/' + o.listing_id + '/offer'}
+                    className="text-xs text-[#D3755A] hover:underline no-underline font-medium">
+                    Submit a new offer →
                   </Link>
                 </div>
               )}

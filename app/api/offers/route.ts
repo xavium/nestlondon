@@ -50,6 +50,13 @@ export async function POST(req: NextRequest) {
 
     if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
+    // Renters' Rights Act: rent offers cannot exceed advertised price.
+    if (offer_type === 'rent' && listing.price != null && Number(offer_amount) > Number(listing.price)) {
+      return NextResponse.json({
+        error: `Rental offers cannot exceed the listed price of £${Number(listing.price).toLocaleString()}/mo (Renters' Rights Act).`,
+      }, { status: 400 })
+    }
+
     const { data: offer, error: insertErr } = await sb.from('offers').insert({
       listing_id, offer_type,
       offerer_user_id: user.id,

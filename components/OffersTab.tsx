@@ -11,6 +11,7 @@ export interface Offer {
   offerer_phone: string
   offer_amount: number
   status: string
+  status_reason?: string | null
   created_at: string
 
   // Lettings
@@ -58,7 +59,7 @@ export interface OfferListing {
 interface Props {
   offers: Offer[]
   listings: OfferListing[]
-  onStatusChange?: (offerId: string, newStatus: string) => Promise<void>
+  onStatusChange?: (offerId: string, newStatus: string, opts?: { reason?: string; note?: string }) => Promise<void>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
@@ -84,13 +85,16 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'new' | 'accepted' | 'rejected'>('all')
   const [updating, setUpdating] = useState(false)
+  const [showRejectForm, setShowRejectForm] = useState(false)
+  const [rejectReason, setRejectReason] = useState<string>('too_low')
+  const [rejectNote, setRejectNote] = useState('')
   const [showMessage, setShowMessage] = useState(false)
   const [messageBody, setMessageBody] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messageSent, setMessageSent] = useState(false)
 
   useEffect(() => { setOffers(initialOffers) }, [initialOffers])
-  useEffect(() => { setShowMessage(false); setMessageBody(''); setMessageSent(false) }, [selectedId])
+  useEffect(() => { setShowMessage(false); setMessageBody(''); setMessageSent(false); setShowRejectForm(false); setRejectReason('too_low'); setRejectNote('') }, [selectedId])
 
   const listingsById = listings.reduce<Record<string, OfferListing>>((m, l) => { m[l.id] = l; return m }, {})
 
@@ -103,14 +107,25 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
   const selected = selectedId ? offers.find(o => o.id === selectedId) : null
   const selectedListing = selected ? listingsById[selected.listing_id] : null
 
-  async function updateStatus(newStatus: string) {
+  const REJECT_REASON_LABELS: Record<string, string> = {
+    too_low: 'Offer was too low',
+    already_accepted_other: 'Another offer was already accepted',
+    unsuitable_terms: 'Terms were unsuitable',
+    other: 'Other',
+  }
+
+  async function updateStatus(newStatus: string, opts?: { reason?: string; note?: string }) {
     if (!selected) return
     setUpdating(true)
     try {
-      await onStatusChange?.(selected.id, newStatus)
-      setOffers(os => os.map(o => o.id === selected.id ? { ...o, status: newStatus } : o))
+      await onStatusChange?.(selected.id, newStatus, opts)
+      const optimisticReason = newStatus === 'rejected' && opts?.reason
+        ? [REJECT_REASON_LABELS[opts.reason], opts.note?.trim()].filter(Boolean).join(' — ')
+        : null
+      setOffers(os => os.map(o => o.id === selected.id ? { ...o, status: newStatus, status_reason: optimisticReason } : o))
       // Auto-prompt owner to message applicant after accepting/rejecting
       if (newStatus === 'accepted' || newStatus === 'rejected') {
+        setShowRejectForm(false)
         setShowMessage(true)
         if (!messageBody) {
           setMessageBody(newStatus === 'accepted'
@@ -256,7 +271,7 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
                   </button>
                 )}
                 {selected.status !== 'rejected' && (
-                  <button onClick={() => updateStatus('rejected')} disabled={updating}
+                  <button onClick={() => setShowRejectForm(s => !s)} disabled={updating}
                     className="flex-1 px-4 py-2 rounded-xl border border-[#E8E2DA] text-[#3D3A38] text-sm font-medium hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-50">
                     Reject
                   </button>
@@ -268,6 +283,38 @@ export default function OffersTab({ offers: initialOffers, listings, onStatusCha
                   </button>
                 )}
               </div>
+
+              {showRejectForm && selected.status !== 'rejected' && (
+                <div className="bg-[#FEF6F4] border border-[#F0D5CC] rounded-xl p-4">
+                  <p className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-3">Reason for rejecting</p>
+                  <div className="flex flex-col gap-2 mb-3">
+                    {Object.entries(REJECT_REASON_LABELS).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="radio" name="reject_reason" value={key} checked={rejectReason === key} onChange={e => setRejectReason(e.target.value)} className="accent-[#D3755A]" />
+                        <span className="text-[#3D3A38]">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <textarea value={rejectNote} onChange={e => setRejectNote(e.target.value)} rows={2}
+                    placeholder="Optional note (visible to the offerer in their email)"
+                    className="w-full text-sm border border-[#E8E2DA] rounded-lg px-3 py-2 outline-none focus:border-[#D3755A] resize-none mb-3 bg-white" />
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowRejectForm(false)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-[#E8E2DA] text-xs text-[#3D3A38]">Cancel</button>
+                    <button onClick={() => updateStatus('rejected', { reason: rejectReason, note: rejectNote })} disabled={updating}
+                      className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-50">
+                      {updating ? 'Rejecting…' : 'Confirm rejection'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selected.status === 'rejected' && selected.status_reason && (
+                <div className="bg-[#FEF6F4] border border-[#F0D5CC] rounded-xl p-3 text-sm">
+                  <span className="text-xs text-[#9B928E] uppercase tracking-wide">Decline reason</span>
+                  <div className="text-[#3D3A38] mt-0.5">{selected.status_reason}</div>
+                </div>
+              )}
 
               {!showMessage && (
                 <button onClick={() => setShowMessage(true)}

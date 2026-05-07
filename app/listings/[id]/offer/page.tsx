@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import OfferForm from '@/components/OfferForm'
+import PreviousOfferBanner from '@/components/PreviousOfferBanner'
 
 const svc = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -33,6 +34,17 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
     .eq('user_id', user.id)
     .maybeSingle()
 
+  // If the user has a previous rejected offer on this listing, surface it as a banner.
+  const { data: previousRejected } = await sb
+    .from('offers')
+    .select('id, offer_amount, offer_type, status_reason, updated_at')
+    .eq('listing_id', id)
+    .eq('offerer_email', (user.email || '').toLowerCase())
+    .eq('status', 'rejected')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const offerType = listing.listing_type === 'buy' ? 'buy' : 'rent'
 
   return (
@@ -59,6 +71,15 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
             {listing.property_type ? ` · ${listing.property_type}` : ''}
           </p>
         </div>
+
+        {previousRejected && (
+          <PreviousOfferBanner
+            amount={Number(previousRejected.offer_amount)}
+            offerType={previousRejected.offer_type as 'rent' | 'buy'}
+            reason={previousRejected.status_reason}
+            rejectedAt={previousRejected.updated_at}
+          />
+        )}
 
         <div className="bg-white border border-[#E8E2DA] rounded-2xl p-7">
           <OfferForm

@@ -86,6 +86,9 @@ export default function LettingsOfferForm({ listingId, listedPrice, user, profil
       setError('Please provide at least one tenant name and phone number'); return
     }
     if (!offerAmount) { setError('Please enter your offer amount'); return }
+    if (listedPrice != null && Number(offerAmount) > listedPrice) {
+      setError(`Offer cannot exceed the listed price of £${listedPrice.toLocaleString()}/mo (Renters' Rights Act).`); return
+    }
     setSubmitting(true)
     try {
       const payload: any = {
@@ -163,9 +166,16 @@ export default function LettingsOfferForm({ listingId, listedPrice, user, profil
           <label className={labelClass}>Monthly rent (£) *</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9B928E] text-sm">£</span>
-            <input required type="number" min="0" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className={inputClass + ' pl-8'} />
+            <input required type="number" min="0" max={listedPrice ?? undefined} value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className={inputClass + ' pl-8'} />
           </div>
-          {listedPrice && <p className="text-xs text-[#9B928E] mt-1">Listed at £{listedPrice.toLocaleString()}/mo</p>}
+          {listedPrice && (
+            <p className="text-xs text-[#9B928E] mt-1">
+              Listed at £{listedPrice.toLocaleString()}/mo. Under the Renters' Rights Act, offers cannot exceed the advertised rent.
+            </p>
+          )}
+          {listedPrice && Number(offerAmount) > listedPrice && (
+            <p className="text-xs text-red-600 mt-1">Offer cannot exceed £{listedPrice.toLocaleString()}/mo.</p>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

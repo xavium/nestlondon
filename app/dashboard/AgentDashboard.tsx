@@ -1019,11 +1019,11 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
         <OffersTab
           offers={offers}
           listings={listings.map(l => ({ id: l.id, address: l.address, price: l.price, listing_type: (l as any).listing_type, bedrooms: l.bedrooms, property_type: l.property_type }))}
-          onStatusChange={async (offerId, newStatus) => {
+          onStatusChange={async (offerId, newStatus, opts) => {
             await fetch('/api/offers/' + offerId, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: newStatus }),
+              body: JSON.stringify({ status: newStatus, status_reason: opts?.reason, status_note: opts?.note }),
             })
           }}
         />
