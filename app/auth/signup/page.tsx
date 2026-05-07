@@ -11,6 +11,8 @@ function SignupForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const roleParam = searchParams.get('role') || 'resident'
+  const saveListingId = searchParams.get('save')
+  const nextPath = searchParams.get('next')
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -56,10 +58,15 @@ function SignupForm() {
     const metadata: Record<string, string> = { role: actualRole, name }
     if (roleParam === 'agent' && agencyName) metadata.agency_name = agencyName
 
+    // Persist save-intent so it survives the email-confirmation hop
+    if (saveListingId && typeof window !== 'undefined') {
+      try { window.localStorage.setItem('pendingSaveListingId', saveListingId) } catch {}
+    }
+    const redirectTo = (typeof window !== 'undefined' ? window.location.origin : '') + (nextPath || '/')
     const { data: signUpData, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: metadata }
+      options: { data: metadata, emailRedirectTo: redirectTo }
     })
     if (error) {
       setError(error.message)

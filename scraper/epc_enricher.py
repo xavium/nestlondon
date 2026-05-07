@@ -90,7 +90,9 @@ def enrich_listings(batch_size=50):
             print(f'    → {epc["epc_rating"]} ({epc["epc_score"]})')
             enriched += 1
         else:
-            print(f'    → No EPC found')
+            # Mark as 'not_found' so we don't retry infinitely
+            supabase.table('listings').update({'epc_rating': 'not_found'}).eq('id', listing['id']).execute()
+            print(f'    → No EPC found (marked not_found)')
         
         time.sleep(0.5)  # rate limiting
     

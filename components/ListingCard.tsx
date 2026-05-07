@@ -236,6 +236,12 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ listing_id: listing.id })
                 })
+                if (res.status === 401) {
+                  // Not logged in — redirect to signup with intent
+                  const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'
+                  window.location.href = '/auth/signup?role=resident&save=' + encodeURIComponent(listing.id) + '&next=' + encodeURIComponent(next)
+                  return
+                }
                 if (res.ok) {
                   setSaved(true)
                   fetch('/api/listings/event', {

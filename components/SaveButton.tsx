@@ -35,6 +35,12 @@ export default function SaveButton({ listingId }: { listingId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listing_id: listingId })
       })
+      if (res.status === 401) {
+        // Not logged in — redirect to signup, save will happen post-account
+        const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'
+        window.location.href = '/auth/signup?role=resident&save=' + encodeURIComponent(listingId) + '&next=' + encodeURIComponent(next)
+        return
+      }
       const d = await res.json()
       if (d.id) { setSaved(true); setSavedId(d.id) }
     }

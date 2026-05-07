@@ -61,6 +61,13 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
     new Date(a.proposed_slot!.date).getTime() - new Date(b.proposed_slot!.date).getTime()
   )
 
+  // Pending viewings — expand each submitted slot into its own dot
+  const pendingDots: { v: Viewing; slot: Slot }[] = []
+  for (const v of viewings) {
+    if (v.status !== 'pending' || !v.slots) continue
+    for (const s of v.slots) pendingDots.push({ v, slot: s })
+  }
+
 
   const today = new Date()
   const weeks: Date[][] = []
@@ -82,6 +89,12 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
     const key = v.proposed_slot!.date
     if (!viewingsByDate[key]) viewingsByDate[key] = []
     viewingsByDate[key].push(v)
+  }
+
+  const pendingByDate: Record<string, { v: Viewing; slot: Slot }[]> = {}
+  for (const p of pendingDots) {
+    if (!pendingByDate[p.slot.date]) pendingByDate[p.slot.date] = []
+    pendingByDate[p.slot.date].push(p)
   }
 
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -113,6 +126,12 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
                     {v.proposed_slot!.time}
                   </button>
                 ))}
+                {(pendingByDate[key] || []).map((p, i) => (
+                  <button key={'p-' + p.v.id + '-' + i} onClick={() => setSelectedViewing(p.v)}
+                    className="w-full text-[9px] px-1 py-0.5 rounded mb-0.5 truncate text-left cursor-pointer hover:opacity-80 transition-opacity bg-amber-100 text-amber-700 border border-amber-200 border-dashed">
+                    {p.slot.time}
+                  </button>
+                ))}
               </div>
             )
           })}
@@ -121,6 +140,7 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
       <div className="flex gap-3 mt-3 pt-3 border-t border-[#F0EBE5]">
         <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-green-100" />Confirmed</div>
         <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-blue-100" />Proposed</div>
+        <div className="flex items-center gap-1.5 text-xs text-[#9B928E]"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-200 border-dashed" />Awaiting</div>
       </div>
 
       {/* Popup */}
@@ -130,8 +150,8 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className={'text-xs font-semibold px-2 py-0.5 rounded-full inline-block mb-2 ' +
-                  (selectedViewing.status === 'confirmed' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700')}>
-                  {selectedViewing.status === 'confirmed' ? 'Confirmed' : 'Proposed'}
+                  (selectedViewing.status === 'confirmed' ? 'bg-green-50 text-green-700' : selectedViewing.status === 'proposed' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700')}>
+                  {selectedViewing.status === 'confirmed' ? 'Confirmed' : selectedViewing.status === 'proposed' ? 'Proposed' : 'Awaiting response'}
                 </div>
                 <h3 className="text-base font-light text-[#1B2E4B]" style={{fontFamily:'Georgia,serif'}}>
                   {selectedViewing.listings?.address || 'Property viewing'}
@@ -151,7 +171,7 @@ function CalendarView({ viewings }: { viewings: Viewing[] }) {
             <div className="bg-[#F5EBE0] rounded-xl p-4 mb-4">
               <div className="text-xs text-[#9B928E] mb-1">Date & time</div>
               <div className="text-sm font-medium text-[#1B2E4B]">
-                {formatSlot(selectedViewing.proposed_slot!)}
+                {formatSlot(selectedViewing.proposed_slot || selectedViewing.slots?.[0] as any)}
               </div>
             </div>
 
@@ -340,7 +360,7 @@ export default function ViewingsClient({ viewings, currentUserId }: { viewings: 
                       </button>
                       <button onClick={() => respondToProposal(v.confirmation_token, 'decline')}
                         disabled={confirming === v.confirmation_token}
-                        className="flex-1 py-2 rounded-xl border border-[#E8E2DA] text-xs text-[#9B928E] hover:border-red-300 hover:text-red-500 transition-colors disabled:opacity-50">
+                        className="flex-1 py-2 rounded-xl border border-red-200 text-xs text-red-600 bg-red-50/50 hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50">
                         Decline
                       </button>
                     </div>
@@ -429,11 +449,11 @@ export default function ViewingsClient({ viewings, currentUserId }: { viewings: 
                           setAmendDate(slot?.date || '')
                           setAmendTime(slot?.time || '10:00 AM')
                         }}
-                          className="flex-1 py-1.5 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
+                          className="flex-1 py-1.5 rounded-xl border border-amber-200 text-xs text-amber-700 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-300 transition-colors">
                           Request amendment
                         </button>
                         <button onClick={() => cancelViewing(v.id)} disabled={cancelling === v.id}
-                          className="flex-1 py-1.5 rounded-xl border border-red-200 text-xs text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                          className="flex-1 py-1.5 rounded-xl border border-red-200 text-xs text-red-600 bg-red-50/50 hover:bg-red-50 transition-colors disabled:opacity-50">
                           {cancelling === v.id ? 'Cancelling…' : 'Cancel viewing'}
                         </button>
                       </div>

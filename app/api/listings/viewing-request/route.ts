@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch renter profile if logged in
     let renterProfile: any = null
+    let authedUser: any = null
     try {
       const cookieStore = await cookies()
       const authClient = createServerClient(
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
       )
       const { data: { user } } = await authClient.auth.getUser()
       if (user) {
+        authedUser = user
         const { data } = await supabase.from('renter_profiles').select('*').eq('user_id', user.id).maybeSingle()
         renterProfile = data
       }
@@ -48,6 +50,18 @@ export async function POST(req: NextRequest) {
     const { data: request, error } = await supabase.from('viewing_requests').insert({
       listing_id, tenant_name, tenant_email, tenant_phone, message, slots, status: 'pending', confirmation_token
     }).select('id').single()
+
+    // Auto-save listing for the user
+    if (authedUser) {
+      try {
+        await supabase.from('saved_properties').upsert(
+          { user_id: authedUser.id, listing_id },
+          { onConflict: 'user_id,listing_id' }
+        )
+      } catch (e) {
+        console.error('Failed to auto-save listing on viewing request:', e)
+      }
+    }
     if (error) throw error
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'

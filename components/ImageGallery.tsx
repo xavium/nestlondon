@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react'
 export default function ImageGallery({ images, address, floorplans = [], listedAt, shareButton, epcRating, epcScore, epcPotentialRating, epcPotentialScore }: { images: string[], address: string, floorplans?: string[], listedAt?: string | null, shareButton?: React.ReactNode, epcRating?: string | null, epcScore?: number | null, epcPotentialRating?: string | null, epcPotentialScore?: number | null }) {
   const [lightbox, setLightbox] = useState<number | null>(null)
   const [showFloorplan, setShowFloorplan] = useState(false)
-  const [showEpc, setShowEpc] = useState(false)
 
   function open(i: number) { setLightbox(i) }
   function close() { setLightbox(null); setShowFloorplan(false) }
@@ -102,7 +101,8 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
             {'Listed: ' + new Date(listedAt!).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}
           </div>
         )}
-        <button className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 transition-colors">
+        <button onClick={() => open(0)}
+          className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:text-[#1B2E4B] transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="1.5"/><path d="M3 9h18M9 21V9" strokeWidth="1.5"/></svg>
           {images.length} photos
         </button>
@@ -116,58 +116,9 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
             <img src={floorplans[0]} alt="floorplan preview" className="h-6 w-8 object-contain rounded" referrerPolicy="no-referrer" />
           </button>
         )}
-        {epcRating && (
-          <button
-            onClick={() => { setShowEpc(!showEpc); setShowFloorplan(false) }}
-            className={"flex items-center gap-1.5 text-xs bg-white border rounded-lg px-3 py-1.5 transition-colors " + (showEpc ? "border-[#D3755A] text-[#D3755A]" : "text-stone-500 border-[#E8E2DA] hover:border-stone-300")}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            EPC {epcRating}
-          </button>
-        )}
         {shareButton}
       </div>
 
-      {showEpc && epcRating && (
-        <div className="mt-3 bg-white border border-[#E8E2DA] rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-[#1C2B3A] mb-4">Energy Performance Certificate</h3>
-          <div className="flex flex-col gap-1.5">
-            {['A','B','C','D','E','F','G'].map((band, i) => {
-              const widths = {A:95,B:82,C:69,D:56,E:43,F:30,G:17}
-              const colors = {A:'#008054',B:'#19b459',C:'#8dce46',D:'#ffd500',E:'#fcaa00',F:'#ef8023',G:'#e9153b'}
-              const w = widths[band as keyof typeof widths]
-              const col = colors[band as keyof typeof colors]
-              const isCurrent = band === epcRating
-              const isPotential = band === epcPotentialRating
-              return (
-                <div key={band} className="flex items-center gap-2">
-                  <div className="w-4 text-xs font-bold text-stone-500">{band}</div>
-                  <div className="flex-1 relative h-7">
-                    <div className="h-full rounded-sm flex items-center px-2" style={{width: w+'%', background: col}}>
-                      <span className="text-white text-xs font-semibold">{band}</span>
-                    </div>
-                    {isCurrent && (
-                      <div className="absolute right-0 top-0 h-full flex items-center gap-1 pr-1">
-                        <span className="text-xs font-bold text-[#1C2B3A]">{epcScore}</span>
-                        <span className="text-xs bg-[#1C2B3A] text-white px-1.5 py-0.5 rounded font-bold">Current</span>
-                      </div>
-                    )}
-                    {isPotential && !isCurrent && (
-                      <div className="absolute right-0 top-0 h-full flex items-center gap-1 pr-1">
-                        <span className="text-xs font-bold text-[#1C2B3A]">{epcPotentialScore}</span>
-                        <span className="text-xs bg-stone-400 text-white px-1.5 py-0.5 rounded font-bold">Potential</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          {epcPotentialRating && epcPotentialRating !== epcRating && (
-            <p className="text-xs text-stone-400 mt-3">Potential rating: Band {epcPotentialRating} ({epcPotentialScore})</p>
-          )}
-        </div>
-      )}
 
       {lightbox !== null && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={close}>

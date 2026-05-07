@@ -480,6 +480,8 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
                 continue
 
             source_urls = {source_name: source_url} if source_url else {}
+            # Lift EPC rating from letting_details (Rightmove text scrape) into top-level column
+            scraped_epc = (listing.get('letting_details') or {}).get('EPC')
             record = {
                 'source': source_name,
                 'source_url': source_url,
@@ -503,6 +505,7 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
                 'images': json.dumps(images),
                 'is_active': True,
                 'is_direct': False,
+                'epc_rating': scraped_epc if scraped_epc else None,
                 'raw_data': json.dumps({'key_features': listing.get('key_features'), 'size_text': listing.get('size_text'), 'letting_details': listing.get('letting_details'), 'additional': listing.get('additional'), 'floorplans': listing.get('floorplans') or []}),
                 'scraped_at': datetime.utcnow().isoformat(),
             }

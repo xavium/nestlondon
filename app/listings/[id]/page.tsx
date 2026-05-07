@@ -11,6 +11,7 @@ import ImageGallery from '@/components/ImageGallery'
 import PropertyMap from '@/components/PropertyMap'
 import MarkViewed from '@/components/MarkViewed'
 import FloorplanSize from '@/components/FloorplanSize'
+import PropertyDetailsTiles from '@/components/PropertyDetailsTiles'
 import ShareButton from '@/components/ShareButton'
 import SaveButton from '@/components/SaveButton'
 import PhotoTags from '@/components/PhotoTags'
@@ -304,7 +305,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                    allText.match(/[Ee]nergy\s+[Rr]ating\s+([A-G])\b/i) ||
                    allText.match(/[Ee]nergy\s+[Ee]fficiency\s+[Rr]ating\s+([A-G])\b/i) ||
                    allText.match(/[Ee]nergy\s+[Rr]ating\s+([A-G])\b/i)
-  if (listing.epc_rating) {
+  if (listing.epc_rating && listing.epc_rating !== 'not_found') {
     structuredDetails['EPC Rating'] = 'Band ' + listing.epc_rating
   } else {
     structuredDetails['EPC Rating'] = epcMatch ? 'Band ' + epcMatch[1].toUpperCase() : 'Ask agent'
@@ -515,20 +516,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               <KeyFeatures features={keyFeatures} />
             )}
 
-            {Object.keys(structuredDetails).length > 0 && (
-              <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Property details</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {Object.entries(structuredDetails).map(([k, v]) => (
-                    <div key={k} className="bg-[#F5F0EB] rounded-xl p-3 text-center flex flex-col items-center justify-center">
-                      <TileIcon name={k} />
-                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{k}</div>
-                      <div className="text-sm font-semibold text-[#1C2B3A]">{v as string}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <PropertyDetailsTiles
+              details={structuredDetails}
+              epcRating={(listing.epc_rating && listing.epc_rating !== 'not_found') ? listing.epc_rating : (epcMatch ? epcMatch[1].toUpperCase() : null)}
+              epcScore={listing.epc_score || null}
+              epcPotentialRating={listing.epc_potential_rating || null}
+              epcPotentialScore={listing.epc_potential_score || null}
+            />
 
             {cleanDescription && (
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
