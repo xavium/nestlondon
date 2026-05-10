@@ -185,7 +185,7 @@ export default function LettingsOfferForm({ listingId, listedPrice, user, profil
             </select>
           </div>
           <div>
-            <label className={labelClass}>Ideal move date</label>
+            <label className={labelClass}>Proposed move date</label>
             <input type="date" value={moveInDate} onChange={e => setMoveInDate(e.target.value)} className={inputClass} />
           </div>
         </div>
