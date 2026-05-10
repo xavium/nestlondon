@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import CreateListingForm from '@/components/CreateListingForm'
+import { canCreateListing } from '@/lib/billing/access'
 
 export default async function PrivateListingPage() {
   const cookieStore = await cookies()
@@ -13,6 +14,13 @@ export default async function PrivateListingPage() {
   )
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/list/auth?redirect=/list/private')
+
+  // Paywall gate
+  const access = await canCreateListing(user.id, user.email)
+  if (!access.allowed) {
+    if (access.reason === 'no_subscription') redirect('/billing?from=list')
+    if (access.reason === 'at_listing_cap') redirect('/billing?at_cap=1')
+  }
 
   return (
     <main className="min-h-screen bg-[#F5EBE0]">

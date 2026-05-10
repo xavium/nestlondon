@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { canCreateListing } from '@/lib/billing/access'
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +16,16 @@ export async function POST(req: NextRequest) {
       { cookies: { getAll: () => cookieStore.getAll() } }
     )
     const { data: { user } } = await auth.auth.getUser()
+
+    // Paywall gate. Page-level redirects handle UX; this is the security boundary.
+    if (!user) return NextResponse.json({ error: 'You must be signed in to list' }, { status: 401 })
+    const access = await canCreateListing(user.id, user.email)
+    if (!access.allowed) {
+      const message = access.reason === 'at_listing_cap'
+        ? `You've reached the ${access.max_listings}-listing cap on your current plan. Upgrade or remove a listing to add a new one.`
+        : 'An active subscription is required to create a listing.'
+      return NextResponse.json({ error: message, reason: access.reason }, { status: 402 })
+    }
     const {
       name, email, phone, address, borough, postcode,
       property_type, bedrooms, bathrooms, square_feet,
@@ -101,6 +112,7 @@ export async function POST(req: NextRequest) {
       source: lister === 'private' ? 'Private owner' : lister === 'agent' ? 'Agent' : 'Landlord',
       source_url: null,
       is_active: false,
+      is_direct: true,
       listed_at: new Date().toISOString(),
       raw_data,
       furnished: Array.isArray(furnished) ? furnished.map((f: string) => f.toLowerCase()).join(', ') : furnished?.toLowerCase(),

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import CreateListingForm from '@/components/CreateListingForm'
+import { canCreateListing } from '@/lib/billing/access'
 
 export default async function AgentListingPage() {
   const cookieStore = await cookies()
@@ -16,6 +17,13 @@ export default async function AgentListingPage() {
 
   const role = user.user_metadata?.role as string | undefined
   if (!role?.startsWith('agent') && role !== 'admin') redirect('/list')
+
+  // Paywall gate — must have an active subscription (or comp code) and headroom.
+  const access = await canCreateListing(user.id, user.email)
+  if (!access.allowed) {
+    if (access.reason === 'no_subscription') redirect('/billing?from=list')
+    if (access.reason === 'at_listing_cap') redirect('/billing?at_cap=1')
+  }
 
   const defaultListingType = role === 'agent_sales' ? 'buy' : 'rent'
   const defaultName = (user.user_metadata?.agency_name as string) || (user.user_metadata?.name as string) || user.email || ""
