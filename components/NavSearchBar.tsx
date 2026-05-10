@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import SearchFilters from '@/components/SearchFilters'
+import SearchFilters, { type SearchFiltersHandle } from '@/components/SearchFilters'
 
 const SUGGESTIONS = [
   'Angel', 'Balham', 'Battersea', 'Bermondsey', 'Bethnal Green', 'Bow', 'Brixton',
@@ -85,6 +85,7 @@ export default function NavSearchBar({
   const [localAddedWithin, setLocalAddedWithin] = useState<number | null>(addedWithin)
   const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
+  const filtersRef = useRef<SearchFiltersHandle>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -213,6 +214,7 @@ export default function NavSearchBar({
         {/* Filters */}
         <div className="flex items-center px-2">
           <SearchFilters
+            ref={filtersRef}
             location={location}
             listingType={listingType}
             minBeds={minBeds}
@@ -241,7 +243,7 @@ export default function NavSearchBar({
 
         {/* Search button */}
         <button
-          onClick={() => doSearch()}
+          onClick={() => filtersRef.current ? filtersRef.current.applyNow() : doSearch()}
           className="flex items-center gap-1.5 px-4 m-1.5 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90 flex-shrink-0"
           style={{background: '#D3755A'}}
         >

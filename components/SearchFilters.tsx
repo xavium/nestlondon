@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Props {
@@ -30,7 +30,11 @@ interface Props {
   minPricePerSqm?: number | null
 }
 
-export default function SearchFilters(props: Props) {
+export interface SearchFiltersHandle {
+  applyNow: () => void
+}
+
+const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilters(props, ref) {
   const { onApply } = props
   const isBuy = props.listingType === 'buy'
   const [open, setOpen] = useState(false)
@@ -40,7 +44,7 @@ export default function SearchFilters(props: Props) {
   const [minPrice, setMinPrice] = useState<number | null>(sp.get('minPrice') ? parseInt(sp.get('minPrice')!) : null)
   const [maxPrice, setMaxPrice] = useState<number | null>(sp.get('maxPrice') ? parseInt(sp.get('maxPrice')!) : null)
   const [furnished, setFurnished] = useState(props.furnished)
-  const [propertyTypes, setPropertyTypes] = useState<string[]>(props.propertyType ? [props.propertyType] : [])
+  const [propertyTypes, setPropertyTypes] = useState<string[]>(props.propertyType ? props.propertyType.split(',').filter(Boolean) : [])
   const [features, setFeatures] = useState<string[]>(props.features)
   const [nestOnly, setNestOnly] = useState<boolean>(() => { const sp2 = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''); return sp2.get('nestOnly') === '1' })
   const [styles, setStyles] = useState<string[]>(props.style ? props.style.split(',') : [])
@@ -64,7 +68,6 @@ export default function SearchFilters(props: Props) {
   const [newBuild, setNewBuild] = useState<boolean>(sp.get('newBuild') === 'true' || props.newBuild || false)
   const [leaseholdMin, setLeaseholdMin] = useState<number | null>(sp.get('leaseholdMin') ? parseInt(sp.get('leaseholdMin')!) : (props.leaseholdMin || null))
 
-  useEffect(() => { console.log('[SF] props.commuteAddress:', props.commuteAddress, 'state:', commuteAddress) }, [props.commuteAddress])
   // Sync commute address from profile if not in URL
   useEffect(() => {
     if (!sp.get('commuteAddress') && props.commuteAddress) {
@@ -125,6 +128,8 @@ export default function SearchFilters(props: Props) {
     if (nestOnly) p.set('nestOnly', '1')
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
   }
+
+  useImperativeHandle(ref, () => ({ applyNow: applyFilters }), [applyFilters])
 
   function clearFilters() {
     setStyles([])
@@ -465,4 +470,6 @@ export default function SearchFilters(props: Props) {
       )}
     </div>
   )
-}
+})
+
+export default SearchFilters

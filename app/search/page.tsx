@@ -68,7 +68,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const nestOnly = params.nestOnly === '1'
   // Get saved commute address from user profile if not in URL
   let commuteAddress = params.commuteAddress || null
-  console.log('[SEARCH] params.commuteAddress:', params.commuteAddress, 'final commuteAddress:', commuteAddress)
   const maxCommute = params.maxCommute ? parseInt(params.maxCommute) : null
   if (!commuteAddress) {
     try {
@@ -81,7 +80,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       const { data: { user } } = await supabaseAuth.auth.getUser()
       if (user?.user_metadata?.commute_address) {
         commuteAddress = user.user_metadata.commute_address
-        console.log('[SEARCH] loaded from user metadata:', commuteAddress)
       }
     } catch {}
   }
@@ -199,7 +197,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (maxBaths) query = query.lte('bathrooms', maxBaths)
   if (minPrice) query = query.gte('price', minPrice)
   if (maxPrice) query = query.lte('price', maxPrice)
-  if (propertyType) query = query.ilike('property_type', '%' + propertyType + '%')
+  if (propertyType) {
+    const propTypes = propertyType.split(',').map(s => s.trim()).filter(Boolean)
+    if (propTypes.length === 1) {
+      query = query.ilike('property_type', '%' + propTypes[0] + '%')
+    } else if (propTypes.length > 1) {
+      const orClause = propTypes.map(p => `property_type.ilike.*${p}*`).join(',')
+      query = query.or(orClause)
+    }
+  }
   if (furnished) query = query.ilike('furnished', '%' + furnished + '%')
   if (addedWithin) {
     const since = new Date(Date.now() - addedWithin * 24 * 60 * 60 * 1000).toISOString()
