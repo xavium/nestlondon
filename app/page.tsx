@@ -501,7 +501,7 @@ export default function HomePage() {
               className="flex items-center gap-2 text-white text-sm hover:opacity-90 transition-opacity px-5 py-2.5 rounded-full font-medium cursor-pointer"
               style={{background:"#D3755A"}}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="1.5"/></svg>
-              Find your perfect borough
+              Find your perfect London borough
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="1.5" strokeLinecap="round"/></svg>
             </button>
           </div>

@@ -291,7 +291,7 @@ Rules:
     <section className="py-16 px-4 bg-[#F5EBE0]">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h2 className="text-3xl font-medium text-[#1B2E4B] mb-2">Find your perfect borough</h2>
+          <h2 className="text-3xl font-medium text-[#1B2E4B] mb-2">Find your perfect London borough</h2>
           <p className="text-[#3D3A38]/60">Answer a few questions and we'll match you with your ideal London boroughs.</p>
         </div>
 
