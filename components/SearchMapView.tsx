@@ -52,6 +52,9 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
     async function initMap() {
       const L = (await import('leaflet')).default
       await import('leaflet/dist/leaflet.css')
+      await import('leaflet.markercluster')
+      await import('leaflet.markercluster/dist/MarkerCluster.css')
+      await import('leaflet.markercluster/dist/MarkerCluster.Default.css')
       const viewed = getViewedListings()
       const effectiveRadius = radius ?? (locationCoords ? 0.25 : null)
       const filteredMapped = (effectiveRadius && locationCoords)
@@ -75,13 +78,37 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       const markerDots: Record<string, any> = {}
       const markerBubbles: Record<string, any> = {}
 
+      // Cluster group config: cluster aggressively when zoomed out, never cluster
+      // at street-level zoom (≥16). Click on a cluster smoothly zooms into its
+      // bounds; spiderfy as a fallback when at max zoom.
+      const clusterOpts = {
+        maxClusterRadius: 80,
+        disableClusteringAtZoom: 16,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        chunkedLoading: true,
+        iconCreateFunction: (cluster: any) => {
+          const count = cluster.getChildCount()
+          const size = count < 10 ? 36 : count < 50 ? 44 : 54
+          return L.divIcon({
+            className: '',
+            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#D85A30;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:${count < 10 ? 13 : count < 100 ? 14 : 13}px;font-family:Georgia,serif;cursor:pointer;line-height:1;box-sizing:border-box;">${count}</div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+          })
+        },
+      }
+      const dotsCluster = (L as any).markerClusterGroup(clusterOpts)
+      const bubblesCluster = (L as any).markerClusterGroup(clusterOpts)
+
       function showDots() {
-        Object.values(markerBubbles).forEach(m => { try { mapRef.current.removeLayer(m) } catch {} })
-        Object.values(markerDots).forEach(m => m.addTo(mapRef.current))
+        try { mapRef.current.removeLayer(bubblesCluster) } catch {}
+        dotsCluster.addTo(mapRef.current)
       }
       function showBubbles() {
-        Object.values(markerDots).forEach(m => { try { mapRef.current.removeLayer(m) } catch {} })
-        Object.values(markerBubbles).forEach(m => m.addTo(mapRef.current))
+        try { mapRef.current.removeLayer(dotsCluster) } catch {}
+        bubblesCluster.addTo(mapRef.current)
       }
 
       filteredMapped.forEach((listing: any) => {
@@ -131,13 +158,15 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
             if (bubble) {
               bubble.style.background = '#c8c7c2'
               bubble.style.fontWeight = '600'
+              bubble.style.borderColor = '#c8c7c2'
+              bubble.style.color = '#6b6b67'
               const tail2 = bubble.querySelector('div') as HTMLElement
               if (tail2) tail2.style.borderTopColor = '#c8c7c2'
             }
           }
         })
         marker.on('popupclose', () => setActiveId(null))
-        marker.addTo(mapRef.current)
+        bubblesCluster.addLayer(marker)
         markersRef.current[listing.id] = marker
         markerBubbles[listing.id] = marker
 
@@ -161,6 +190,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         })
         dotMarker.on('popupclose', () => setActiveId(null))
         markerDots[listing.id] = dotMarker
+        dotsCluster.addLayer(dotMarker)
       })
 
       // Zoom handler - switch between dots and bubbles
