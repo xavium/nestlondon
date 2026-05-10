@@ -10,6 +10,49 @@ const svc = () => createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Deactivate all currently-live direct listings owned by a user. Used when
+// their subscription lapses (canceled / past_due / unpaid / incomplete_expired).
+async function deactivateListingsForUser(sb: ReturnType<typeof svc>, userId: string) {
+  const { data: user } = await sb.auth.admin.getUserById(userId)
+  const email = user?.user?.email?.toLowerCase() || null
+
+  // Direct listings owned by this user, by agent_id OR contact.email
+  // Use OR to mirror the dashboards' visibility logic
+  const ids = new Set<string>()
+  const { data: byAgent } = await sb
+    .from('listings')
+    .select('id')
+    .eq('agent_id', userId)
+    .eq('is_direct', true)
+    .eq('status', 'live')
+  ;(byAgent || []).forEach(l => ids.add(l.id))
+
+  if (email) {
+    const { data: byEmail } = await sb
+      .from('listings')
+      .select('id')
+      .eq('is_direct', true)
+      .eq('status', 'live')
+      .filter('raw_data->contact->>email', 'eq', email)
+    ;(byEmail || []).forEach(l => ids.add(l.id))
+  }
+
+  if (ids.size === 0) return 0
+  const idArray = Array.from(ids)
+  const { error } = await sb
+    .from('listings')
+    .update({ status: 'deactivated', is_active: false })
+    .in('id', idArray)
+  if (error) {
+    console.error('[STRIPE webhook] Failed to deactivate listings', error)
+    return 0
+  }
+  console.log('[STRIPE webhook] Deactivated', idArray.length, 'listings for user', userId)
+  return idArray.length
+}
+
+const DEACTIVATING_STATUSES = ['canceled', 'past_due', 'unpaid', 'incomplete_expired']
+
 export async function POST(req: NextRequest) {
   const sig = req.headers.get('stripe-signature')
   const secret = process.env.STRIPE_WEBHOOK_SECRET
@@ -89,6 +132,13 @@ export async function POST(req: NextRequest) {
         } else {
           await sb.from('subscriptions').insert(row)
         }
+
+        // Auto-deactivate listings when the sub moves to a non-paying state.
+        // This covers payment failures (past_due/unpaid), expired incompletes,
+        // and explicit cancellations that bypass the .deleted event.
+        if (DEACTIVATING_STATUSES.includes(sub.status)) {
+          await deactivateListingsForUser(sb, userId)
+        }
         break
       }
 
@@ -97,6 +147,12 @@ export async function POST(req: NextRequest) {
         await sb.from('subscriptions')
           .update({ status: 'canceled', canceled_at: new Date().toISOString() })
           .eq('stripe_subscription_id', sub.id)
+
+        // Period ended without renewal — deactivate any live listings.
+        const userId = (sub.metadata as any)?.supabase_user_id
+        if (userId) {
+          await deactivateListingsForUser(sb, userId)
+        }
         break
       }
 
