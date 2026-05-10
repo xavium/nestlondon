@@ -106,3 +106,6 @@ input[type="range"]::-moz-range-progress {
 input[type="range"].range-fill::-webkit-slider-runnable-track {
   background: linear-gradient(to right, #D3755A 0%, #D3755A var(--value, 0%), #E8E2DA var(--value, 0%), #E8E2DA 100%);
 }
+
+/* Hide Ukrainian flag from Leaflet attribution control */
+svg.leaflet-attribution-flag { display: none !important; }
