@@ -30,6 +30,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // Geocode postcode → lat/lng via Postcodes.io (UK-specific, free, no API key).
+    // Best-effort: if it fails, we still save the listing without coords.
+    let latitude: number | null = null
+    let longitude: number | null = null
+    const cleanedPostcode = String(postcode).trim().toUpperCase().replace(/\s+/g, ' ')
+    try {
+      const geoRes = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(cleanedPostcode)}`)
+      if (geoRes.ok) {
+        const geo = await geoRes.json() as { result?: { latitude: number; longitude: number } }
+        if (geo.result?.latitude != null && geo.result?.longitude != null) {
+          latitude = geo.result.latitude
+          longitude = geo.result.longitude
+        }
+      }
+    } catch (e: any) {
+      console.error('[CREATE LISTING] Geocode error for', cleanedPostcode, e.message)
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
@@ -67,7 +85,10 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabase.from('listings').insert({
       address,
-      borough: borough || postcode.replace(/\s.*/, '').toUpperCase(),
+      postcode: cleanedPostcode,
+      latitude,
+      longitude,
+      borough: borough || cleanedPostcode.replace(/\s.*/, '').toUpperCase(),
       price: parseInt(price),
       bedrooms: parseInt(bedrooms),
       bathrooms: bathrooms ? parseInt(bathrooms) : null,
