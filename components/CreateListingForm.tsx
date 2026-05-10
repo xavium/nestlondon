@@ -20,6 +20,9 @@ const EPC_RATINGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 const COUNCIL_TAX_BANDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
 export default function CreateListingForm({ lister, defaultListingType = 'rent', defaultName = '', defaultEmail = '', defaultPhone = '' }: Props) {
+  // Photo upload caps — agents typically have 20-40 professional photos from
+  // CRM exports, private owners take fewer.
+  const MAX_PHOTOS = lister === 'agent' ? 35 : 20
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -158,10 +161,10 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
   }
   function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
-    setImageFiles(prev => [...prev, ...files].slice(0, 15))
+    setImageFiles(prev => [...prev, ...files].slice(0, MAX_PHOTOS))
     files.forEach(file => {
       const reader = new FileReader()
-      reader.onload = ev => setImagePreviews(prev => [...prev, ev.target?.result as string].slice(0, 15))
+      reader.onload = ev => setImagePreviews(prev => [...prev, ev.target?.result as string].slice(0, MAX_PHOTOS))
       reader.readAsDataURL(file)
     })
   }
@@ -505,7 +508,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
       {step === 5 && (
         <div className="flex flex-col gap-5">
           <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Photos</h2>
-          <p className="text-sm text-[#9B928E]">Add up to 15 photos. Good photos significantly increase enquiries — try to include every room, outside space, and any special features.</p>
+          <p className="text-sm text-[#9B928E]">{'Add up to ' + MAX_PHOTOS + ' photos. Good photos significantly increase enquiries — try to include every room, outside space, and any special features.'}</p>
           <div
             onClick={() => fileRef.current?.click()}
             className="border-2 border-dashed border-[#E8E2DA] rounded-xl p-8 text-center cursor-pointer hover:border-[#D3755A] transition-colors">
@@ -513,7 +516,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
               <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <p className="text-sm text-[#9B928E]">Click to upload photos</p>
-            <p className="text-xs text-[#9B928E] mt-1">JPG, PNG up to 10MB each · {imagePreviews.length}/15 uploaded</p>
+            <p className="text-xs text-[#9B928E] mt-1">JPG, PNG up to 10MB each · {imagePreviews.length}/{MAX_PHOTOS} uploaded</p>
             <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImages} />
           </div>
           {imagePreviews.length > 0 && (
@@ -531,7 +534,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
 
           <div className="border-t border-[#E8E2DA] pt-5 mt-2">
             <h3 className="text-base font-light text-[#1B2E4B] mb-1" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Floorplan</h3>
-            <p className="text-sm text-[#9B928E] mb-3">Optional. Adds a Floorplan pill to your listing photo gallery.</p>
+            <p className="text-sm text-[#9B928E] mb-3">Adding a floorplan can greatly increase engagement with your listing.</p>
             <div
               onClick={() => floorplanFileRef.current?.click()}
               className="border-2 border-dashed border-[#E8E2DA] rounded-xl p-6 text-center cursor-pointer hover:border-[#D3755A] transition-colors">
