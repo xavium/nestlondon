@@ -50,12 +50,11 @@ export default function SaveButton({ listingId }: { listingId: string }) {
   return (
     <button onClick={toggle} disabled={loading}
       title={saved ? 'Remove from saved' : 'Save property'}
-      className={'flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-sm ' +
-        (saved ? 'border-[#D3755A] text-[#D3755A] bg-white' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A] hover:text-[#D3755A] bg-white')}>
-      <svg className="w-4 h-4" fill={saved ? '#D3755A' : 'none'} stroke="#D3755A" viewBox="0 0 24 24">
-        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="1.5" strokeLinecap="round"/>
+      aria-label={saved ? 'Remove from saved' : 'Save property'}
+      className="p-2 transition-opacity hover:opacity-70 disabled:opacity-50">
+      <svg className="w-6 h-6" fill={saved ? '#D9302C' : 'none'} stroke="#D9302C" viewBox="0 0 24 24">
+        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
-      {saved ? 'Saved' : 'Save'}
     </button>
   )
 }

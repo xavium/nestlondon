@@ -94,29 +94,32 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mt-2">
-        {listedAt && (
-          <div className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5"/><path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5"/></svg>
-            {'Listed: ' + new Date(listedAt!).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}
-          </div>
-        )}
-        <button onClick={() => open(0)}
-          className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:text-[#1B2E4B] transition-colors">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="1.5"/><path d="M3 9h18M9 21V9" strokeWidth="1.5"/></svg>
-          {images.length} photos
-        </button>
-        {floorplans.length > 0 && (
-          <button
-            onClick={() => { setShowFloorplan(true); setLightbox(0) }}
-            className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" strokeWidth="1.5"/></svg>
-            Floorplan
-            <img src={floorplans[0]} alt="floorplan preview" className="h-6 w-8 object-contain rounded" referrerPolicy="no-referrer" />
+      <div className="grid gap-2 mt-2" style={{gridTemplateColumns: '2fr 1fr'}}>
+        <div className="flex items-center gap-2">
+          {listedAt && (
+            <div className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5"/><path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5"/></svg>
+              {'Listed: ' + new Date(listedAt!).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}
+            </div>
+          )}
+          <button onClick={() => open(0)}
+            className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:text-[#1B2E4B] transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="1.5"/><path d="M3 9h18M9 21V9" strokeWidth="1.5"/></svg>
+            {images.length} photos
           </button>
-        )}
-        {shareButton}
+          {floorplans.length > 0 && (
+            <button
+              onClick={() => { setShowFloorplan(true); setLightbox(0) }}
+              className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" strokeWidth="1.5"/></svg>
+              Floorplan
+              <img src={floorplans[0]} alt="floorplan preview" className="h-6 w-8 object-contain rounded" referrerPolicy="no-referrer" />
+            </button>
+          )}
+          <div className="ml-auto">{shareButton}</div>
+        </div>
+        <div />
       </div>
 
 

@@ -442,7 +442,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
       {/* Full width photos */}
       <div className="max-w-6xl mx-auto px-4 mb-6">
-        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} epcRating={listing.epc_rating} epcScore={listing.epc_score} epcPotentialRating={listing.epc_potential_rating} epcPotentialScore={listing.epc_potential_score} shareButton={<><SaveButton listingId={listing.id} /><ShareButton address={listing.address} price={listing.price} /></>} />
+        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} epcRating={listing.epc_rating} epcScore={listing.epc_score} epcPotentialRating={listing.epc_potential_rating} epcPotentialScore={listing.epc_potential_score} shareButton={<div className="flex items-center gap-1"><ShareButton address={listing.address} price={listing.price} /><span className="w-px h-5 bg-[#E8E2DA] mx-1" aria-hidden="true" /><SaveButton listingId={listing.id} /></div>} />
         <div className="flex justify-end mt-2">
         </div>
       </div>

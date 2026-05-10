@@ -37,10 +37,17 @@ export default function ShareButton({ address, price }: { address: string, price
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 text-xs text-stone-500 bg-white border border-[#E8E2DA] rounded-lg px-3 py-1.5 hover:border-stone-300 transition-colors"
+        aria-label="Share"
+        title="Share"
+        className="p-2 transition-opacity hover:opacity-70"
       >
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        Share
+        <svg className="w-6 h-6" fill="none" stroke="#1B2E4B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
       </button>
 
       {open && (
