@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       job_title: job_title?.trim() || null,
       guarantor_available: typeof guarantor_available === 'boolean' ? guarantor_available : null,
       notes: notes?.trim() || null,
+      status: 'new',
       // Lettings extras
       tenants: tenants || null,
       combined_salary: combined_salary ? Number(combined_salary) : null,
