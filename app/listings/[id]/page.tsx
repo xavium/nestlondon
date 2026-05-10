@@ -45,14 +45,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     { cookies: { getAll() { return cookieStore.getAll() } } }
   )
 
-  // Use service role key for admin preview to bypass RLS
+  // Always use service role for the listing fetch so we can see non-live rows
+  // (pending/paused/deactivated) for the owner preview path. Auth + ownership
+  // + status gating happens below, so this is safe.
   const isAdminPreviewEarly = sp.preview === 'true'
-  const queryClient = isAdminPreviewEarly
-    ? (await import('@supabase/supabase-js')).createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-    : supabase
+  const queryClient = (await import('@supabase/supabase-js')).createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   const { data: listing } = await queryClient
     .from('listings')
@@ -60,17 +60,33 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     .eq('id', id)
     .maybeSingle()
 
+  if (!listing) notFound()
+
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
-  const isOwnListing = !!(currentUser && listing.agent_id && currentUser.id === listing.agent_id)
+
+  // Ownership check (matches dashboards' logic)
+  const listingRawData = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+  const ownsByAgent = !!(currentUser && listing.agent_id && currentUser.id === listing.agent_id)
+  const ownsByEmail = !!(currentUser?.email && (listingRawData?.contact?.email || '').toLowerCase() === currentUser.email.toLowerCase())
+  const isOwnListing = ownsByAgent || ownsByEmail
+
+  // Status-driven visibility:
+  //   live          → public, full features
+  //   deactivated   → public via URL (was approved once), banner + faded, no enquiry
+  //   paused        → owner only (admin queue was withdrawn before approval)
+  //   pending       → owner only (never approved)
+  const listingStatus = listing.status as string | null
+  const isLive = listingStatus === 'live' || (listingStatus == null && listing.is_active)
+  const isAdmin = currentUser?.user_metadata?.role === 'admin'
+  const wasApproved = listingStatus === 'deactivated'
+  const publicViewable = isLive || wasApproved
+  if (!publicViewable && !isOwnListing && !isAdmin && !isAdminPreviewEarly) notFound()
   const userRole = currentUser?.user_metadata?.role as string | undefined
   const isOwnerOrAgent = !!(userRole && (userRole.startsWith('owner') || userRole.startsWith('agent') || userRole === 'landlord' || userRole === 'admin'))
   const blockEnquiry = !!(currentUser && isOwnerOrAgent && !isOwnListing)
 
-  if (!listing) { console.log('404: listing not found', id); notFound() }
   const isAdminPreview = isAdminPreviewEarly
-  console.log('Listing found:', id, 'is_active:', listing.is_active, 'isAdminPreview:', isAdminPreview, 'agent_id:', listing.agent_id)
-  if (!listing.is_active && !isAdminPreview && !listing.agent_id) { console.log('404: inactive listing, no preview'); notFound() }
 
   let nearbyListings: any[] = []
   if (listing.latitude && listing.longitude) {
@@ -440,9 +456,22 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         </div>
       </div>
 
+      {!isLive && (
+        <div className="max-w-6xl mx-auto px-4 mb-4">
+          <div className="rounded-2xl border border-[#E8C9B0] bg-[#FCF5EE] p-4 flex items-center gap-3">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{background:'#D3755A20'}}>
+              <svg className="w-4 h-4" fill="none" stroke="#D3755A" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-[#1B2E4B] pt-0.5">This listing is currently unavailable</p>
+          </div>
+        </div>
+      )}
+
       {/* Full width photos */}
       <div className="max-w-6xl mx-auto px-4 mb-6">
-        <ImageGallery images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} epcRating={listing.epc_rating} epcScore={listing.epc_score} epcPotentialRating={listing.epc_potential_rating} epcPotentialScore={listing.epc_potential_score} shareButton={<div className="flex items-center gap-1"><ShareButton address={listing.address} price={listing.price} /><span className="w-px h-5 bg-[#E8E2DA] mx-1" aria-hidden="true" /><SaveButton listingId={listing.id} /></div>} />
+        <ImageGallery isLive={isLive} images={images} address={listing.address} floorplans={floorplans} listedAt={listing.listed_at} epcRating={listing.epc_rating} epcScore={listing.epc_score} epcPotentialRating={listing.epc_potential_rating} epcPotentialScore={listing.epc_potential_score} shareButton={<div className="flex items-center gap-1"><ShareButton address={listing.address} price={listing.price} /><span className="w-px h-5 bg-[#E8E2DA] mx-1" aria-hidden="true" /><SaveButton listingId={listing.id} /></div>} />
         <div className="flex justify-end mt-2">
         </div>
       </div>
@@ -573,7 +602,22 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           </div>
 
           <div className="flex flex-col gap-5 self-start">
-            {isBuyListing ? (
+            {!isLive ? (
+              isOwnListing ? (
+                <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 text-center">
+                  <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">Your listing</p>
+                  <a href={userRole?.startsWith('agent') ? '/dashboard?tab=listings' : '/dashboard/owner'}
+                    className="block w-full text-white text-sm rounded-xl py-3 text-center transition-opacity hover:opacity-90 no-underline"
+                    style={{background:'#D3755A'}}>
+                    View in my portal →
+                  </a>
+                </div>
+              ) : (
+                <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 text-center">
+                  <p className="text-sm font-medium text-[#1B2E4B]">Unavailable</p>
+                </div>
+              )
+            ) : isBuyListing ? (
               <BuyListingPanel
                 price={listingPrice}
                 address={listing.address}

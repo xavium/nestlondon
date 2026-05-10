@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-export default function ImageGallery({ images, address, floorplans = [], listedAt, shareButton, epcRating, epcScore, epcPotentialRating, epcPotentialScore }: { images: string[], address: string, floorplans?: string[], listedAt?: string | null, shareButton?: React.ReactNode, epcRating?: string | null, epcScore?: number | null, epcPotentialRating?: string | null, epcPotentialScore?: number | null }) {
+export default function ImageGallery({ images, address, floorplans = [], listedAt, shareButton, epcRating, epcScore, epcPotentialRating, epcPotentialScore, isLive = true }: { images: string[], address: string, floorplans?: string[], listedAt?: string | null, shareButton?: React.ReactNode, epcRating?: string | null, epcScore?: number | null, epcPotentialRating?: string | null, epcPotentialScore?: number | null, isLive?: boolean }) {
   const [lightbox, setLightbox] = useState<number | null>(null)
   const [showFloorplan, setShowFloorplan] = useState(false)
 
@@ -23,7 +23,7 @@ export default function ImageGallery({ images, address, floorplans = [], listedA
 
   return (
     <>
-      <div className="grid gap-2" style={{gridTemplateColumns: '2fr 1fr'}}>
+      <div className={'grid gap-2 ' + (!isLive ? 'opacity-50' : '')} style={{gridTemplateColumns: '2fr 1fr'}}>
         <div className="rounded-xl overflow-hidden bg-stone-200 cursor-pointer" style={{height: '480px'}} onClick={() => images[0] && open(0)}>
           {images[0] ? (
             <img src={images[0]} alt={address} className="w-full h-full object-cover hover:opacity-95 transition-opacity" referrerPolicy="no-referrer" />
