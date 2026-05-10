@@ -260,12 +260,18 @@ async def get_full_description(context, source_url):
         except Exception as ie:
             print('  Image error: ' + str(ie))
 
-        # Floorplans
+        # Floorplans — extract from raw HTML (more reliable than DOM scraping
+        # since lazy-loaded imgs may not be rendered yet) AND fall back to DOM.
         try:
-            floorplan_imgs = await page.evaluate('''() => {
+            import re as _fpre
+            # Raw-HTML regex covers media.rightmove.co.uk/.../property-floorplan/... URLs
+            html_fp_raw = _fpre.findall(r'https://media\.rightmove\.co\.uk/[^\s"\'\\<>]+property-floorplan[^\s"\'\\<>]+', html_content)
+            # Also try DOM as a fallback in case the regex misses anything
+            dom_fp = await page.evaluate('''() => {
                 const imgs = Array.from(document.querySelectorAll('img'))
-                return imgs.map(img => img.src).filter(src => src.includes('floorplan') || src.includes('floor_plan') || src.includes('floor-plan'))
+                return imgs.map(img => img.src).filter(src => src && (src.includes('floorplan') || src.includes('floor_plan') || src.includes('floor-plan')))
             }''')
+            floorplan_imgs = list(html_fp_raw) + list(dom_fp)
             if floorplan_imgs:
                 # Strip _max_WxH size suffix for full-resolution; dedupe by filename hash
                 seen_fp = set()
@@ -273,7 +279,10 @@ async def get_full_description(context, source_url):
                 for u in floorplan_imgs:
                     if not u or not u.startswith('http'):
                         continue
-                    upgraded = re.sub(r'_max_\d+x\d+(?=\.(jpe?g|png|webp)$)', '', u)
+                    # Strip any trailing junk (backslashes, control chars) that may have leaked through the regex
+                    u = u.rstrip('\\<>\'"')
+                    # Strip _max_WxH size suffix to get full-resolution
+                    upgraded = re.sub(r'_max_\d+x\d+(?=\.[a-zA-Z]{3,4}$)', '', u)
                     img_hash = upgraded.rsplit('/', 1)[-1].rsplit('.', 1)[0]
                     if img_hash in seen_fp:
                         continue
