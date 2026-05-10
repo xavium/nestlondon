@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   // Fetch all listings for this agent
   let listingsQuery = svc
     .from('listings')
-    .select('id, address, price, bedrooms, property_type, images, is_active, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name, square_feet, latitude, longitude, postcode, listing_type')
+    .select('id, address, price, bedrooms, property_type, images, is_active, status, scraped_at, listed_at, borough, source, assigned_agent_id, assigned_agent_name, square_feet, latitude, longitude, postcode, listing_type')
     .eq('agent_id', agencyId)
     .order('scraped_at', { ascending: false })
   if (specialismListingType) listingsQuery = listingsQuery.eq('listing_type', specialismListingType)

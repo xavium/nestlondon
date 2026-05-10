@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
       source_url: null,
       is_active: false,
       is_direct: true,
+      status: 'pending',
       listed_at: new Date().toISOString(),
       raw_data,
       furnished: Array.isArray(furnished) ? furnished.map((f: string) => f.toLowerCase()).join(', ') : furnished?.toLowerCase(),

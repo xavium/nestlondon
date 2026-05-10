@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
+import { resolveStatus, actionsForStatus, STATUS_LABELS, STATUS_BADGE_CLASSES, type ListingStatus } from '@/lib/listingStatus'
 import NavAuthButton from '@/components/NavAuthButton'
 import ViewingsCalendarView from '@/components/ViewingsCalendarView'
 import OffersTab from '@/components/OffersTab'
@@ -20,6 +21,7 @@ interface Listing {
   borough: string | null
   square_feet: number | null
   is_active: boolean
+  status?: string | null
   listed_at: string
   images: string
   raw_data: any
@@ -140,23 +142,28 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
   const [dashTab, setDashTab] = useState<'analytics' | 'listings' | 'viewings' | 'offers'>(initialTab)
   const [managingId, setManagingId] = useState<string | null>(null)
 
-  async function manageListing(listing_id: string, action: 'deactivate' | 'activate' | 'delete') {
-    if (action === 'delete' && !confirm('Permanently delete this listing? This cannot be undone.')) return
-    await fetch('/api/listings/manage', {
+  async function manageListing(listing_id: string, action: 'deactivate' | 'reactivate' | 'pause' | 'resubmit' | 'delete', confirmMsg?: string) {
+    const msg = confirmMsg ?? (action === 'delete' ? 'Permanently delete this listing? This cannot be undone.' : null)
+    if (msg && !confirm(msg)) return
+    const r = await fetch('/api/listings/manage', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ listing_id, action })
     })
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}))
+      alert(data.error || 'Action failed')
+      return
+    }
     window.location.reload()
   }
   const [listingSearch, setListingSearch] = useState('')
   const [listingMinBeds, setListingMinBeds] = useState<number | null>(null)
   const [listingMaxPrice, setListingMaxPrice] = useState<number | null>(null)
-  const [listingStatus, setListingStatus] = useState<'all' | 'active' | 'inactive'>('active')
+  const [listingStatus, setListingStatus] = useState<'all' | ListingStatus>('all')
 
   const filteredListings = listings.filter(l => {
-    if (listingStatus === 'active' && !l.is_active) return false
-    if (listingStatus === 'inactive' && l.is_active) return false
+    if (listingStatus !== 'all' && resolveStatus(l) !== listingStatus) return false
     if (listingSearch) {
       const q = listingSearch.toLowerCase()
       if (!l.address?.toLowerCase().includes(q) && !l.borough?.toLowerCase().includes(q)) return false
@@ -542,11 +549,11 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                 className="w-32 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#3D3A38] bg-white outline-none focus:border-[#D3755A]"
               />
               <div className="flex gap-1">
-                {(['all', 'active', 'inactive'] as const).map(s => (
+                {(['all', 'live', 'pending', 'paused', 'deactivated'] as const).map(s => (
                   <button key={s} onClick={() => setListingStatus(s)}
-                    className={'text-xs px-3 py-1.5 rounded-full border transition-colors capitalize ' + (listingStatus === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
+                    className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (listingStatus === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
                     style={listingStatus === s ? {background:'#1B2E4B'} : {}}>
-                    {s}
+                    {s === 'all' ? 'All' : STATUS_LABELS[s as ListingStatus]}
                   </button>
                 ))}
               </div>
@@ -568,11 +575,11 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                         {img ? <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : null}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          {(() => { const s = resolveStatus(l); return (
+                            <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                          )})()}
                           <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
-                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500')}>
-                            {l.is_active ? 'Live' : 'Inactive'}
-                          </span>
                         </div>
                         <div className="text-xs text-[#9B928E]">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
                         <div className="flex gap-4 mt-1 text-xs text-[#9B928E]">
@@ -585,16 +592,24 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                           className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
                           View →
                         </Link>
-                        <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
-                          className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
-                          {l.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
-                        {!l.is_active && (
-                          <button onClick={() => manageListing(l.id, 'delete')}
-                            className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                            Delete
-                          </button>
-                        )}
+                        <Link href={'/list/edit/' + l.id}
+                          className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
+                          Edit
+                        </Link>
+                        {(() => { const s = resolveStatus(l); return <>
+                          {actionsForStatus(s).map(a => (
+                            <button key={a.key} onClick={() => manageListing(l.id, a.key, a.confirm)}
+                              className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + a.className}>
+                              {a.label}
+                            </button>
+                          ))}
+                          {s !== 'live' && (
+                            <button onClick={() => manageListing(l.id, 'delete')}
+                              className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                              Delete
+                            </button>
+                          )}
+                        </>})()}
                       </div>
                     </div>
                   )
@@ -632,7 +647,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
               className="w-32 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#3D3A38] bg-white outline-none focus:border-[#D3755A]"
             />
             <div className="flex gap-1">
-              {(['all', 'active', 'inactive'] as const).map(s => (
+              {(['all', 'live', 'pending', 'paused', 'deactivated'] as const).map(s => (
                 <button key={s} onClick={() => setListingStatus(s)}
                   className={'text-xs px-3 py-1.5 rounded-full border transition-colors capitalize ' + (listingStatus === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
                   style={listingStatus === s ? {background:'#1B2E4B'} : {}}>
@@ -664,11 +679,11 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                       }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {(() => { const s = resolveStatus(l); return (
+                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                        )})()}
                         <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
-                        <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>
-                          {l.is_active ? 'Live' : 'Pending'}
-                        </span>
                       </div>
                       <div className="text-xs text-[#9B928E] mt-0.5">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
                       <div className="flex gap-4 mt-2">
@@ -680,16 +695,24 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                     <div className="flex flex-col gap-1.5 flex-shrink-0 items-end">
                       <div className="text-[#9B928E] text-xs">{selected === l.id ? '▲' : '▼'}</div>
                       <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
-                          className={'text-[10px] px-2 py-1 rounded-lg border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
-                          {l.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
-                        {!l.is_active && (
-                          <button onClick={() => manageListing(l.id, 'delete')}
-                            className="text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                            Delete
-                          </button>
-                        )}
+                        <Link href={'/list/edit/' + l.id}
+                          className="text-[10px] px-2 py-1 rounded-lg border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors">
+                          Edit
+                        </Link>
+                        {(() => { const s = resolveStatus(l); return <>
+                          {actionsForStatus(s).map(a => (
+                            <button key={a.key} onClick={() => manageListing(l.id, a.key, a.confirm)}
+                              className={'text-[10px] px-2 py-1 rounded-lg border transition-colors ' + a.className}>
+                              {a.label}
+                            </button>
+                          ))}
+                          {s !== 'live' && (
+                            <button onClick={() => manageListing(l.id, 'delete')}
+                              className="text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                              Delete
+                            </button>
+                          )}
+                        </>})()}
                       </div>
                     </div>
                   </div>

@@ -4,12 +4,40 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
+interface ExistingListing {
+  id: string
+  status?: string | null
+  address?: string
+  postcode?: string
+  property_type?: string
+  bedrooms?: number | string | null
+  bathrooms?: number | string | null
+  square_feet?: number | string | null
+  price?: number | string | null
+  description?: string
+  images?: string[]
+  floorplans?: string[]
+  furnished?: string
+  listing_type?: string
+  which_floor?: string
+  total_floors?: string
+  floor_layout?: string
+  epc_rating?: string
+  council_tax_band?: string
+  deposit?: string
+  available_from?: string
+  features?: string[]
+  contact?: { name?: string, email?: string, phone?: string, company_name?: string, company_reg?: string }
+}
+
 interface Props {
   lister: 'private' | 'landlord' | 'agent'
   defaultListingType?: 'rent' | 'buy'
   defaultName?: string
   defaultEmail?: string
   defaultPhone?: string
+  /** If provided, the form runs in edit mode and PATCHes /api/listings/edit/<id> on submit. */
+  existing?: ExistingListing
 }
 
 const PROPERTY_TYPES = ['Flat', 'House', 'Studio', 'Maisonette', 'Bungalow', 'Room']
@@ -19,7 +47,11 @@ const FLOOR_LAYOUT_OPTIONS = ['Single level', 'Split-level', 'Multiple floors']
 const EPC_RATINGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 const COUNCIL_TAX_BANDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-export default function CreateListingForm({ lister, defaultListingType = 'rent', defaultName = '', defaultEmail = '', defaultPhone = '' }: Props) {
+export default function CreateListingForm({ lister, defaultListingType = 'rent', defaultName = '', defaultEmail = '', defaultPhone = '', existing }: Props) {
+  const isEditMode = !!existing
+  const ex = existing || ({} as ExistingListing)
+  const exFeatures = ex.features || []
+  const has = (f: string) => exFeatures.includes(f)
   // Photo upload caps — agents typically have 20-40 professional photos from
   // CRM exports, private owners take fewer.
   const MAX_PHOTOS = lister === 'agent' ? 35 : 20
@@ -28,6 +60,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [savedStatus, setSavedStatus] = useState<string | null>(null)
   const [valuation, setValuation] = useState<{ low: number; mid: number; high: number; n_comparables: number; area_label: string } | null>(null)
   const [valuationLoading, setValuationLoading] = useState(false)
   const [valuationError, setValuationError] = useState<string | null>(null)
@@ -59,6 +92,10 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [floorplanFiles, setFloorplanFiles] = useState<File[]>([])
   const [floorplanPreviews, setFloorplanPreviews] = useState<string[]>([])
+  // In edit mode, existing image/floorplan URLs that the user hasn't removed.
+  // These get passed straight to the server alongside any newly uploaded files.
+  const [existingImages, setExistingImages] = useState<string[]>(ex.images || [])
+  const [existingFloorplans, setExistingFloorplans] = useState<string[]>(ex.floorplans || [])
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [user, setUser] = useState<{name: string, email: string, phone: string} | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -84,37 +121,45 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
 
   const [form, setForm] = useState({
     // Contact
-    name: defaultName, email: '', phone: '',
-    company_name: '', company_reg: '',
+    name: ex.contact?.name || defaultName,
+    email: ex.contact?.email || defaultEmail || '',
+    phone: ex.contact?.phone || defaultPhone || '',
+    company_name: ex.contact?.company_name || '',
+    company_reg: ex.contact?.company_reg || '',
     // Property
-    address: '', borough: '', postcode: '',
-    property_type: 'Flat',
-    listing_type: defaultListingType as 'rent' | 'buy',
-    bedrooms: '', bathrooms: '',
-    square_feet: '',
-    which_floor: '',
-    total_floors: '',
-    floor_layout: '',
+    address: ex.address || '',
+    borough: '',
+    postcode: ex.postcode || '',
+    property_type: ex.property_type || 'Flat',
+    listing_type: (ex.listing_type as 'rent' | 'buy') || defaultListingType,
+    bedrooms: ex.bedrooms != null ? String(ex.bedrooms) : '',
+    bathrooms: ex.bathrooms != null ? String(ex.bathrooms) : '',
+    square_feet: ex.square_feet != null ? String(ex.square_feet) : '',
+    which_floor: ex.which_floor || '',
+    total_floors: ex.total_floors || '',
+    floor_layout: ex.floor_layout || '',
     // Price & availability
-    price: '', deposit: '', available_from: '',
+    price: ex.price != null ? String(ex.price) : '',
+    deposit: ex.deposit || '',
+    available_from: ex.available_from || '',
     // Details
-    furnished: [] as string[],
-    epc_rating: '',
-    council_tax_band: '',
-    description: '',
+    furnished: ex.furnished ? ex.furnished.split(',').map(s => s.trim()).filter(Boolean) : [] as string[],
+    epc_rating: ex.epc_rating || '',
+    council_tax_band: ex.council_tax_band || '',
+    description: ex.description || '',
     // Features
-    has_garden: false,
-    has_balcony: false,
-    has_terrace: false,
-    has_parking: false,
-    has_garage: false,
-    has_concierge: false,
-    pets_allowed: false,
-    bills_included: false,
-    has_lift: false,
-    has_porter: false,
-    new_build: false,
-    shared_ownership: false,
+    has_garden: has('Garden'),
+    has_balcony: has('Balcony'),
+    has_terrace: has('Terrace'),
+    has_parking: has('Parking'),
+    has_garage: has('Garage'),
+    has_concierge: has('Concierge'),
+    pets_allowed: has('Pets allowed'),
+    bills_included: has('Bills included'),
+    has_lift: has('Lift'),
+    has_porter: has('Porter'),
+    new_build: has('New build'),
+    shared_ownership: has('Shared ownership'),
   })
 
   function set(k: string, v: any) { setForm(f => ({...f, [k]: v})); if (error) setError('') }
@@ -176,6 +221,11 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
   }
 
   async function handleSubmit() {
+    // Paused listings: ask user whether to resubmit on save
+    let resubmit = false
+    if (isEditMode && ex.status === 'paused') {
+      resubmit = confirm('This listing is currently paused. Send it back to the admin review queue?\n\nClick OK to resubmit for review, or Cancel to save changes and keep it paused.')
+    }
     setLoading(true)
     setError('')
     try {
@@ -228,22 +278,28 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
         return urls
       }
 
-      const imageUrls = await uploadAll(imageFiles)
-      const floorplanUrls = await uploadAll(floorplanFiles)
+      const newImageUrls = await uploadAll(imageFiles)
+      const newFloorplanUrls = await uploadAll(floorplanFiles)
+      const imageUrls = [...existingImages, ...newImageUrls]
+      const floorplanUrls = [...existingFloorplans, ...newFloorplanUrls]
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`
 
-      const res = await fetch('/api/listings/create', {
-        method: 'POST',
+      const endpoint = isEditMode ? `/api/listings/edit/${existing!.id}` : '/api/listings/create'
+      const method = isEditMode ? 'PATCH' : 'POST'
+
+      const res = await fetch(endpoint, {
+        method,
         headers,
-        body: JSON.stringify({ ...form, images: imageUrls, floorplans: floorplanUrls, lister })
+        body: JSON.stringify({ ...form, images: imageUrls, floorplans: floorplanUrls, lister, resubmit })
       })
       const text = await res.text()
       console.log('API response:', res.status, text)
       let data: any = {}
       try { data = JSON.parse(text) } catch { throw new Error('Server error — please try again') }
       if (!res.ok) throw new Error(data.error || 'Failed to create listing')
+      if (data?.status) setSavedStatus(data.status as string)
       setSuccess(true)
     } catch (e: any) {
       setError(e.message)
@@ -257,9 +313,38 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
       <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{background:'rgba(211,117,90,0.12)'}}>
         <svg className="w-8 h-8" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </div>
-      <h2 className="text-2xl font-light text-[#1B2E4B] mb-3" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Listing submitted!</h2>
-      <p className="text-[#3D3A38] text-sm mb-8">Your property will be reviewed and published within 24 hours. We'll email you at {form.email}.</p>
-      <button onClick={() => router.push(lister === 'agent' ? '/dashboard?tab=listings' : '/dashboard/owner')} className="px-6 py-3 rounded-xl text-white text-sm" style={{background:'#D3755A'}}>View your dashboard →</button>
+      <h2 className="text-2xl font-light text-[#1B2E4B] mb-3" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>{isEditMode ? 'Changes saved!' : 'Listing submitted!'}</h2>
+      <p className="text-[#3D3A38] text-sm mb-8">
+        {isEditMode
+          ? (savedStatus === 'paused'
+              ? 'Your changes have been saved. The listing remains paused — click "Resubmit for review" below when you\'re ready to post it on NestLondon.'
+              : 'Your listing has been resubmitted for review. It will be hidden from the site until approved.')
+          : <>Your property will be reviewed and published within 24 hours. We&apos;ll email you at {form.email}.</>}
+      </p>
+      <div className="flex gap-3 flex-wrap justify-center">
+        {savedStatus === 'paused' && isEditMode && (
+          <button onClick={async () => {
+            const r = await fetch('/api/listings/manage', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ listing_id: existing!.id, action: 'resubmit' }),
+            })
+            if (r.ok) {
+              router.push(lister === 'agent' ? '/dashboard?tab=listings' : '/dashboard/owner')
+            } else {
+              const d = await r.json().catch(() => ({}))
+              alert(d.error || 'Could not resubmit')
+            }
+          }} className="px-6 py-3 rounded-xl text-white text-sm" style={{background:'#D3755A'}}>Resubmit for review →</button>
+        )}
+        <button onClick={() => router.push(lister === 'agent' ? '/dashboard?tab=listings' : '/dashboard/owner')}
+          className={savedStatus === 'paused' && isEditMode
+            ? 'px-6 py-3 rounded-xl border border-[#E8E2DA] text-[#3D3A38] text-sm hover:bg-[#F5EBE0] transition-colors'
+            : 'px-6 py-3 rounded-xl text-white text-sm'}
+          style={savedStatus === 'paused' && isEditMode ? {} : {background:'#D3755A'}}>
+          View your dashboard →
+        </button>
+      </div>
     </div>
   )
 
@@ -553,6 +638,18 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
             <p className="text-xs text-[#9B928E] mt-1">JPG, PNG up to 10MB each · {imagePreviews.length}/{MAX_PHOTOS} uploaded</p>
             <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImages} />
           </div>
+          {existingImages.length > 0 && (
+            <div className="grid grid-cols-4 gap-2">
+              {existingImages.map((src, i) => (
+                <div key={'ex-' + i} className="relative rounded-xl overflow-hidden aspect-square">
+                  <img src={src} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, idx) => idx !== i))}
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                  {i === 0 && imagePreviews.length === 0 && <span className="absolute bottom-1 left-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">Cover</span>}
+                </div>
+              ))}
+            </div>
+          )}
           {imagePreviews.length > 0 && (
             <div className="grid grid-cols-4 gap-2">
               {imagePreviews.map((src, i) => (
@@ -560,7 +657,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
                   <img src={src} className="w-full h-full object-cover" />
                   <button onClick={() => removeImage(i)}
                     className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-xs flex items-center justify-center">×</button>
-                  {i === 0 && <span className="absolute bottom-1 left-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">Cover</span>}
+                  {i === 0 && existingImages.length === 0 && <span className="absolute bottom-1 left-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">Cover</span>}
                 </div>
               ))}
             </div>
@@ -579,6 +676,17 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
               <p className="text-xs text-[#9B928E] mt-1">JPG, PNG up to 10MB · {floorplanPreviews.length}/3 uploaded</p>
               <input ref={floorplanFileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleFloorplans} />
             </div>
+            {existingFloorplans.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {existingFloorplans.map((src, i) => (
+                  <div key={'ex-fp-' + i} className="relative rounded-xl overflow-hidden aspect-[4/3] bg-stone-100">
+                    <img src={src} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    <button type="button" onClick={() => setExistingFloorplans(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {floorplanPreviews.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mt-3">
                 {floorplanPreviews.map((src, i) => (
@@ -615,7 +723,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
           <button onClick={handleSubmit} disabled={loading}
             className="flex-1 py-3 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
             style={{background:'#1B2E4B'}}>
-            {loading ? 'Submitting...' : 'Submit listing'}
+            {loading ? 'Submitting...' : (isEditMode ? 'Save changes' : 'Submit listing')}
           </button>
         )}
       </div>

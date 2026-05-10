@@ -29,7 +29,7 @@ export default async function OwnerDashboardPage() {
   // Get user's listings via direct fetch (JS client doesn't support nested JSON path filters)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
-  const fields = 'id,address,price,bedrooms,bathrooms,property_type,borough,square_feet,is_active,listed_at,images,raw_data,listing_type'
+  const fields = 'id,address,price,bedrooms,bathrooms,property_type,borough,square_feet,is_active,status,listed_at,images,raw_data,listing_type'
   const emailEnc = encodeURIComponent(user.email!)
   console.log('Dashboard user email:', user.email, 'id:', user.id)
 

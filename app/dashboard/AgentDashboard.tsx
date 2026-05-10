@@ -1,6 +1,8 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { resolveStatus, actionsForStatus, STATUS_LABELS, STATUS_BADGE_CLASSES, type ListingStatus } from '@/lib/listingStatus'
+
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -80,7 +82,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const [listingSearch, setListingSearch] = useState('')
   const [listingMinBeds, setListingMinBeds] = useState<number | null>(null)
   const [listingMaxPrice, setListingMaxPrice] = useState<number | null>(null)
-  const [listingStatusFilter, setListingStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [listingStatusFilter, setListingStatusFilter] = useState<'all' | ListingStatus>('all')
   const [agentFilter, setAgentFilter] = useState<string>('all')
   const [assigningId, setAssigningId] = useState<string | null>(null)
   const [agencyAgents, setAgencyAgents] = useState<AgencyAgent[]>(initialAgencyAgents)
@@ -211,8 +213,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   })
 
   const filteredListingStats = listingStats.filter(l => {
-    if (listingStatusFilter === 'active' && !l.is_active) return false
-    if (listingStatusFilter === 'inactive' && l.is_active) return false
+    if (listingStatusFilter !== 'all' && resolveStatus(l) !== listingStatusFilter) return false
     if (listingSearch && !l.address?.toLowerCase().includes(listingSearch.toLowerCase())) return false
     if (listingMinBeds !== null && (l.bedrooms == null || l.bedrooms < listingMinBeds)) return false
     if (listingMaxPrice !== null && l.price > listingMaxPrice) return false
@@ -234,13 +235,19 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
   const unreadMessages = filteredMessages.filter(m => !m.read_at).length
   const thisWeekEnquiries = filteredMessages.filter(m => new Date(m.created_at) > new Date(Date.now() - 7 * 86400000)).length
 
-  async function manageListing(listing_id: string, action: 'deactivate' | 'activate' | 'delete') {
-    if (action === 'delete' && !confirm('Permanently delete this listing? This cannot be undone.')) return
-    await fetch('/api/listings/manage', {
+  async function manageListing(listing_id: string, action: 'deactivate' | 'reactivate' | 'pause' | 'resubmit' | 'delete', confirmMsg?: string) {
+    const msg = confirmMsg ?? (action === 'delete' ? 'Permanently delete this listing? This cannot be undone.' : null)
+    if (msg && !confirm(msg)) return
+    const r = await fetch('/api/listings/manage', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ listing_id, action })
     })
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}))
+      alert(data.error || 'Action failed')
+      return
+    }
     window.location.reload()
   }
 
@@ -649,7 +656,12 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                       {getImg(l.images) ? <img src={getImg(l.images)!} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : null}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
+                      <div className="flex items-center gap-2">
+                        {(() => { const s = resolveStatus(l); return (
+                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                        )})()}
+                        <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
+                      </div>
                       <div className="text-xs text-[#9B928E]">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'}</div>
                       {l.assigned_agent_name && <div className="text-xs text-[#D3755A]">{l.assigned_agent_name}</div>}
                     </div>
@@ -706,11 +718,11 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
               placeholder="Max £/mo" className="w-28 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[#D3755A] text-[#3D3A38]"
             />
             <div className="flex gap-1">
-              {(['all','active','inactive'] as const).map(s => (
+              {(['all', 'live', 'pending', 'paused', 'deactivated'] as const).map(s => (
                 <button key={s} onClick={() => setListingStatusFilter(s)}
-                  className={'text-xs px-3 py-1.5 rounded-full border capitalize transition-colors ' + (listingStatusFilter === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
+                  className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (listingStatusFilter === s ? 'text-white border-transparent' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A]')}
                   style={listingStatusFilter === s ? {background:'#1B2E4B'} : {}}>
-                  {s}
+                  {s === 'all' ? 'All' : STATUS_LABELS[s as ListingStatus]}
                 </button>
               ))}
             </div>
@@ -739,11 +751,11 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                     {getImg(l.images) ? <img src={getImg(l.images)!} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : null}
                   </button>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedListing(isSelected ? null : l.id)}>
-                    <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      {(() => { const s = resolveStatus(l); return (
+                        <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                      )})()}
                       <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
-                      <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + (l.is_active ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500')}>
-                        {l.is_active ? 'Active' : 'Inactive'}
-                      </span>
                     </div>
                     <div className="text-xs text-[#9B928E] mb-2">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
                     <div className="flex gap-3 text-xs">
@@ -758,20 +770,28 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                       className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
                       View →
                     </Link>
-                    <button onClick={() => manageListing(l.id, l.is_active ? 'deactivate' : 'activate')}
-                      className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + (l.is_active ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
-                      {l.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedListing(l.id); setAssigningId(l.id); setAssignName(l.assigned_agent_name || '') }}
-                      className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0] transition-colors">
-                      {l.assigned_agent_name ? 'Reassign' : 'Assign agent'}
-                    </button>
-                    {!l.is_active && (
-                      <button onClick={() => manageListing(l.id, 'delete')}
-                        className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                        Delete
+                    <Link href={'/list/edit/' + l.id}
+                      className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
+                      Edit
+                    </Link>
+                    {(() => { const s = resolveStatus(l); return <>
+                      {actionsForStatus(s).map(a => (
+                        <button key={a.key} onClick={() => manageListing(l.id, a.key, a.confirm)}
+                          className={'text-xs px-3 py-1.5 rounded-xl border transition-colors ' + a.className}>
+                          {a.label}
+                        </button>
+                      ))}
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedListing(l.id); setAssigningId(l.id); setAssignName(l.assigned_agent_name || '') }}
+                        className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0] transition-colors">
+                        {l.assigned_agent_name ? 'Reassign' : 'Assign agent'}
                       </button>
-                    )}
+                      {s !== 'live' && (
+                        <button onClick={() => manageListing(l.id, 'delete')}
+                          className="text-xs px-3 py-1.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                          Delete
+                        </button>
+                      )}
+                    </>})()}
                   </div>
                 </div>
                 {/* Expanded analytics */}
