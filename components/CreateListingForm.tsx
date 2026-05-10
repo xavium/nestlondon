@@ -146,44 +146,78 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
     setStep(s => s + 1)
   }
 
+  // Memory-friendly previews: object URLs instead of data URLs (which copy
+  // the whole file into memory as base64). Object URLs are cheap pointers.
   function handleFloorplans(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     setFloorplanFiles(prev => [...prev, ...files].slice(0, 3))
-    files.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = ev => setFloorplanPreviews(prev => [...prev, ev.target?.result as string].slice(0, 3))
-      reader.readAsDataURL(file)
-    })
+    setFloorplanPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))].slice(0, 3))
   }
   function removeFloorplan(i: number) {
+    setFloorplanPreviews(prev => {
+      const url = prev[i]
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+      return prev.filter((_, idx) => idx !== i)
+    })
     setFloorplanFiles(prev => prev.filter((_, idx) => idx !== i))
-    setFloorplanPreviews(prev => prev.filter((_, idx) => idx !== i))
   }
   function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     setImageFiles(prev => [...prev, ...files].slice(0, MAX_PHOTOS))
-    files.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = ev => setImagePreviews(prev => [...prev, ev.target?.result as string].slice(0, MAX_PHOTOS))
-      reader.readAsDataURL(file)
-    })
+    setImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))].slice(0, MAX_PHOTOS))
   }
-
   function removeImage(i: number) {
+    setImagePreviews(prev => {
+      const url = prev[i]
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+      return prev.filter((_, idx) => idx !== i)
+    })
     setImageFiles(prev => prev.filter((_, idx) => idx !== i))
-    setImagePreviews(prev => prev.filter((_, idx) => idx !== i))
   }
 
   async function handleSubmit() {
     setLoading(true)
     setError('')
     try {
+      // Resize big photos to max 2000px wide before upload. Keeps quality but
+      // cuts a 5MB iPhone shot to ~400KB. Skip if already small or non-image.
+      async function compressImage(file: File, maxWidth = 2000, quality = 0.85): Promise<File> {
+        if (!file.type.startsWith('image/')) return file
+        if (file.size < 500 * 1024) return file  // already small
+        try {
+          const img = await new Promise<HTMLImageElement>((res, rej) => {
+            const i = new Image()
+            i.onload = () => res(i)
+            i.onerror = rej
+            i.src = URL.createObjectURL(file)
+          })
+          if (img.width <= maxWidth) {
+            URL.revokeObjectURL(img.src)
+            return file  // no resize needed
+          }
+          const scale = maxWidth / img.width
+          const canvas = document.createElement('canvas')
+          canvas.width = maxWidth
+          canvas.height = Math.round(img.height * scale)
+          const ctx = canvas.getContext('2d')
+          if (!ctx) { URL.revokeObjectURL(img.src); return file }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          URL.revokeObjectURL(img.src)
+          const blob: Blob | null = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality))
+          if (!blob) return file
+          // Preserve original filename, switch extension to .jpg
+          const baseName = file.name.replace(/\.[^.]+$/, '')
+          return new File([blob], baseName + '.jpg', { type: 'image/jpeg' })
+        } catch { return file }
+      }
+
       async function uploadAll(files: File[]): Promise<string[]> {
         const urls: string[] = []
         for (const file of files) {
           try {
+            const compressed = await compressImage(file)
             const fd = new FormData()
-            fd.append('file', file)
+            fd.append('file', compressed)
             const r = await fetch('/api/listings/upload-image', { method: 'POST', body: fd })
             if (r.ok) {
               const d = await r.json()
