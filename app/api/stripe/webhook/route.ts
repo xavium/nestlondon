@@ -17,12 +17,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing signature or secret' }, { status: 400 })
   }
 
-  // Stripe needs the raw body, NOT the parsed JSON, to verify the signature.
-  const payload = await req.text()
+  // Stripe needs the raw body to verify the signature. Next.js 16 + Turbopack
+  // can corrupt the body if we use req.text() (line-ending normalisation), so
+  // read as ArrayBuffer and pass the Buffer directly.
+  const buf = Buffer.from(await req.arrayBuffer())
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(payload, sig, secret)
+    event = await stripe.webhooks.constructEventAsync(buf, sig, secret)
   } catch (e: any) {
     console.error('[STRIPE webhook] Bad signature:', e.message)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
