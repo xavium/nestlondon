@@ -348,6 +348,43 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       const photoStyle = (rd?.photo_tags?.style || '').toLowerCase()
       if (!selectedStyles.some((s: string) => photoStyle.includes(s))) return false
     }
+    // Tenure filter — match raw_data.letting_details.Tenure or description text
+    if (tenure) {
+      const tenures = tenure.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean)
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const ten = (rd?.letting_details?.Tenure || '').toLowerCase()
+      const matchesAny = tenures.some((t: string) => {
+        if (ten.includes(t)) return true
+        // Description fallback: 'freehold' / 'leasehold' / 'share of freehold'
+        if (combined.includes(t)) return true
+        return false
+      })
+      if (!matchesAny) return false
+    }
+
+    // Chain free filter (sales)
+    if (chainFree) {
+      if (!/chain[- ]free|no onward chain|no upward chain/i.test(combined)) return false
+    }
+
+    // New build filter — match feature, description, or raw_data
+    if (newBuild) {
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const featuresStr = JSON.stringify(rd?.key_features || []).toLowerCase()
+      if (!/new build|newly built|brand new|new home|recently built/.test(combined) && !featuresStr.includes('new build')) return false
+    }
+
+    // Leasehold minimum years filter — extract years from description and check
+    if (leaseholdMin) {
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const leaseStr = (rd?.letting_details?.Lease || rd?.letting_details?.['Lease length'] || '').toLowerCase()
+      const searchText = leaseStr + ' ' + combined
+      const m = searchText.match(/(\d{2,3})\s*year(?:s)?\s*(?:lease|remaining)?/)
+      if (!m) return false  // no lease info — exclude
+      const years = parseInt(m[1])
+      if (years < leaseholdMin) return false
+    }
+
     // addedWithin filter in JS too (handles fractional days for hours)
     if (addedWithin) {
       const since = new Date(Date.now() - addedWithin * 24 * 60 * 60 * 1000)

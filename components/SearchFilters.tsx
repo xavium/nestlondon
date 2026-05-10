@@ -132,19 +132,23 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
   useImperativeHandle(ref, () => ({ applyNow: applyFilters }), [applyFilters])
 
   function clearFilters() {
+    // Reset every piece of filter state.
     setStyles([])
+    setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null)
+    setAvailableFrom(null); setFurnished(null)
+    setPropertyTypes([]); setFeatures([]); setRadius(null); setAddedWithin(null); setNestOnly(false)
+    setTenures([]); setChainFree(false); setNewBuild(false); setLeaseholdMin(null)
+    setFloorLayouts([])
+    setMinSize(null); setMaxSize(null); setMinBaths(null); setMaxBaths(null)
+    setMinPricePerSqm(null); setMaxPricePerSqm(null)
+    setCommuteAddress(''); setMaxCommute(null); setCommuteDraft('')
     window.dispatchEvent(new Event('nestlondon:clearFilters'))
-    setMinBeds(null); setMaxBeds(null); setMinPrice(null); setMaxPrice(null); setAvailableFrom(null); setAvailableFrom(null)
-    setFurnished(null); setPropertyTypes([]); setFeatures([]); setRadius(null); setAddedWithin(null); setNestOnly(false)
+
+    // Build a URL keeping ONLY the things that aren't filters (location + type).
     const p = new URLSearchParams()
-    if (radius) p.set('radius', String(radius))
-    if (addedWithin) p.set('addedWithin', String(addedWithin))
-    if (availableFrom) p.set('availableFrom', availableFrom)
-    if (availableFrom) p.set('availableFrom', availableFrom)
     if (props.location) p.set('location', props.location)
     p.set('type', props.listingType)
     router.push('/search?' + p.toString())
-    setOpen(false)
   }
 
   const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
@@ -319,7 +323,13 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
                 <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Tenure</label>
                 <div className="flex flex-wrap gap-2">
                   {['Freehold','Leasehold','Share of freehold','Commonhold'].map(t => (
-                    <button key={t} onClick={() => setTenures(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                    <button key={t} onClick={() => {
+                      setTenures(prev => {
+                        const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+                        if (t === 'Leasehold' && !next.includes('Leasehold')) setLeaseholdMin(null)
+                        return next
+                      })
+                    }}
                       className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (tenures.includes(t) ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}>
                       {t}
                     </button>
