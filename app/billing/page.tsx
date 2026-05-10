@@ -9,7 +9,7 @@ import { PLANS, type PlanCode } from '@/lib/billing/plans'
 
 export const dynamic = 'force-dynamic'
 
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ success?: string; canceled?: string }> }) {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ success?: string; canceled?: string; from?: string; at_cap?: string }> }) {
   const sp = await searchParams
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -63,8 +63,43 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             Checkout canceled. You can pick a plan again whenever you're ready.
           </div>
         )}
+        {sp.from === 'list' && !activeSub && (
+          <div className="mb-6 rounded-2xl border border-[#C9D6E5] bg-[#EFF4F9] p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#1B2E4B20' }}>
+                <svg className="w-4 h-4" fill="none" stroke="#1B2E4B" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#1B2E4B]">You need a subscription to publish listings</p>
+                <p className="text-xs text-[#6B645F] mt-1">Pick a plan below to get started, or redeem a discount code if you have one.</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {sp.at_cap && activeSub && (
+          <div className="mb-6 rounded-2xl border border-[#E8C9B0] bg-[#FCF5EE] p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#D3755A20' }}>
+                <svg className="w-4 h-4" fill="none" stroke="#D3755A" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#1B2E4B]">You've reached your listing limit</p>
+                <p className="text-xs text-[#6B645F] mt-1 leading-relaxed">
+                  Your current plan ({PLANS[activeSub.plan_code as PlanCode]?.name ?? activeSub.plan_code}) caps you at{' '}
+                  {PLANS[activeSub.plan_code as PlanCode]?.maxListings} {PLANS[activeSub.plan_code as PlanCode]?.maxListings === 1 ? 'listing' : 'listings'}.
+                  Upgrade to a larger plan, or take down an existing listing to add a new one.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <BillingClient
+          atCap={!!sp.at_cap}
           activeSub={activeSub ? {
             id: activeSub.id,
             plan_code: activeSub.plan_code,

@@ -29,9 +29,10 @@ interface Props {
   activeSub: ActiveSub | null
   audienceHint: 'agent' | 'owner'
   plans: PlanRow[]
+  atCap?: boolean
 }
 
-export default function BillingClient({ activeSub, audienceHint, plans }: Props) {
+export default function BillingClient({ activeSub, audienceHint, plans, atCap }: Props) {
   const audience = audienceHint
   const [cadence, setCadence] = useState<Cadence>('monthly')
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
@@ -41,7 +42,19 @@ export default function BillingClient({ activeSub, audienceHint, plans }: Props)
   const [redeeming, setRedeeming] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
 
-  const filteredPlans = plans.filter(p => p.audience === audience)
+  // Sort plans by capacity (ascending) so the table reads small-to-large.
+  const sortedAudiencePlans = plans.filter(p => p.audience === audience).sort((a, b) => {
+    const aMax = a.maxListings ?? Infinity
+    const bMax = b.maxListings ?? Infinity
+    return aMax - bMax
+  })
+  // When at cap, only offer plans strictly larger than the current one.
+  const currentMax = activeSub
+    ? plans.find(p => p.code === activeSub.plan_code)?.maxListings ?? 0
+    : 0
+  const filteredPlans = atCap && activeSub
+    ? sortedAudiencePlans.filter(p => (p.maxListings ?? Infinity) > (currentMax ?? 0))
+    : sortedAudiencePlans
 
   async function startCheckout(planCode: string) {
     setLoadingPlan(planCode)
@@ -129,10 +142,12 @@ export default function BillingClient({ activeSub, audienceHint, plans }: Props)
       )}
 
       {/* Plan picker */}
-      {!activeSub && (
+      {(!activeSub || (atCap && filteredPlans.length > 0)) && (
         <>
           <div>
-            <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{ fontFamily: 'Georgia,serif' }}>Pick a plan</h2>
+            <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{ fontFamily: 'Georgia,serif' }}>
+              {atCap && activeSub ? 'Upgrade for more listings' : 'Pick a plan'}
+            </h2>
             <p className="text-sm text-[#6B645F]">All prices include VAT. Cancel any time.</p>
           </div>
 
@@ -167,17 +182,24 @@ export default function BillingClient({ activeSub, audienceHint, plans }: Props)
                     <li>✓ Full dashboard & analytics</li>
                     <li>✓ Viewing & offer management</li>
                   </ul>
-                  <button onClick={() => startCheckout(p.code)} disabled={loadingPlan !== null}
+                  <button onClick={() => atCap && activeSub ? openPortal() : startCheckout(p.code)} disabled={loadingPlan !== null || portalLoading}
                     className="w-full px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
                     style={{ background: '#D3755A' }}>
-                    {loadingPlan === p.code ? 'Redirecting…' : 'Subscribe'}
+                    {loadingPlan === p.code ? 'Redirecting…' : (atCap && activeSub ? 'Upgrade via Stripe Portal' : 'Subscribe')}
                   </button>
                 </div>
               )
             })}
           </div>
 
-          {/* Comp code */}
+          {atCap && activeSub && filteredPlans.length === 0 && (
+            <p className="text-sm text-[#6B645F]">
+              You're already on our largest plan. To list more properties, take down an existing one or get in touch about a custom plan.
+            </p>
+          )}
+
+          {/* Comp code (only relevant on first signup, not for upgrades) */}
+          {!activeSub && (
           <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
             {!showCompForm ? (
               <button onClick={() => setShowCompForm(true)}
@@ -208,6 +230,7 @@ export default function BillingClient({ activeSub, audienceHint, plans }: Props)
               </div>
             )}
           </div>
+          )}
         </>
       )}
     </div>

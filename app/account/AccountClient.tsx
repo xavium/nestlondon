@@ -472,6 +472,26 @@ function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
         </form>
       )}
 
+      {/* Billing */}
+      {(() => {
+        const r = user.role || ''
+        const isPaying = r === 'agent' || r === 'agent_lettings' || r === 'agent_sales'
+                      || r === 'owner' || r === 'owner_lettings' || r === 'owner_sales'
+                      || r === 'landlord'
+        if (!isPaying) return null
+        return (
+          <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 flex flex-col gap-3">
+            <h2 className="text-lg font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Billing &amp; subscription</h2>
+            <p className="text-xs text-[#9B928E]">View your current plan, upgrade, or redeem a discount code.</p>
+            <div>
+              <Link href="/billing" className="inline-block px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 no-underline" style={{ background: '#D3755A' }}>
+                Manage billing →
+              </Link>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Danger zone */}
       <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 flex flex-col gap-4">
         <h2 className="text-lg font-light text-[#1B2E4B]" style={{ fontFamily: 'Georgia,serif' }}>Sign out &amp; account</h2>
