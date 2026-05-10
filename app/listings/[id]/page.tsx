@@ -678,7 +678,7 @@ function KeyFeatures({ features }: { features: string[] }) {
 
 function ResidentAccountPrompt() {
   return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6 text-center">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 text-center">
       <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{background:'rgba(211,117,90,0.12)'}}>
         <svg className="w-6 h-6" fill="none" stroke="#D3755A" viewBox="0 0 24 24">
           <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth="1.5" strokeLinecap="round"/>

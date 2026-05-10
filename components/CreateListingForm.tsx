@@ -54,9 +54,12 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
   }
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [floorplanFiles, setFloorplanFiles] = useState<File[]>([])
+  const [floorplanPreviews, setFloorplanPreviews] = useState<string[]>([])
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [user, setUser] = useState<{name: string, email: string, phone: string} | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const floorplanFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -140,6 +143,19 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
     setStep(s => s + 1)
   }
 
+  function handleFloorplans(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    setFloorplanFiles(prev => [...prev, ...files].slice(0, 3))
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = ev => setFloorplanPreviews(prev => [...prev, ev.target?.result as string].slice(0, 3))
+      reader.readAsDataURL(file)
+    })
+  }
+  function removeFloorplan(i: number) {
+    setFloorplanFiles(prev => prev.filter((_, idx) => idx !== i))
+    setFloorplanPreviews(prev => prev.filter((_, idx) => idx !== i))
+  }
   function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     setImageFiles(prev => [...prev, ...files].slice(0, 15))
@@ -159,18 +175,24 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
     setLoading(true)
     setError('')
     try {
-      const imageUrls: string[] = []
-      for (const file of imageFiles) {
-        try {
-          const fd = new FormData()
-          fd.append('file', file)
-          const r = await fetch('/api/listings/upload-image', { method: 'POST', body: fd })
-          if (r.ok) {
-            const d = await r.json()
-            if (d.url) imageUrls.push(d.url)
-          }
-        } catch {}
+      async function uploadAll(files: File[]): Promise<string[]> {
+        const urls: string[] = []
+        for (const file of files) {
+          try {
+            const fd = new FormData()
+            fd.append('file', file)
+            const r = await fetch('/api/listings/upload-image', { method: 'POST', body: fd })
+            if (r.ok) {
+              const d = await r.json()
+              if (d.url) urls.push(d.url)
+            }
+          } catch {}
+        }
+        return urls
       }
+
+      const imageUrls = await uploadAll(imageFiles)
+      const floorplanUrls = await uploadAll(floorplanFiles)
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`
@@ -178,7 +200,7 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
       const res = await fetch('/api/listings/create', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ...form, images: imageUrls, lister })
+        body: JSON.stringify({ ...form, images: imageUrls, floorplans: floorplanUrls, lister })
       })
       const text = await res.text()
       console.log('API response:', res.status, text)
@@ -506,6 +528,32 @@ export default function CreateListingForm({ lister, defaultListingType = 'rent',
               ))}
             </div>
           )}
+
+          <div className="border-t border-[#E8E2DA] pt-5 mt-2">
+            <h3 className="text-base font-light text-[#1B2E4B] mb-1" style={{fontFamily:'var(--font-serif),Georgia,serif'}}>Floorplan</h3>
+            <p className="text-sm text-[#9B928E] mb-3">Optional. Adds a Floorplan pill to your listing photo gallery.</p>
+            <div
+              onClick={() => floorplanFileRef.current?.click()}
+              className="border-2 border-dashed border-[#E8E2DA] rounded-xl p-6 text-center cursor-pointer hover:border-[#D3755A] transition-colors">
+              <svg className="w-7 h-7 mx-auto mb-2 text-[#9B928E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" strokeWidth="1.5"/>
+              </svg>
+              <p className="text-sm text-[#9B928E]">Click to upload floorplan</p>
+              <p className="text-xs text-[#9B928E] mt-1">JPG, PNG up to 10MB · {floorplanPreviews.length}/3 uploaded</p>
+              <input ref={floorplanFileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleFloorplans} />
+            </div>
+            {floorplanPreviews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {floorplanPreviews.map((src, i) => (
+                  <div key={i} className="relative rounded-xl overflow-hidden aspect-[4/3] bg-stone-100">
+                    <img src={src} className="w-full h-full object-contain" />
+                    <button onClick={() => removeFloorplan(i)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
       has_garden, has_balcony, has_terrace, has_parking, has_garage,
       has_concierge, has_lift, has_porter, pets_allowed, bills_included,
       new_build, shared_ownership,
-      company_name, company_reg, listing_type, lister
+      company_name, company_reg, listing_type, lister,
+      floorplans
     } = body
 
     if (!name || !email || !address || !postcode || !price || !bedrooms) {
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
       key_features: features,
       letting_details,
       contact: { name, email, phone, company_name, company_reg },
+      floorplans: Array.isArray(floorplans) ? floorplans : [],
     }
 
     const { data, error } = await supabase.from('listings').insert({

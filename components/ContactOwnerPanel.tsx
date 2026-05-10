@@ -130,7 +130,7 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
   }
 
   if (sent) return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6 text-center">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 text-center">
       <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{background:'rgba(211,117,90,0.12)'}}>
         <svg className="w-6 h-6" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="2" strokeLinecap="round"/></svg>
       </div>
@@ -151,7 +151,7 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
   )
 
   return (
-    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6 sticky top-6">
+    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-6">
       <h3 className="text-base font-light text-[#1B2E4B] mb-1" style={{fontFamily:'Georgia,serif'}}>Contact the owner</h3>
       <p className="text-xs text-[#9B928E] mb-4">Direct listing — enquiries go straight to the owner</p>
 
