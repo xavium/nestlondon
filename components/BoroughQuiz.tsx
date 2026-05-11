@@ -147,54 +147,12 @@ export default function BoroughQuiz() {
   const submit = async () => {
     setPhase('loading');
     setError(null);
-    const rentVal = (answers.rent as number) || 2000;
-    const prompt = `You are a London property expert helping someone find their ideal borough to rent in.
-
-Based on this person's preferences, recommend exactly 3 London boroughs. Return ONLY valid JSON, no markdown, no explanation.
-
-Preferences:
-- Lifestyle priorities: ${((answers.priorities as string[]) || []).join(', ') || 'none specified'}
-- Transport preference: ${answers.transport || 'not specified'}
-- Neighbourhood vibe: ${answers.vibe || 'not specified'}
-- Renting with: ${answers.who || 'not specified'}
-- Commute destination: ${answers.commute || 'not specified'}
-- Max commute time: ${answers.commuteTime || 'not specified'}
-- Life stage: ${answers.lifeStage || 'not specified'}
-- Must-haves: ${answers.extra || 'none'}
-- Max monthly rent: ${fmtRent(rentVal)}
-
-Return this exact JSON shape:
-{
-  "boroughs": [
-    {
-      "name": "Borough name",
-      "matchPercent": 94,
-      "tags": ["tag1","tag2","tag3"],
-      "bullets": ["Positive reason 1","Positive reason 2","Positive reason 3"],
-      "avgRent": "£1,800–£2,400/mo",
-      "searchSlug": "hackney"
-    }
-  ]
-}
-
-Rules:
-- You MUST choose from these 32 London boroughs only: City of London, Westminster, Camden, Islington, Hackney, Tower Hamlets, Southwark, Lambeth, Wandsworth, Kensington and Chelsea, Hammersmith and Fulham, Ealing, Brent, Greenwich, Lewisham, Bromley, Croydon, Merton, Richmond upon Thames, Kingston upon Thames, Hounslow, Haringey, Enfield, Waltham Forest, Redbridge, Newham, Barking and Dagenham, Havering, Bexley, Sutton, Barnet, Harrow
-- Do NOT return neighborhoods (e.g. use "Lambeth" not "Brixton", "Hackney" not "Shoreditch", "Camden" not "Hampstead")
-- name: exact borough name from the list above, matching capitalisation
-- matchPercent: integer 75-98, highest first
-- tags: 3 short vibe tags (e.g. "Young crowd", "Cafe culture", "Great transport")
-- bullets: 3 specific, warm, positive reasons this borough suits them
-- searchSlug: lowercase borough name for URL (e.g. "hammersmith-and-fulham")
-- Only recommend boroughs where average rents are achievable within their budget
-- If a commute destination is given, prioritise boroughs with good transport links to that destination within the stated commute time
-- If the person is a student, factor in proximity to universities, student-friendly amenities, and affordable areas
-- Tailor the bullet points to reflect their life stage naturally`;
 
     try {
-      const res = await fetch('/api/claude', {
+      const res = await fetch('/api/borough-quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ answers, rent: (answers.rent as number) || 2000 }),
       });
       const data = await res.json();
       const parsed: { boroughs: BoroughResult[] } = JSON.parse(

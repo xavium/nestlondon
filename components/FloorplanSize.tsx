@@ -19,9 +19,10 @@ function extractSqm(text: string): number | null {
 interface Props {
   floorplanUrl: string
   price: number
+  listingId?: string
 }
 
-export default function FloorplanSize({ floorplanUrl, price }: Props) {
+export default function FloorplanSize({ floorplanUrl, price, listingId }: Props) {
   const [sqft, setSqft] = useState<number | null>(null)
   const [sqm, setSqm] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -36,7 +37,7 @@ export default function FloorplanSize({ floorplanUrl, price }: Props) {
         const res = await fetch('/api/floorplan-size', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ floorplanUrl })
+          body: JSON.stringify({ floorplanUrl, listingId })
         })
         const data = await res.json()
         if (data.size && data.size !== 'none') {
@@ -50,7 +51,7 @@ export default function FloorplanSize({ floorplanUrl, price }: Props) {
       setLoading(false)
     }
     fetchSize()
-  }, [floorplanUrl, price, mounted])
+  }, [floorplanUrl, price, mounted, listingId])
 
   const priceNum = typeof price === 'number' ? price : parseFloat(String(price))
   const pricePerSqft = sqft && priceNum ? Math.round(priceNum / sqft) : null
