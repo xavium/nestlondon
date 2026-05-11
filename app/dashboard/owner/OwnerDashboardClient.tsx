@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation'
 
-import { useState } from 'react'
+import {Fragment, useState} from 'react'
 import { Home, Eye, Share2, Calendar } from 'lucide-react'
 import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
@@ -667,7 +667,8 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
               const lShares = events.filter(e => e.listing_id === l.id && e.event_type === 'share').length
               const lRequests = requests.filter(r => r.listing_id === l.id).length
               return (
-                <div key={l.id} role="button" tabIndex={0}
+                <Fragment key={l.id}>
+                  <div role="button" tabIndex={0}
                   onClick={() => setSelected(selected === l.id ? null : l.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected === l.id ? null : l.id) } }}
                   className={'text-left rounded-2xl border transition-all overflow-hidden w-full cursor-pointer ' + (selected === l.id ? 'border-[#D3755A] shadow-md' : 'border-[#E8E2DA] bg-white hover:border-[#D3755A]')}
@@ -693,9 +694,13 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                         <span className="text-xs text-[#3D3A38] inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" strokeWidth={1.75} /> {lRequests} viewing{lRequests !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1.5 flex-shrink-0 items-end [&>*]:min-w-[170px] [&>*]:inline-flex [&>*]:items-center [&>*]:justify-center">
+                    <div className="flex flex-col gap-1.5 items-end">
                       <div className="text-[#9B928E] text-xs">{selected === l.id ? '▲' : '▼'}</div>
-                      <div className="flex gap-1.5 [&>*]:min-w-[130px] [&>*]:inline-flex [&>*]:items-center [&>*]:justify-center" onClick={e => e.stopPropagation()}>
+                      <div className="flex flex-wrap gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
+                        <Link href={'/listings/' + l.id} target="_blank" onClick={e => e.stopPropagation()}
+                          className="text-[10px] px-2 py-1 rounded-lg border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors">
+                          View
+                        </Link>
                         <Link href={'/list/edit/' + l.id}
                           className="text-[10px] px-2 py-1 rounded-lg border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors">
                           Edit
@@ -717,13 +722,9 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                       </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Expanded analytics for selected listing */}
-          {listing && selected && (
+                  </div>
+                  {selected === l.id && (() => { const listing = l; return (
+                    <div className="mt-4 mb-2">
               <div className="lg:col-span-2 flex flex-col gap-5">
 
                 {/* AI Performance Summary */}
@@ -760,7 +761,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                     target="_blank"
                     className="no-underline"
                   >
-                    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 hover:border-[#D3755A] transition-colors cursor-pointer">
+                    <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5 hover:border-[#D3755A] transition-colors cursor-pointer h-full flex flex-col">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{background:'rgba(211,117,90,0.10)'}}>
                         <svg className="w-4 h-4" fill="none" stroke="#D3755A" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeWidth="1.5" strokeLinecap="round"/></svg>
                       </div>
@@ -949,20 +950,13 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                   </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex gap-3">
-                  <Link href={`/listings/${listing.id}`} target="_blank"
-                    className="flex-1 py-3 rounded-xl border border-[#E8E2DA] text-sm text-center text-[#3D3A38] hover:border-[#D3755A] transition-colors no-underline">
-                    View listing ↗
-                  </Link>
-                  <Link href="/list"
-                    className="flex-1 py-3 rounded-xl text-white text-sm text-center transition-opacity hover:opacity-90 no-underline"
-                    style={{background:'#D3755A'}}>
-                    + Add another property
-                  </Link>
-                </div>
               </div>
-            )}
+                    </div>
+                  ) })()}
+                </Fragment>
+              )
+            })}
+          </div>
           </div>
         ))}
       </div>
