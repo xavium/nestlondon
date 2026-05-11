@@ -5,6 +5,55 @@ import re
 import hashlib
 import urllib.request
 from datetime import datetime
+
+# Borough resolution from lat/lng using ONS GeoJSON
+_BOROUGH_POLYGONS = None
+def _load_borough_polygons():
+    global _BOROUGH_POLYGONS
+    if _BOROUGH_POLYGONS is not None:
+        return _BOROUGH_POLYGONS
+    import json
+    from pathlib import Path
+    boundaries_path = Path(__file__).parent.parent / 'public' / 'boundaries' / 'boroughs.json'
+    if not boundaries_path.exists():
+        _BOROUGH_POLYGONS = []
+        return _BOROUGH_POLYGONS
+    data = json.loads(boundaries_path.read_text())
+    _BOROUGH_POLYGONS = data.get('features', [])
+    return _BOROUGH_POLYGONS
+
+def _point_in_ring(lng, lat, ring):
+    n = len(ring)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if ((yi > lat) != (yj > lat)) and (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+def resolve_borough(lat, lng):
+    if lat is None or lng is None:
+        return None
+    try:
+        lat_f, lng_f = float(lat), float(lng)
+    except (TypeError, ValueError):
+        return None
+    for feature in _load_borough_polygons():
+        name = feature['properties'].get('LAD23NM')
+        geom = feature.get('geometry') or {}
+        gtype = geom.get('type')
+        coords = geom.get('coordinates') or []
+        if gtype == 'Polygon':
+            if _point_in_ring(lng_f, lat_f, coords[0]):
+                return name
+        elif gtype == 'MultiPolygon':
+            for polygon in coords:
+                if _point_in_ring(lng_f, lat_f, polygon[0]):
+                    return name
+    return None
 from playwright.async_api import async_playwright
 from supabase import create_client
 from dotenv import load_dotenv
@@ -534,6 +583,7 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
                 'latitude': listing.get('latitude'),
                 'listed_at': listing.get('listed_at'),
                 'longitude': listing.get('longitude'),
+                'borough': resolve_borough(listing.get('latitude'), listing.get('longitude')),
                 'images': json.dumps(images),
                 'is_active': True,
                 'is_direct': False,

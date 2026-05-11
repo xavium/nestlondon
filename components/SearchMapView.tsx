@@ -22,12 +22,13 @@ interface Listing {
 interface Coords { lat: number, lng: number }
 
 
-export default function SearchMapView({ listings, radius, locationCoords, location, listingType = "rent" }: {
+export default function SearchMapView({ listings, radius, locationCoords, location, boroughMatch, listingType = "rent" }: {
   listings: Listing[]
   listingType?: string
   radius?: number | null
   locationCoords?: Coords | null
   location?: string
+  boroughMatch?: string | null
 }) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -62,7 +63,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       await import('leaflet.markercluster/dist/MarkerCluster.css')
       await import('leaflet.markercluster/dist/MarkerCluster.Default.css')
       const viewed = getViewedListings()
-      const effectiveRadius = radius ?? (locationCoords ? 0.25 : null)
+      const effectiveRadius = boroughMatch ? null : (radius ?? (locationCoords ? 0.25 : null))
       const filteredMapped = (effectiveRadius && locationCoords)
         ? mapped.filter(l => distanceMiles(locationCoords.lat, locationCoords.lng, Number(l.latitude), Number(l.longitude)) <= effectiveRadius)
         : mapped
@@ -243,6 +244,29 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
           .setContent(html)
           .openOn(mapRef.current)
       }
+      // If searching by borough, render the borough polygon
+      if (boroughMatch) {
+        try {
+          const res = await fetch('/boundaries/boroughs.json')
+          const data = await res.json()
+          const feature = (data.features || []).find((f: any) => f.properties?.LAD23NM === boroughMatch)
+          if (feature) {
+            const layer = L.geoJSON(feature, {
+              style: {
+                color: '#D85A30',
+                weight: 2,
+                opacity: 0.7,
+                fillColor: '#D85A30',
+                fillOpacity: 0.08,
+              },
+              interactive: false,
+            })
+            layer.addTo(mapRef.current)
+            mapRef.current.fitBounds(layer.getBounds(), { padding: [20, 20] })
+          }
+        } catch (e) { console.error('failed to load borough polygon', e) }
+      }
+
       const handleClusterClick = (e: any) => {
         const childMarkers = e.layer.getAllChildMarkers()
         const bounds = e.layer.getBounds()
@@ -281,7 +305,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         return { lat: lats.reduce((a: number, b: number) => a + b) / lats.length, lng: lngs.reduce((a: number, b: number) => a + b) / lngs.length }
       })() : null)
 
-      if (effectiveRadius && circleCentre) {
+      if (effectiveRadius && circleCentre && !boroughMatch) {
         const radiusMetres = effectiveRadius * 1609.34
         L.circle([circleCentre.lat, circleCentre.lng], {
           radius: radiusMetres,

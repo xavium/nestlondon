@@ -183,13 +183,26 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   }
 
 
+  // List of London boroughs (matched case-insensitively) — used to detect borough searches
+  const LONDON_BOROUGHS = ['Barking and Dagenham','Barnet','Bexley','Brent','Bromley','Camden','City of London','Croydon','Ealing','Enfield','Greenwich','Hackney','Hammersmith and Fulham','Haringey','Harrow','Havering','Hillingdon','Hounslow','Islington','Kensington and Chelsea','Kingston upon Thames','Lambeth','Lewisham','Merton','Newham','Redbridge','Richmond upon Thames','Southwark','Sutton','Tower Hamlets','Waltham Forest','Wandsworth','Westminster']
+  let boroughMatch: string | null = null
+  let postcodeMatch: string | null = null
   if (location && !radius) {
-    const loc = location.trim().toUpperCase()
-    const isPostcode = /^[A-Z]{1,2}[0-9]{1,2}$/.test(loc)
-    if (isPostcode) {
-      query = query.eq('borough', loc)
+    const loc = location.trim()
+    // Borough name match (case-insensitive)
+    const bm = LONDON_BOROUGHS.find(b => b.toLowerCase() === loc.toLowerCase())
+    if (bm) {
+      boroughMatch = bm
+      query = query.eq('borough', bm)
+    } else {
+      // Postcode prefix match (e.g. SW1, NW1, E1)
+      const isPostcode = /^[A-Z]{1,2}[0-9]{1,2}$/i.test(loc)
+      if (isPostcode) {
+        postcodeMatch = loc.toUpperCase()
+        query = query.ilike('postcode', postcodeMatch + '%')
+      }
+      // Otherwise no DB filter — fallback to JS radius below
     }
-    // For area names, don't filter in DB — use 1 mile default radius in JS below
   }
   if (minBeds) query = query.gte('bedrooms', minBeds)
   if (maxBeds) query = query.lte('bedrooms', maxBeds)
@@ -473,7 +486,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
+        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
         }
       </div>
     </main>

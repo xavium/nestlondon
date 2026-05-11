@@ -41,13 +41,14 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   )
 }
 
-export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, listingType }: {
+export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, boroughMatch, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, listingType }: {
   filtered: any[]
   allListings: any[]
   allListingsForMap: any[]
   radius?: number | null
   locationCoords?: Coords | null
   location?: string
+  boroughMatch?: string | null
   minBeds?: number | null
   maxBeds?: number | null
   minPrice?: number | null
@@ -87,7 +88,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 
   // Split: inRadius = within selected radius (or 0.5mi default)
   //        nearby   = everything else sorted by distance
-  const splitRadius = radius ?? (locationCoords ? 0.25 : null)
+  const splitRadius = boroughMatch ? null : (radius ?? (locationCoords ? 0.25 : null))
   if (typeof window !== "undefined") console.log("[MAP DEBUG]", {locationCoords, splitRadius, filteredCount: filtered.length})
 
   let inRadius = filtered
@@ -368,6 +369,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
           radius={radius ? radius : (locationCoords ? 0.25 : null)}
           locationCoords={locationCoords}
           location={location}
+          boroughMatch={boroughMatch}
           listingType={listingType || "rent"}
         />
       ) : (
