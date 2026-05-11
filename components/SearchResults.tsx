@@ -80,6 +80,8 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('view') === 'map') setView('map')
+    const urlSort = sp.get('sort')
+    if (urlSort) setSortBy(urlSort as any)
     setViewReady(true)
   }, [])
 
@@ -181,7 +183,16 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   }
 
   // Apply sort
-  const sortedResults = [...inRadius].sort((a: any, b: any) => {
+  const sortedResults = ((sortBy === 'size_asc' || sortBy === 'size_desc' || sortBy === 'psqm_asc' || sortBy === 'psqm_desc')
+    ? inRadius.filter((l: any) => {
+        try {
+          const rd = typeof l.raw_data === 'string' ? JSON.parse(l.raw_data) : (l.raw_data || {})
+          const txt = rd?.size_text || l.description || ''
+          return /([\d,]+)\s*sq\s*ft/i.test(txt)
+        } catch { return false }
+      })
+    : [...inRadius]
+  ).sort((a: any, b: any) => {
     if (sortBy === 'price_asc') return (a.price || 0) - (b.price || 0)
     if (sortBy === 'price_desc') return (b.price || 0) - (a.price || 0)
     if (sortBy === 'nearest' && a._dist != null && b._dist != null) return a._dist - b._dist
@@ -320,7 +331,14 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
           )}
           <select
             value={sortBy}
-            onChange={e => setSortBy(e.target.value as any)}
+            onChange={e => {
+              const v = e.target.value as any
+              setSortBy(v)
+              const sp = new URLSearchParams(window.location.search)
+              if (v === 'relevant') sp.delete('sort'); else sp.set('sort', v)
+              const qs = sp.toString()
+              window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+            }}
             className="text-xs border border-[#E8E2DA] rounded-lg px-3 py-1.5 text-[#3D3A38] bg-white outline-none focus:border-[#D3755A] cursor-pointer"
           >
             <option value="relevant">Recommended</option>
