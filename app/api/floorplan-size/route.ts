@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
             },
             {
               type: 'text',
-              text: 'Look at this floorplan. Find the total floor area if shown. Reply with ONLY the number and unit, e.g. "750 sq ft" or "70 sq m". If no area is shown, reply with exactly "none".'
+              text: 'Look at this floorplan. Find the total floor area. Reply with ONLY a whole number (no decimals) followed by "sq ft" or "sq m" — no period after sq. Examples: "750 sq ft" or "70 sq m". If no area is shown, reply with exactly "none".'
             }
           ]
         }]
