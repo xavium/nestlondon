@@ -4,6 +4,36 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { canCreateListing } from '@/lib/billing/access'
 
+async function lookupBoroughFromPostcode(postcode: string): Promise<string | null> {
+  try {
+    const cleaned = postcode.replace(/\s+/g, '')
+    const res = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(cleaned)}`, {
+      signal: AbortSignal.timeout(5000)
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data?.result?.admin_district || null
+  } catch {
+    return null
+  }
+}
+
+function isPlausibleAddress(addr: string): boolean {
+  const trimmed = addr.trim()
+  // Reject empties, single letters, common junk strings
+  if (trimmed.length < 8) return false
+  // Reject if no space (real addresses always have at least number + street)
+  if (!trimmed.includes(' ')) return false
+  // Reject if entire string is one repeated char (e.g. "ttttt") or just digits
+  if (/^(.)\1*$/.test(trimmed)) return false
+  if (/^[0-9\s]+$/.test(trimmed)) return false
+  // Reject explicit test strings
+  if (/^(test|testing|placeholder|example|asdf|qwerty)/i.test(trimmed)) return false
+  return true
+}
+
+
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -40,6 +70,11 @@ export async function POST(req: NextRequest) {
 
     if (!name || !email || !address || !postcode || !price || !bedrooms) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Validate address looks plausible
+    if (!isPlausibleAddress(address)) {
+      return NextResponse.json({ error: 'Please enter a complete street address (e.g. "10 Main Street, London")' }, { status: 400 })
     }
 
     // Geocode postcode → lat/lng via Postcodes.io (UK-specific, free, no API key).
@@ -96,12 +131,19 @@ export async function POST(req: NextRequest) {
       floorplans: Array.isArray(floorplans) ? floorplans : [],
     }
 
+    // Resolve borough — prefer supplied value, otherwise look up via postcodes.io.
+    // If lookup fails, the postcode is invalid and we reject the listing rather than save bad data.
+    const resolvedBorough = borough || (cleanedPostcode ? await lookupBoroughFromPostcode(cleanedPostcode) : null)
+    if (!resolvedBorough) {
+      return NextResponse.json({ error: 'We couldn\'t recognise that postcode. Please check it and try again.' }, { status: 400 })
+    }
+
     const { data, error } = await supabase.from('listings').insert({
       address,
       postcode: cleanedPostcode,
       latitude,
       longitude,
-      borough: borough || cleanedPostcode.replace(/\s.*/, '').toUpperCase(),
+      borough: resolvedBorough,
       price: parseInt(price),
       bedrooms: parseInt(bedrooms),
       bathrooms: bathrooms ? parseInt(bathrooms) : null,
