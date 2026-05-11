@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import PillStat from './PillStat'
 
 const LABELS = [
   'Just Listed', 'Popular', 'Great Value', 'Must See', 'Hot Right Now', 'New to Market'
@@ -71,10 +72,10 @@ export default function FeaturedListings() {
               <div className="text-white text-xl font-light mb-1" style={{fontFamily: 'Georgia, serif'}}>{hero.address}</div>
               <div className="flex items-center justify-between mt-3">
                 <div className="text-white text-2xl font-semibold">£{hero.price?.toLocaleString()}<span className="text-sm font-light text-white/70">/mo</span></div>
-                <div className="flex gap-4 text-white/70 text-sm">
-                  {hero.bedrooms && <span>{hero.bedrooms} bed</span>}
-                  {hero.bathrooms && <span>{hero.bathrooms} bath</span>}
-                  {hero.property_type && <span>{hero.property_type}</span>}
+                <div className="flex gap-2 flex-wrap">
+                  {hero.bedrooms ? <PillStat icon="bed" label={`${hero.bedrooms} bed`} className="!bg-white/15 !text-white" /> : null}
+                  {hero.bathrooms ? <PillStat icon="bath" label={`${hero.bathrooms} bath`} className="!bg-white/15 !text-white" /> : null}
+                  {hero.property_type && <PillStat icon="home" label={hero.property_type} className="!bg-white/15 !text-white" />}
                 </div>
               </div>
             </div>
