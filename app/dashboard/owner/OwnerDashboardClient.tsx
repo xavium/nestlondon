@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation'
 
 import { useState } from 'react'
+import { Home, Eye, Share2, Calendar } from 'lucide-react'
 import ListingPerformanceSummary from '@/components/ListingPerformanceSummary'
 import Link from 'next/link'
 import { resolveStatus, actionsForStatus, STATUS_LABELS, STATUS_BADGE_CLASSES, type ListingStatus } from '@/lib/listingStatus'
@@ -285,7 +286,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
             { key: 'offers', label: `Offers (${offers.filter((o: any) => o.status === 'new' || o.status === 'viewed').length || offers.length})` },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setDashTab(t.key as any)}
-              className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors ' + (dashTab === t.key ? 'text-white' : 'text-[#3D3A38] bg-white border border-[#E8E2DA]')}
+              className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors min-w-[140px] inline-flex items-center justify-center ' + (dashTab === t.key ? 'text-white' : 'text-[#3D3A38] bg-white border border-[#E8E2DA]')}
               style={dashTab === t.key ? {background:'#1B2E4B'} : {}}>
               {t.label}
             </button>
@@ -577,17 +578,17 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           {(() => { const s = resolveStatus(l); return (
-                            <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                            <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 min-w-[90px] inline-flex items-center justify-center ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
                           )})()}
                           <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
                         </div>
                         <div className="text-xs text-[#9B928E]">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
                         <div className="flex gap-4 mt-1 text-xs text-[#9B928E]">
-                          <span>{lViews} views</span>
-                          <span>{lRequests} viewings</span>
+                          <span className="inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" strokeWidth={1.75} /> {lViews} views</span>
+                          <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" strokeWidth={1.75} /> {lRequests} viewings</span>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <div className="flex flex-col gap-1.5 flex-shrink-0 [&>*]:min-w-[170px] [&>*]:inline-flex [&>*]:items-center [&>*]:justify-center">
                         <Link href={'/listings/' + l.id} target="_blank"
                           className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
                           View →
@@ -621,7 +622,7 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
 
         {dashTab === 'analytics' && (listings.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#E8E2DA]">
-            <div className="text-4xl mb-4">🏠</div>
+            <div className="mb-4 flex justify-center"><Home className="w-10 h-10 text-[#9B928E]" strokeWidth={1.5} /></div>
             <h2 className="text-xl font-light text-[#1B2E4B] mb-2" style={{fontFamily:'Georgia,serif'}}>No listings yet</h2>
             <p className="text-sm text-[#9B928E] mb-6">List your first property to see analytics here.</p>
             <Link href="/list" className="px-6 py-3 rounded-xl text-white text-sm no-underline" style={{background:'#D3755A'}}>List a property →</Link>
@@ -681,20 +682,20 @@ export default function OwnerDashboardClient({ user, listings, events, comparabl
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {(() => { const s = resolveStatus(l); return (
-                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 min-w-[90px] inline-flex items-center justify-center ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
                         )})()}
                         <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
                       </div>
                       <div className="text-xs text-[#9B928E] mt-0.5">£{l.price?.toLocaleString()}/mo · {l.bedrooms === 0 ? 'Studio' : (l.bedrooms || '?') + ' bed'} · {l.property_type}</div>
                       <div className="flex gap-4 mt-2">
-                        <span className="text-xs text-[#3D3A38]">👁 {lViews} views</span>
-                        <span className="text-xs text-[#3D3A38]">↗ {lShares} shares</span>
-                        <span className="text-xs text-[#3D3A38]">📅 {lRequests} viewing{lRequests !== 1 ? 's' : ''}</span>
+                        <span className="text-xs text-[#3D3A38] inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" strokeWidth={1.75} /> {lViews} views</span>
+                        <span className="text-xs text-[#3D3A38] inline-flex items-center gap-1"><Share2 className="w-3.5 h-3.5" strokeWidth={1.75} /> {lShares} shares</span>
+                        <span className="text-xs text-[#3D3A38] inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" strokeWidth={1.75} /> {lRequests} viewing{lRequests !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1.5 flex-shrink-0 items-end">
+                    <div className="flex flex-col gap-1.5 flex-shrink-0 items-end [&>*]:min-w-[170px] [&>*]:inline-flex [&>*]:items-center [&>*]:justify-center">
                       <div className="text-[#9B928E] text-xs">{selected === l.id ? '▲' : '▼'}</div>
-                      <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-1.5 [&>*]:min-w-[130px] [&>*]:inline-flex [&>*]:items-center [&>*]:justify-center" onClick={e => e.stopPropagation()}>
                         <Link href={'/list/edit/' + l.id}
                           className="text-[10px] px-2 py-1 rounded-lg border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors">
                           Edit
@@ -1065,7 +1066,7 @@ function ViewingsCalendar({ requests, listings }: { requests: any[], listings: a
                   <div className="text-xs text-[#9B928E]">{r.tenant_email}{r.tenant_phone ? ' · ' + r.tenant_phone : ''}</div>
                   {r.proposed_slot.note && <div className="text-xs text-[#9B928E] mt-1 italic">"{r.proposed_slot.note}"</div>}
                 </div>
-                <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' +
+                <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 min-w-[90px] inline-flex items-center justify-center ' +
                   (r.status === 'confirmed' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700')}>
                   {r.status}
                 </span>

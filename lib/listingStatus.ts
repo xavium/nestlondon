@@ -2,7 +2,7 @@ export type ListingStatus = 'pending' | 'live' | 'paused' | 'deactivated'
 
 export const STATUS_LABELS: Record<ListingStatus, string> = {
   live: 'Live',
-  pending: 'Pending review',
+  pending: 'Pending',
   paused: 'Paused',
   deactivated: 'Deactivated',
 }

@@ -337,7 +337,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
       <div className="flex gap-2 mb-6 flex-wrap">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
-            className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors ' + (tab === t.key ? 'text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38]')}
+            className={'px-4 py-2 rounded-xl text-sm font-medium transition-colors min-w-[140px] inline-flex items-center justify-center ' + (tab === t.key ? 'text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38]')}
             style={tab === t.key ? { background: '#1B2E4B' } : {}}>
             {t.label}
           </button>
@@ -658,7 +658,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {(() => { const s = resolveStatus(l); return (
-                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                          <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 min-w-[90px] inline-flex items-center justify-center ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
                         )})()}
                         <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
                       </div>
@@ -753,7 +753,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedListing(isSelected ? null : l.id)}>
                     <div className="flex items-center gap-2 mb-1">
                       {(() => { const s = resolveStatus(l); return (
-                        <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
+                        <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 min-w-[90px] inline-flex items-center justify-center ' + STATUS_BADGE_CLASSES[s]}>{STATUS_LABELS[s]}</span>
                       )})()}
                       <div className="text-sm font-medium text-[#1B2E4B] truncate">{l.address}</div>
                     </div>
@@ -765,7 +765,7 @@ export default function AgentDashboardClient({ user, agentRecord, listings, view
                     </div>
                     {l.assigned_agent_name && <div className="text-xs text-[#D3755A] mt-1">{l.assigned_agent_name}</div>}
                   </div>
-                  <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <div className="flex flex-col gap-1.5 flex-shrink-0 [&>*]:min-w-[170px] [&>*]:inline-flex [&>*]:items-center [&>*]:justify-center">
                     <Link href={'/listings/' + l.id} target="_blank"
                       className="text-xs px-3 py-1.5 rounded-xl border border-[#E8E2DA] text-[#3D3A38] no-underline hover:bg-[#F5EBE0] transition-colors text-center">
                       View →
