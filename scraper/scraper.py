@@ -60,6 +60,29 @@ def parse_info(info_text):
     return property_type, bedrooms, bathrooms
 
 
+def normalise_studio(listing):
+    """If key_features indicate a studio, override property_type=Studio and bedrooms=0.
+    Only applies when bedrooms is null/0/1 (avoids flagging multi-bed flats with a 'separate studio')."""
+    import re
+    pt = (listing.get('property_type') or '').lower()
+    if pt == 'studio':
+        return  # already correct
+    beds = listing.get('bedrooms')
+    if beds is not None and beds >= 2:
+        return  # multi-bed properties may have a separate studio room; not a studio property
+    key_features = listing.get('key_features') or []
+    for kf in key_features:
+        if not kf:
+            continue
+        kf_lower = kf.lower()
+        if 'separate studio' in kf_lower:
+            continue
+        if re.search(r'\bstudio\b', kf_lower):
+            listing['property_type'] = 'Studio'
+            listing['bedrooms'] = 0
+            return
+
+
 def download_image(url, source_id):
     if not url or url.startswith('data:'):
         return None
@@ -577,6 +600,7 @@ async def scrape_buy(pages=5):
                             listing['postcode'] = full_data['postcode']
                         if full_data.get('images'):
                             listing['image_urls'] = full_data['images']
+                    normalise_studio(listing)
                     if (i+1) % 5 == 0:
                         print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
                     await asyncio.sleep(0.5)
@@ -639,6 +663,7 @@ async def main():
                             listing['postcode'] = full_data['postcode']
                         if full_data.get('images'):
                             listing['image_urls'] = full_data['images']
+                    normalise_studio(listing)
                     if (i+1) % 5 == 0:
                         print('  Descriptions: ' + str(i+1) + '/' + str(len(listings)))
                     await asyncio.sleep(0.5)
