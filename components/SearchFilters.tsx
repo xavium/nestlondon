@@ -3,6 +3,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
+import { MapPin } from 'lucide-react'
 interface Props {
   location: string
   listingType: string
@@ -171,7 +172,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-[#E8E2DA] rounded-2xl shadow-xl z-[200] p-6 max-h-[80vh] overflow-y-auto max-h-[80vh] overflow-y-auto">
+        <div className="absolute top-full right-0 mt-7 w-96 bg-white border border-[#E8E2DA] rounded-2xl shadow-xl z-[200] p-6 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-medium text-[#1C2B3A]">Filters</h3>
             <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-[#4A5568] text-lg leading-none">x</button>
@@ -283,7 +284,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
           <div className="mb-5">
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Property type</label>
             <div className="flex flex-wrap gap-2">
-              {['Flat','House','Studio','Maisonette','Bungalow'].map(t => (
+              {['Flat','House','Terraced','Semi-Detached','Detached','End of Terrace','Studio','Penthouse','Town House','Maisonette','Mews','Bungalow'].map(t => (
                 <button key={t} onClick={() => setPropertyTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
                   className={'text-xs px-3 py-1.5 rounded-full border transition-colors ' + (propertyTypes.includes(t) ? 'bg-[#D3755A] text-white border-[#D3755A]' : 'bg-[#F5EBE0] text-[#3D3A38] border-[#E8E2DA] hover:border-[#D3755A]')}
                 >{t}</button>
@@ -372,7 +373,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Commute time</label>
             {commuteAddress && !editingCommute ? (
               <div className="flex items-center gap-2 bg-[#F5EBE0] rounded-xl px-3 py-2 mb-3">
-                <span className="text-xs text-[#1B2E4B] flex-1 truncate">📍 {commuteAddress}</span>
+                <span className="text-xs text-[#1B2E4B] flex-1 truncate inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.75} /> {commuteAddress}</span>
                 <button onClick={() => { setEditingCommute(true); setCommuteDraft(commuteAddress) }}
                   className="text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

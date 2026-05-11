@@ -198,7 +198,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (minPrice) query = query.gte('price', minPrice)
   if (maxPrice) query = query.lte('price', maxPrice)
   if (propertyType) {
-    const propTypes = propertyType.split(',').map(s => s.trim()).filter(Boolean)
+    let propTypes = propertyType.split(',').map(s => s.trim()).filter(Boolean)
+    // Flat ↔ Apartment merge: when 'Flat' is selected, also match 'Apartment'
+    if (propTypes.includes('Flat') && !propTypes.includes('Apartment')) {
+      propTypes = [...propTypes, 'Apartment']
+    }
     if (propTypes.length === 1) {
       query = query.ilike('property_type', '%' + propTypes[0] + '%')
     } else if (propTypes.length > 1) {
@@ -405,7 +409,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   if (locationCoords) {
     const { data: nearbyAll } = await supabase
       .from('listings')
-      .select('id,address,price,images,bedrooms,bathrooms,property_type,latitude,longitude,description')
+      .select('id,address,price,images,bedrooms,bathrooms,property_type,latitude,longitude,description,raw_data')
       .eq('is_active', true)
       .eq('listing_type', listingType)
       .not('latitude', 'is', null)
