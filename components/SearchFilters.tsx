@@ -89,7 +89,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     { label: 'Character features', options: ['Fireplace', 'Bay windows', 'Sash windows', 'High ceilings', 'Period features', 'Exposed brick', 'Exposed beams', 'Parquet flooring', 'Wooden floors'] },
     { label: 'Lifestyle', options: ['Pets allowed', 'Bills included', 'Concierge', 'Gym', 'Swimming pool'] },
   ]
-  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed']
+  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed', 'No floorplan']
 
   function toggleFeature(f: string) {
     setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])

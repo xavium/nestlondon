@@ -259,6 +259,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       }
     }
 
+    // Exclude listings with no floorplan
+    if (excludeFeatures.includes('No floorplan')) {
+      const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+      const fps = rd?.floorplans
+      if (!Array.isArray(fps) || fps.length === 0) return false
+    }
+
     // Size filter
     if (minSize || maxSize) {
       const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
