@@ -388,6 +388,9 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
     async function initMap() {
       const L = (await import('leaflet')).default
       await import('leaflet/dist/leaflet.css')
+      await import('leaflet.markercluster')
+      await import('leaflet.markercluster/dist/MarkerCluster.css')
+      await import('leaflet.markercluster/dist/MarkerCluster.Default.css')
       const viewed = getViewedListings()
 
       mapRef.current = L.map(mapContainer.current!, {
@@ -468,6 +471,37 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       L.marker([latitude, longitude], { icon: mainIcon, zIndexOffset: 2000 }).addTo(mapRef.current)
 
       // Nearby listings - above stations, below current
+      // Cluster nearby listings with dual layers (dots at low zoom, bubbles at high zoom)
+      const clusterOpts = {
+        maxClusterRadius: 80,
+        disableClusteringAtZoom: 16,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        chunkedLoading: true,
+        iconCreateFunction: (cluster: any) => {
+          const count = cluster.getChildCount()
+          const size = count < 10 ? 36 : count < 50 ? 44 : 54
+          return L.divIcon({
+            className: '',
+            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#D85A30;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:${count < 10 ? 13 : count < 100 ? 14 : 13}px;font-family:Georgia,serif;cursor:pointer;line-height:1;box-sizing:border-box;">${count}</div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+          })
+        },
+      }
+      const nearbyCluster = (L as any).markerClusterGroup(clusterOpts)
+      const nearbyDotsCluster = (L as any).markerClusterGroup(clusterOpts)
+
+      function showNearbyDots() {
+        try { mapRef.current.removeLayer(nearbyCluster) } catch {}
+        nearbyDotsCluster.addTo(mapRef.current)
+      }
+      function showNearbyBubbles() {
+        try { mapRef.current.removeLayer(nearbyDotsCluster) } catch {}
+        nearbyCluster.addTo(mapRef.current)
+      }
+
       nearbyListings.forEach(nearby => {
         const lat = parseFloat(String(nearby.latitude))
         const lng = parseFloat(String(nearby.longitude))
@@ -518,8 +552,29 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
             }
           }
         })
-        marker.addTo(mapRef.current)
+        nearbyCluster.addLayer(marker)
+
+        // Dot icon for zoomed-out view
+        const dotIcon = L.divIcon({
+          className: '',
+          html: `<div style="width:18px;height:18px;border-radius:50%;background:${hasViewed ? '#c8c7c2' : '#D85A30'};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);cursor:pointer;"></div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        })
+        const dotMarker = L.marker([lat, lng], { icon: dotIcon, zIndexOffset: hasViewed ? 0 : 100 })
+        dotMarker.bindPopup(popupContent, { maxWidth: 210, closeButton: true, offset: [0, -8] })
+        dotMarker.on('popupopen', () => { markAsViewed(nearby.id) })
+        nearbyDotsCluster.addLayer(dotMarker)
       })
+
+      // Switch between dot layer and bubble layer based on zoom
+      const BUBBLE_ZOOM = 14
+      mapRef.current.on('zoomend', () => {
+        if (mapRef.current.getZoom() >= BUBBLE_ZOOM) showNearbyBubbles()
+        else showNearbyDots()
+      })
+      if (mapRef.current.getZoom() >= BUBBLE_ZOOM) showNearbyBubbles()
+      else showNearbyDots()
 
       ;(window as any).__markViewed = (id: string) => markAsViewed(id)
     }
