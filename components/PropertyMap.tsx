@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
+import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace } from '@/lib/popupIcons'
 
 const LINE_COLOURS: Record<string, string> = {
   'Bakerloo': '#B36305', 'Central': '#E32017', 'Circle': '#FFD300',
@@ -358,8 +359,12 @@ interface NearbyListing {
   latitude: number
   longitude: number
   bedrooms: number | null
+  bathrooms?: number | null
   property_type: string | null
   images?: string
+  raw_data?: any
+  description?: string | null
+  key_features?: string[] | null
 }
 
 interface Props {
@@ -492,7 +497,7 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
             ${imgSrc ? `<img src="${imgSrc}" referrerpolicy="no-referrer" style="width:100%;height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : '<div style="width:100%;height:80px;background:#f5f5f0;border-radius:6px;margin-bottom:8px;"></div>'}
             <div style="font-size:14px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${nearby.price.toLocaleString()}<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">${(nearby.listing_type || listingType) !== 'buy' ? '/mo' : ''}</span></div>
             <div style="font-size:11px;color:#6b6b67;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nearby.address}</div>
-            <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;">${nearby.bedrooms ? nearby.bedrooms + ' bed' : ''} ${nearby.property_type || ''}</div>
+            <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${nearby.bedrooms ? `<span style="display:inline-flex;align-items:center;">${ICON_BED_SVG}${nearby.bedrooms} bed</span>` : ''} ${nearby.bathrooms ? `<span style="display:inline-flex;align-items:center;">${ICON_BATH_SVG}${nearby.bathrooms} bath</span>` : ''} ${nearby.property_type ? `<span style="display:inline-flex;align-items:center;">${propertyTypeIconSvg(nearby.property_type)}${normalisePropertyTypeLabel(nearby.property_type)}</span>` : ''} ${(() => { const s = extractSqftFromListing(nearby); return s ? `<span style="display:inline-flex;align-items:center;">${ICON_SIZE_SVG}${s}</span>` : '' })()} ${(() => { const o = hasOutsideSpace(nearby); return o ? `<span style="display:inline-flex;align-items:center;">${ICON_OUTSIDE_SVG}${o}</span>` : '' })()}</div>
             <a href="/listings/${nearby.id}" target="_blank" onclick="window.__markViewed && window.__markViewed('${nearby.id}')" style="display:block;background:#D85A30;color:white;text-align:center;padding:7px;border-radius:7px;font-size:12px;text-decoration:none;">View listing</a>
           </div>
         `
