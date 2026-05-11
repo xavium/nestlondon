@@ -94,7 +94,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   if (listing.latitude && listing.longitude) {
     const { data: nearby } = await supabase
       .from('listings')
-      .select('id,address,price,latitude,longitude,bedrooms,property_type,images,listing_type')
+      .select('id,address,price,latitude,longitude,bedrooms,bathrooms,property_type,images,listing_type,description,raw_data')
       .eq('is_active', true)
       .eq('listing_type', listing.listing_type || 'rent')
       .neq('id', id)
