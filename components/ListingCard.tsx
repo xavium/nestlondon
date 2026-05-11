@@ -15,14 +15,25 @@ interface Props {
 
 function extractFeatureTags(listing: any): {label: string, positive: boolean}[] {
   const tags: {label: string, positive: boolean}[] = []
-  const desc = (listing.description || '').toLowerCase()
-  const combined = desc
-  // Outside space — mutually exclusive, most specific first, no false negatives
+  // Strip Rightmove's structured trailing sections (COUNCIL TAX / PARKING / GARDEN / ACCESSIBILITY) — they create false positives
+  const rawDesc = (listing.description || '').toLowerCase()
+  const desc = rawDesc.replace(/\n\s*brochures[\s\S]*$/i, '').replace(/\n\s*read full description[\s\S]*$/i, '')
+
+  // Pull key_features and photo_tags from raw_data for more reliable signal
+  const rd = typeof listing.raw_data === 'string' ? (() => { try { return JSON.parse(listing.raw_data) } catch { return {} } })() : (listing.raw_data || {})
+  const keyFeatures = (rd?.key_features || []).join(' ').toLowerCase()
+  const photoFeatures = (rd?.photo_tags?.features || []).join(' ').toLowerCase()
+  const combined = [desc, keyFeatures, photoFeatures].join(' ')
+
+  // Outside space — mutually exclusive, most specific first
   const noGarden = /no garden|without garden|no private garden/.test(combined)
   if (/\bbalcon(y|ies)\b/.test(combined)) tags.push({label: 'Balcony', positive: true})
   else if (/\bterrace\b/.test(combined) && !/\bterraced\b/.test(combined)) tags.push({label: 'Terrace', positive: true})
-  else if (/\bgardens?\b/.test(combined) && !noGarden) tags.push({label: 'Garden', positive: true})
-  if (combined.includes('parking') || combined.includes('garage')) tags.push({label: 'Parking', positive: true})
+  else if (/\b(?:private|own|rear|south.facing|landscaped)\s+gardens?\b/.test(combined) || (/\bgardens?\b/.test(combined) && !noGarden && /\bgardens?\b/.test(keyFeatures + ' ' + photoFeatures))) tags.push({label: 'Garden', positive: true})
+
+  // Parking — only count it if it's a property feature (in key_features or photo_tags), not just a structured 'PARKING: On street' section.
+  // The description-stripped 'desc' shouldn't catch the trailing PARKING section anyway, but we further require key_features signal for confidence.
+  if (/\b(?:private|allocated|secure|own|underground|gated|off.street)\s+parking\b/.test(combined) || /\bgarage\b/.test(combined) || /\bparking\b/.test(keyFeatures)) tags.push({label: 'Parking', positive: true})
   if (combined.includes('bills included') || combined.includes('bills inc')) tags.push({label: 'Bills incl.', positive: true})
   if (combined.includes('pet')) tags.push({label: 'Pets OK', positive: true})
   if (combined.includes('top floor') || combined.includes('penthouse')) tags.push({label: 'Top floor', positive: true})
@@ -148,7 +159,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
     <Link
       href={'/listings/' + listing.id + fromParam}
       onClick={() => markAsViewed(listing.id)}
-      className={'group block border rounded-2xl overflow-hidden transition-all no-underline bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300'}
+      className={'group flex flex-col border rounded-2xl overflow-hidden transition-all no-underline bg-white border-[#E8E2DA] hover:shadow-md hover:border-stone-300'}
     >
       <div className="relative h-48 overflow-hidden">
         {imgSrc ? (
@@ -199,7 +210,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           </>
         )}
       </div>
-      <div className="p-4">
+      <div className="p-4 flex flex-col flex-1">
         <div className={'text-sm font-medium mb-0.5 truncate text-[#1C2B3A]'}>{listing.address}</div>
         <div className="flex gap-2 mb-2 flex-wrap">
           {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <PillStat icon="bed" label="Studio" /> : listing.bedrooms ? <PillStat icon="bed" label={`${listing.bedrooms} bed`} /> : null}
@@ -219,7 +230,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           </div>
         )}
         {hidden ? null : (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-auto">
           <div className={'flex-1 text-xs rounded-lg py-2 text-center ' + (viewed ? 'bg-stone-100 text-stone-400' : 'text-white')} style={viewed ? {} : {background:'#D3755A'}}>
             {viewed ? 'View again' : 'View property'}
           </div>

@@ -366,7 +366,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   console.log('[LISTING TILES] keyFeatures:', keyFeatures, 'desc:', (listing.description || '').slice(0,50))
   const _descClean = (listing.description || '').replace(/^(PARKING|CONCIERGE|GARDEN|ACCESSIBILITY|COUNCIL TAX|EPC|UTILITIES)[\s\S]*$/im, '').toLowerCase()
   const _featuresLower = keyFeatures.map(f => f.toLowerCase())
-  const _combined = _descClean + ' ' + _featuresLower.join(' ')
+  // Pull in photo_tags.features — these are structured signals (e.g. 'Balcony visible', 'Garden visible')
+  const _photoTagsLower = (rawData?.photo_tags?.features || []).map((f: string) => f.toLowerCase())
+  const _combined = _descClean + ' ' + _featuresLower.join(' ') + ' ' + _photoTagsLower.join(' ')
 
   if (/no[- ]parking|no car park|without parking/.test(_combined)) structuredDetails['Parking'] = 'No'
   else if (/parking (space|bay|permit|available|included|provided)|allocated parking|private parking|secure parking|underground parking|off.street parking|residents.{0,5}parking|\bgarage\b/.test(_combined)) structuredDetails['Parking'] = 'Yes'
@@ -508,7 +510,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                   </div>
                 </>
               ) : floorplans.length > 0 ? (
-                <FloorplanSize key={floorplans[0]} floorplanUrl={floorplans[0]} price={listingPrice} />
+                <FloorplanSize key={floorplans[0]} floorplanUrl={floorplans[0]} price={listingPrice} listingId={listing.id} />
               ) : (
                 <>
                   <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
