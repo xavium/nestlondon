@@ -7,6 +7,28 @@ import { useRouter } from 'next/navigation'
 import BoroughQuiz from '@/components/BoroughQuiz'
 import SearchFilters from '@/components/SearchFilters'
 
+function useTypewriter(phrase: string, active: boolean): string {
+  const [text, setText] = useState('')
+
+  useEffect(() => {
+    if (!active) { setText(''); return }
+    let charIndex = 0
+    let cancelled = false
+    function tick() {
+      if (cancelled) return
+      charIndex++
+      setText(phrase.slice(0, charIndex))
+      if (charIndex < phrase.length) setTimeout(tick, 50)
+    }
+    setText('')
+    const t = setTimeout(tick, 200)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [phrase, active])
+
+  return text
+}
+
+
 const SUGGESTIONS = [
   'Angel', 'Balham', 'Battersea', 'Bermondsey', 'Bethnal Green', 'Bow', 'Brixton',
   'Camden', 'Canary Wharf', 'Clapham', 'Clerkenwell', 'Dalston', 'Earls Court',
@@ -35,6 +57,8 @@ export default function HomePage() {
     setTimeout(() => { setListingMode(mode); setSlideDir(null) }, 200)
   }
   const [location, setLocation] = useState('')
+  const typedBuy = useTypewriter('Where are you looking to buy?', !location)
+  const typedRent = useTypewriter('Where are you looking to rent?', !location)
   const [radius, setRadius] = useState<number | null>(null)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState<number | null>(null)
@@ -152,7 +176,7 @@ export default function HomePage() {
                   {/* Location */}
                   <div className={'flex-[3] flex flex-col justify-center px-5 py-3 cursor-text rounded-l-2xl transition-colors ' + (active === 'location' ? 'bg-stone-50' : 'hover:bg-stone-50')} onClick={() => setActive('location')}>
                     <div className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-0.5">Location</div>
-                    <input value={location} onChange={handleLocationChange} onFocus={() => setActive('location')} placeholder="Where are you looking to buy?" className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full" autoComplete="off" onKeyDown={e => e.key === 'Enter' && doSearch()} />
+                    <input value={location} onChange={handleLocationChange} onFocus={() => setActive('location')} placeholder={typedBuy ? typedBuy : "Where are you looking to buy?"} className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full" autoComplete="off" onKeyDown={e => e.key === 'Enter' && doSearch()} />
                   </div>
                   <div className="w-px bg-stone-200 self-stretch my-3" />
                   {/* Distance */}
@@ -304,7 +328,7 @@ export default function HomePage() {
                   value={location}
                   onChange={handleLocationChange}
                   onFocus={() => setActive('location')}
-                  placeholder="Where are you looking to rent?"
+                  placeholder={typedRent ? typedRent : "Where are you looking to rent?"}
                   className="text-sm text-[#1C2B3A] bg-transparent outline-none placeholder-stone-300 w-full"
                   autoComplete="off"
                 />

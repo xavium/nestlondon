@@ -82,6 +82,11 @@ export default function NavSearchBar({
   const [maxBeds, setMaxBeds] = useState<number | null>(initMaxBeds)
   const [radius, setRadius] = useState<number | null>(initRadius)
   const [active, setActive] = useState<Panel>(null)
+  // Wrap setActive: when opening (non-null), notify other dropdowns to close
+  function setActivePanel(p: Panel) {
+    if (p !== null) window.dispatchEvent(new Event('nestlondon:closeDropdowns'))
+    setActive(p)
+  }
   const [localAddedWithin, setLocalAddedWithin] = useState<number | null>(addedWithin)
   const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
@@ -91,8 +96,13 @@ export default function NavSearchBar({
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setActive(null)
     }
+    function handleCloseAll() { setActive(null) }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    window.addEventListener('nestlondon:closeDropdowns', handleCloseAll)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('nestlondon:closeDropdowns', handleCloseAll)
+    }
   }, [])
 
   useEffect(() => {
@@ -156,7 +166,7 @@ export default function NavSearchBar({
 
         {/* Location + radius */}
         <div className="flex items-stretch flex-1 min-w-0">
-          <div className="flex items-center flex-1 px-3 gap-2 cursor-text" onClick={() => setActive('location')}>
+          <div className="flex items-center flex-1 px-3 gap-2 cursor-text" onClick={() => setActivePanel('location')}>
             <svg className="w-3.5 h-3.5 text-[#9B928E] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" strokeWidth="1.5"/>
               <path d="m21 21-4.35-4.35" strokeWidth="1.5" strokeLinecap="round"/>
@@ -164,7 +174,7 @@ export default function NavSearchBar({
             <input
               value={location}
               onChange={handleLocationChange}
-              onFocus={() => setActive('location')}
+              onFocus={() => setActivePanel('location')}
               placeholder="Location"
               className="text-sm text-[#3D3A38] bg-transparent outline-none placeholder-[#9B928E] w-full min-w-0"
               autoComplete="off"
@@ -174,7 +184,7 @@ export default function NavSearchBar({
           {/* Radius inside location section */}
           <div className="flex items-center border-l border-[#E8E2DA]">
             <button
-              onClick={() => setActive(active === 'radius' ? null : 'radius')}
+              onClick={() => setActivePanel(active === 'radius' ? null : 'radius')}
               className={'text-xs px-3 py-1.5 whitespace-nowrap transition-colors ' + (radius ? 'text-[#D3755A] font-medium' : 'text-[#9B928E]')}
             >
               {radiusLabel}
@@ -187,7 +197,7 @@ export default function NavSearchBar({
 
         {/* Price */}
         <button
-          onClick={() => setActive(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
+          onClick={() => setActivePanel(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
           className={'px-3 text-sm whitespace-nowrap transition-colors ' + (priceActive ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
         >{priceLabel}</button>
 
@@ -195,7 +205,7 @@ export default function NavSearchBar({
 
         {/* Beds */}
         <button
-          onClick={() => setActive(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
+          onClick={() => setActivePanel(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
           className={'px-3 text-sm whitespace-nowrap transition-colors ' + (bedsActive ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
         >{bedsLabel}</button>
 
@@ -205,7 +215,7 @@ export default function NavSearchBar({
 
         {/* Added within */}
         <button
-          onClick={() => setActive(active === 'addedWithin' ? null : 'addedWithin')}
+          onClick={() => setActivePanel(active === 'addedWithin' ? null : 'addedWithin')}
           className={'px-3 text-sm whitespace-nowrap transition-colors ' + (localAddedWithin ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
         >{addedWithinLabel}</button>
 
@@ -324,7 +334,7 @@ export default function NavSearchBar({
       )}
 
       {(active === 'minBeds' || active === 'maxBeds') && (
-        <div className="absolute top-full left-1/2 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
+        <div className="absolute top-full right-1/4 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
           <div className="flex gap-4">
             <div className="flex-1">
               <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Min</div>

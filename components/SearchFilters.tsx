@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { MapPin } from 'lucide-react'
@@ -39,6 +39,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
   const { onApply } = props
   const isBuy = props.listingType === 'buy'
   const [open, setOpen] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
   const sp = useSearchParams()
   const [minBeds, setMinBeds] = useState<number | null>(sp.get('minBeds') ? parseInt(sp.get('minBeds')!) : null)
   const [maxBeds, setMaxBeds] = useState<number | null>(sp.get('maxBeds') ? parseInt(sp.get('maxBeds')!) : null)
@@ -156,17 +157,24 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
+    function handleOutsideClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false)
+    }
     window.addEventListener('nestlondon:closeDropdowns', handleCloseAll)
-    return () => window.removeEventListener('nestlondon:closeDropdowns', handleCloseAll)
-  }, [])
+    if (open) document.addEventListener('mousedown', handleOutsideClick)
+    return () => {
+      window.removeEventListener('nestlondon:closeDropdowns', handleCloseAll)
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [open])
 
   return (
-    <div className="relative">
+    <div ref={panelRef} className="relative">
       <button
         onClick={() => { if (!open) window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setOpen(!open) }}
         className={'flex items-center gap-1.5 text-sm px-3 whitespace-nowrap transition-colors ' + (activeCount > 0 ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6" strokeWidth="1.5"/><line x1="8" y1="12" x2="16" y2="12" strokeWidth="1.5"/><line x1="11" y1="18" x2="13" y2="18" strokeWidth="1.5"/></svg>
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" strokeWidth="1.5" strokeLinecap="round"/><line x1="5" y1="12" x2="19" y2="12" strokeWidth="1.5" strokeLinecap="round"/></svg>
         Filters
         {activeCount > 0 && <span className="bg-white text-[#D3755A] text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">{activeCount}</span>}
       </button>
