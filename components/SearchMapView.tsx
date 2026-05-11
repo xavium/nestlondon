@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
-import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace } from '@/lib/popupIcons'
+import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace, buildCarouselHtml, attachCarousel } from '@/lib/popupIcons'
 
 interface Listing {
   id: string
@@ -88,8 +88,9 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       // bounds; spiderfy as a fallback when at max zoom.
       const clusterOpts = {
         maxClusterRadius: 80,
-        disableClusteringAtZoom: 16,
+        disableClusteringAtZoom: 19,
         spiderfyOnMaxZoom: true,
+        spiderfyDistanceMultiplier: 2.5,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
         chunkedLoading: true,
@@ -127,10 +128,10 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         const weight = hasViewed ? '600' : '500'
         const tail = hasViewed ? '#c8c7c2' : 'white'
 
-        let imgSrc = ''
+        let images: string[] = []
         try {
           const imgs = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || [])
-          imgSrc = Array.isArray(imgs) ? (imgs.find((u: string) => u && u.startsWith('http')) || '') : ''
+          images = Array.isArray(imgs) ? imgs.filter((u: string) => u && u.startsWith('http')) : []
         } catch {}
 
         const borderCol = hasViewed ? '#c8c7c2' : '#D85A30'
@@ -143,8 +144,8 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         })
 
         const popupContent = `
-          <div style="width:210px;font-family:sans-serif;">
-            ${imgSrc ? `<img src="${imgSrc}" referrerpolicy="no-referrer" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>` : '<div style="width:100%;height:80px;background:#f5f5f0;border-radius:6px;margin-bottom:8px;"></div>'}
+          <div style="width:290px;font-family:sans-serif;">
+            ${buildCarouselHtml(images, listing.id, 190)}
             <div style="font-size:15px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${listing.price?.toLocaleString()}${listingType === 'rent' ? '<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">/mo</span>' : ''}</div>
             <div style="font-size:11px;color:#6b6b67;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${listing.address}</div>
             <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${listing.bedrooms ? `<span style="display:inline-flex;align-items:center;">${ICON_BED_SVG}${listing.bedrooms} bed</span>` : ''} ${listing.bathrooms ? `<span style="display:inline-flex;align-items:center;">${ICON_BATH_SVG}${listing.bathrooms} bath</span>` : ''} ${listing.property_type ? `<span style="display:inline-flex;align-items:center;">${propertyTypeIconSvg(listing.property_type)}${normalisePropertyTypeLabel(listing.property_type)}</span>` : ''} ${(() => { const s = extractSqftFromListing(listing); return s ? `<span style="display:inline-flex;align-items:center;">${ICON_SIZE_SVG}${s}</span>` : '' })()} ${(() => { const o = hasOutsideSpace(listing); return o ? `<span style="display:inline-flex;align-items:center;">${ICON_OUTSIDE_SVG}${o}</span>` : '' })()}</div>
@@ -152,41 +153,37 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
           </div>
         `
 
-        const marker = L.marker([lat, lng], { icon, zIndexOffset: hasViewed ? 0 : 100 })
-        marker.bindPopup(popupContent, { maxWidth: 220, closeButton: true, offset: [0, -12] })
-        marker.on('popupopen', () => {
-          markAsViewed(listing.id)
-          setActiveId(listing.id)
-          const el = marker.getElement()
-          if (el) {
-            const bubble = el.querySelector('div') as HTMLElement
-            if (bubble) {
-              bubble.style.background = '#c8c7c2'
-              bubble.style.fontWeight = '600'
-              bubble.style.borderColor = '#c8c7c2'
-              bubble.style.color = '#6b6b67'
-              const tail2 = bubble.querySelector('div') as HTMLElement
-              if (tail2) tail2.style.borderTopColor = '#c8c7c2'
-            }
-          }
-        })
-        marker.on('popupclose', () => setActiveId(null))
-        bubblesCluster.addLayer(marker)
-        markersRef.current[listing.id] = marker
-        markerBubbles[listing.id] = marker
-
-        // Dot icon for zoomed-out view
+        // Build both icons upfront so we can swap between them on popup open/close
         const dotIcon = L.divIcon({
           className: '',
           html: `<div style="width:20px;height:20px;border-radius:50%;background:${hasViewed ? '#c8c7c2' : '#D85A30'};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);cursor:pointer;"></div>`,
           iconSize: [20, 20],
           iconAnchor: [10, 10],
         })
+
+        const marker = L.marker([lat, lng], { icon, zIndexOffset: hasViewed ? 0 : 100 })
+        marker.bindPopup(popupContent, { maxWidth: 300, closeButton: true, offset: [0, -12] })
+        marker.on('popupopen', () => {
+          markAsViewed(listing.id)
+          setActiveId(listing.id)
+          attachCarousel(marker.getPopup()?.getElement() || null, images)
+          // Shrink the bubble to a dot while popup is open, so map is less crowded
+          marker.setIcon(dotIcon)
+        })
+        marker.on('popupclose', () => {
+          setActiveId(null)
+          marker.setIcon(icon)
+        })
+        bubblesCluster.addLayer(marker)
+        markersRef.current[listing.id] = marker
+        markerBubbles[listing.id] = marker
+
         const dotMarker = L.marker([lat, lng], { icon: dotIcon, zIndexOffset: hasViewed ? 0 : 100 })
         dotMarker.bindPopup(marker.getPopup()!)
         dotMarker.on('popupopen', () => {
           markAsViewed(listing.id)
           setActiveId(listing.id)
+          attachCarousel(dotMarker.getPopup()?.getElement() || null, images)
           const el = dotMarker.getElement()
           if (el) {
             const dot = el.querySelector('div') as HTMLElement

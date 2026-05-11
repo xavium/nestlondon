@@ -36,21 +36,23 @@ export function extractSqftFromListing(listing: { raw_data?: any, description?: 
   const sources: string[] = []
   const rd = typeof listing.raw_data === 'string' ? (() => { try { return JSON.parse(listing.raw_data) } catch { return {} } })() : (listing.raw_data || {})
   if (rd?.size_text) sources.push(rd.size_text)
+  if (rd?.size_from_floorplan && rd.size_from_floorplan !== 'none') sources.push(rd.size_from_floorplan)
   if (Array.isArray(listing.key_features)) sources.push(...listing.key_features)
   if (Array.isArray(rd?.key_features)) sources.push(...rd.key_features)
   // Skip description fallback — too unreliable (matches sizes of nearby buildings)
 
   for (const text of sources) {
     if (!text) continue
-    const sqftM = text.match(/([\d,]+\.?\d*)\s*sq\.?(?:uare)?\s*f(?:ee|oo)?t/i)
-    if (sqftM) {
-      const v = parseFloat(sqftM[1].replace(',', ''))
-      if (v >= 160 && v <= 10750) return Math.round(v).toLocaleString() + ' sq ft'
-    }
+    // Prefer sqm match first — usually the native measurement on UK listings
     const sqmM = text.match(/([\d,]+\.?\d*)\s*sq\.?\s*m(?!ft)/i)
     if (sqmM) {
       const v = parseFloat(sqmM[1].replace(',', ''))
-      if (v >= 15 && v <= 1000) return Math.round(v * 10.764).toLocaleString() + ' sq ft'
+      if (v >= 15 && v <= 1000) return Math.round(v).toLocaleString() + ' sq m'
+    }
+    const sqftM = text.match(/([\d,]+\.?\d*)\s*sq\.?(?:uare)?\s*f(?:ee|oo)?t/i)
+    if (sqftM) {
+      const v = parseFloat(sqftM[1].replace(',', ''))
+      if (v >= 160 && v <= 10750) return Math.round(v / 10.764).toLocaleString() + ' sq m'
     }
   }
   return null
@@ -74,4 +76,59 @@ export function hasOutsideSpace(listing: { raw_data?: any, description?: string 
   if (/\bpatio\b/.test(text)) return 'Patio'
   if (/\broof terrace\b|\broof garden\b/.test(text)) return 'Roof terrace'
   return null
+}
+
+
+// Build a small photo-carousel HTML block for use inside Leaflet popups.
+// Returns HTML string with placeholder ids; call attachCarousel after popupopen
+// to wire up the prev/next click handlers.
+export function buildCarouselHtml(images: string[], id: string, height = 120): string {
+  if (!images.length) {
+    return `<div style="width:100%;height:80px;background:#f5f5f0;border-radius:6px;margin-bottom:8px;"></div>`
+  }
+  if (images.length === 1) {
+    return `<img src="${images[0]}" referrerpolicy="no-referrer" style="width:100%;height:${height}px;object-fit:cover;border-radius:6px;margin-bottom:8px;"/>`
+  }
+  const ARROW_L = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M7 1L3 5l4 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  const ARROW_R = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  const dots = images.map((_, i) => `<span data-dot="${i}" style="width:4px;height:4px;border-radius:50%;background:${i === 0 ? 'white' : 'rgba(255,255,255,0.5)'};"></span>`).join('')
+  return `
+    <div data-carousel="${id}" data-index="0" style="position:relative;width:100%;height:${height}px;border-radius:6px;overflow:hidden;margin-bottom:8px;">
+      <img data-carousel-img src="${images[0]}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;"/>
+      <button data-carousel-prev style="position:absolute;left:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.4);border:0;border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">${ARROW_L}</button>
+      <button data-carousel-next style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.4);border:0;border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">${ARROW_R}</button>
+      <div data-carousel-dots style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);display:flex;gap:3px;">${dots}</div>
+    </div>`
+}
+
+// After a popup opens, call this with the popup element + the same image array
+// to wire up prev/next behaviour.
+export function attachCarousel(popupEl: Element | null, images: string[]) {
+  if (!popupEl || images.length < 2) return
+  const container = popupEl.querySelector('[data-carousel]') as HTMLElement | null
+  if (!container) return
+  const img = container.querySelector('[data-carousel-img]') as HTMLImageElement | null
+  const prev = container.querySelector('[data-carousel-prev]') as HTMLButtonElement | null
+  const next = container.querySelector('[data-carousel-next]') as HTMLButtonElement | null
+  const dotEls = Array.from(container.querySelectorAll('[data-dot]')) as HTMLElement[]
+  if (!img || !prev || !next) return
+
+  function update(i: number) {
+    container!.setAttribute('data-index', String(i))
+    img!.src = images[i]
+    dotEls.forEach((d, j) => { d.style.background = j === i ? 'white' : 'rgba(255,255,255,0.5)' })
+  }
+
+  prev.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const i = parseInt(container.getAttribute('data-index') || '0', 10)
+    update((i - 1 + images.length) % images.length)
+  })
+  next.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const i = parseInt(container.getAttribute('data-index') || '0', 10)
+    update((i + 1) % images.length)
+  })
 }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
 import PillStat from './PillStat'
+import { extractSqftFromListing } from '@/lib/popupIcons'
 
 interface Props {
   listing: any
@@ -123,6 +124,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
             {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <PillStat icon="bed" label="Studio" /> : listing.bedrooms ? <PillStat icon="bed" label={`${listing.bedrooms} bed`} /> : null}
             {listing.bathrooms ? <PillStat icon="bath" label={`${listing.bathrooms} bath`} /> : null}
             {listing.property_type && <PillStat icon="home" label={listing.property_type} />}
+            {(() => { const s = extractSqftFromListing(listing); return s ? <PillStat icon="size" label={s} /> : null })()}
           </div>
           {desc && <p className="text-xs text-stone-500 leading-relaxed mb-3">{desc}</p>}
           {tags.length > 0 && (
@@ -216,6 +218,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           {(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? <PillStat icon="bed" label="Studio" /> : listing.bedrooms ? <PillStat icon="bed" label={`${listing.bedrooms} bed`} /> : null}
           {listing.bathrooms ? <PillStat icon="bath" label={`${listing.bathrooms} bath`} /> : null}
           {listing.property_type && <PillStat icon="home" label={listing.property_type} />}
+            {(() => { const s = extractSqftFromListing(listing); return s ? <PillStat icon="size" label={s} /> : null })()}
           {listing.furnished && <span className="text-xs bg-stone-100 text-[#4A5568] px-2 py-1 rounded-full inline-flex items-center gap-1">{(listing.furnished as string).split(',')[0].trim().charAt(0).toUpperCase() + (listing.furnished as string).split(',')[0].trim().slice(1)}</span>}
         </div>
         {desc && <p className="text-xs text-stone-500 leading-relaxed mb-3">{desc}</p>}

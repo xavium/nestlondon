@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
-import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace } from '@/lib/popupIcons'
+import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace, buildCarouselHtml, attachCarousel } from '@/lib/popupIcons'
 
 const LINE_COLOURS: Record<string, string> = {
   'Bakerloo': '#B36305', 'Central': '#E32017', 'Circle': '#FFD300',
@@ -474,8 +474,9 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       // Cluster nearby listings with dual layers (dots at low zoom, bubbles at high zoom)
       const clusterOpts = {
         maxClusterRadius: 80,
-        disableClusteringAtZoom: 16,
+        disableClusteringAtZoom: 19,
         spiderfyOnMaxZoom: true,
+        spiderfyDistanceMultiplier: 2.5,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
         chunkedLoading: true,
@@ -513,10 +514,10 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
         const bubbleFontWeight = hasViewed ? '600' : '400'
         const tailColor = hasViewed ? '#c8c7c2' : 'white'
 
-        let imgSrc = ''
+        let images: string[] = []
         try {
           const imgs = typeof nearby.images === 'string' ? JSON.parse(nearby.images) : (nearby.images || [])
-          imgSrc = Array.isArray(imgs) ? (imgs.find((u: string) => u && u.startsWith('http')) || '') : ''
+          images = Array.isArray(imgs) ? imgs.filter((u: string) => u && u.startsWith('http')) : []
         } catch {}
 
         const nearbyIcon = L.divIcon({
@@ -527,8 +528,8 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
         })
 
         const popupContent = `
-          <div style="width:200px;font-family:sans-serif;">
-            ${imgSrc ? `<img src="${imgSrc}" referrerpolicy="no-referrer" style="width:100%;height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : '<div style="width:100%;height:80px;background:#f5f5f0;border-radius:6px;margin-bottom:8px;"></div>'}
+          <div style="width:290px;font-family:sans-serif;">
+            ${buildCarouselHtml(images, nearby.id, 190)}
             <div style="font-size:14px;font-weight:600;color:#1a1a18;font-family:Georgia,serif;margin-bottom:2px;">£${nearby.price.toLocaleString()}<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">${(nearby.listing_type || listingType) !== 'buy' ? '/mo' : ''}</span></div>
             <div style="font-size:11px;color:#6b6b67;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nearby.address}</div>
             <div style="font-size:11px;color:#9e9e99;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${nearby.bedrooms ? `<span style="display:inline-flex;align-items:center;">${ICON_BED_SVG}${nearby.bedrooms} bed</span>` : ''} ${nearby.bathrooms ? `<span style="display:inline-flex;align-items:center;">${ICON_BATH_SVG}${nearby.bathrooms} bath</span>` : ''} ${nearby.property_type ? `<span style="display:inline-flex;align-items:center;">${propertyTypeIconSvg(nearby.property_type)}${normalisePropertyTypeLabel(nearby.property_type)}</span>` : ''} ${(() => { const s = extractSqftFromListing(nearby); return s ? `<span style="display:inline-flex;align-items:center;">${ICON_SIZE_SVG}${s}</span>` : '' })()} ${(() => { const o = hasOutsideSpace(nearby); return o ? `<span style="display:inline-flex;align-items:center;">${ICON_OUTSIDE_SVG}${o}</span>` : '' })()}</div>
@@ -536,34 +537,27 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
           </div>
         `
 
-        const marker = L.marker([lat, lng], { icon: nearbyIcon, zIndexOffset: 1000 })
-        marker.bindPopup(popupContent, { maxWidth: 210, closeButton: true, offset: [0, -10] })
-        marker.on('popupopen', () => {
-          markAsViewed(nearby.id)
-          const el = marker.getElement()
-          if (el) {
-            const bubble = el.querySelector('div') as HTMLElement
-            if (bubble) {
-              bubble.style.background = '#c8c7c2'
-              bubble.style.color = '#4a4a45'
-              bubble.style.fontWeight = '600'
-              const tail = bubble.querySelector('div') as HTMLElement
-              if (tail) tail.style.borderTopColor = '#c8c7c2'
-            }
-          }
-        })
-        nearbyCluster.addLayer(marker)
-
-        // Dot icon for zoomed-out view
+        // Build dot icon upfront for swap-on-popup-open
         const dotIcon = L.divIcon({
           className: '',
           html: `<div style="width:18px;height:18px;border-radius:50%;background:${hasViewed ? '#c8c7c2' : '#D85A30'};border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);cursor:pointer;"></div>`,
           iconSize: [18, 18],
           iconAnchor: [9, 9],
         })
+
+        const marker = L.marker([lat, lng], { icon: nearbyIcon, zIndexOffset: 1000 })
+        marker.bindPopup(popupContent, { maxWidth: 300, closeButton: true, offset: [0, -10] })
+        marker.on('popupopen', () => {
+          markAsViewed(nearby.id)
+          attachCarousel(marker.getPopup()?.getElement() || null, images)
+          marker.setIcon(dotIcon)
+        })
+        marker.on('popupclose', () => { marker.setIcon(nearbyIcon) })
+        nearbyCluster.addLayer(marker)
+
         const dotMarker = L.marker([lat, lng], { icon: dotIcon, zIndexOffset: hasViewed ? 0 : 100 })
-        dotMarker.bindPopup(popupContent, { maxWidth: 210, closeButton: true, offset: [0, -8] })
-        dotMarker.on('popupopen', () => { markAsViewed(nearby.id) })
+        dotMarker.bindPopup(popupContent, { maxWidth: 300, closeButton: true, offset: [0, -8] })
+        dotMarker.on('popupopen', () => { markAsViewed(nearby.id); attachCarousel(dotMarker.getPopup()?.getElement() || null, images) })
         nearbyDotsCluster.addLayer(dotMarker)
       })
 
