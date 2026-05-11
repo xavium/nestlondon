@@ -161,7 +161,7 @@ export default async function DashboardPage() {
         <NavAuthButton variant="dark" />
       </nav>
       <AgentDashboardClient
-        user={{ email: user.email!, name: user.user_metadata?.name || '', id: user.id, isAdmin: agencyCtx.isAdmin, isOwner: agencyCtx.isOwner }}
+        user={{ email: user.email!, name: user.user_metadata?.name || user.user_metadata?.full_name || user.email!.split("@")[0], id: user.id, isAdmin: agencyCtx.isAdmin, isOwner: agencyCtx.isOwner }}
         agentRecord={agentRecord}
         agencyAgents={agencyAgents || []}
         comparables={comparables}

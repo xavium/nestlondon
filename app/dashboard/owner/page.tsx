@@ -155,7 +155,7 @@ export default async function OwnerDashboardPage() {
 
   return (
     <OwnerDashboardClient
-      user={{ email: user.email!, name: user.user_metadata?.name || user.user_metadata?.full_name }}
+      user={{ email: user.email!, name: user.user_metadata?.name || user.user_metadata?.full_name || user.email!.split("@")[0] }}
       listings={allListings}
       events={events}
       comparables={comparables}
