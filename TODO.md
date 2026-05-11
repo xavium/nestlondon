@@ -25,3 +25,6 @@
     - Notification to owner/agent
     - Owner/agent view of received offers
 12. **Booking prompt in messaging** — after agent/owner responds to an enquiry, show a "Book a viewing" prompt to the user in the message thread.
+
+## Anthropic / cost
+13. **Photo tags backfill** — run `scraper/backfill_photo_tags.py` to populate `raw_data.photo_tags` for the ~332 listings currently missing them. Defer until site is more progressed; estimated ~$1.50 with Haiku 4.5. Coverage today: ~11% (40/372). Pre-warming would make the Contemporary/Open plan/etc. style + features pills + outside-space detection appear on all listings everywhere (search cards, map popouts, detail page) instead of only after first visit.
