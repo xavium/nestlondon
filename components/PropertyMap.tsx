@@ -461,24 +461,27 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       // Apply immediately on load
       updateStationVisibility()
 
-      // Current listing marker - highest z-index
+      // Current listing marker - home icon, highest z-index
+      const HOME_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
       const mainIcon = L.divIcon({
         className: '',
-        html: `<div style="background:white;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:#D85A30;box-shadow:0 2px 10px rgba(0,0,0,0.25);border:2px solid #D85A30;white-space:nowrap;font-family:Georgia,serif;position:relative;text-align:center;">£${price.toLocaleString()}${(listingType !== 'buy') ? '/mo' : ''}<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #D85A30;"></div></div>`,
-        iconSize: [130, 36],
-        iconAnchor: [65, 43],
+        html: `<div style="width:38px;height:38px;border-radius:50%;background:#D85A30;border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer;">${HOME_SVG}</div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
       })
-      L.marker([latitude, longitude], { icon: mainIcon, zIndexOffset: 2000 }).addTo(mapRef.current)
+      const mainMarker = L.marker([latitude, longitude], { icon: mainIcon, zIndexOffset: 2000 }).addTo(mapRef.current)
+      mainMarker.on('click', () => {
+        mapRef.current.flyTo([latitude, longitude], 17, { duration: 0.8 })
+      })
 
       // Nearby listings - above stations, below current
       // Cluster nearby listings with dual layers (dots at low zoom, bubbles at high zoom)
       const clusterOpts = {
         maxClusterRadius: 80,
         disableClusteringAtZoom: 19,
-        spiderfyOnMaxZoom: true,
-        spiderfyDistanceMultiplier: 2.5,
+        spiderfyOnMaxZoom: false,
         showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
+        zoomToBoundsOnClick: false,
         chunkedLoading: true,
         iconCreateFunction: (cluster: any) => {
           const count = cluster.getChildCount()
@@ -544,15 +547,35 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
           iconSize: [18, 18],
           iconAnchor: [9, 9],
         })
+        const greyDotIcon = L.divIcon({
+          className: '',
+          html: `<div style="width:18px;height:18px;border-radius:50%;background:#c8c7c2;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);cursor:pointer;"></div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        })
 
         const marker = L.marker([lat, lng], { icon: nearbyIcon, zIndexOffset: 1000 })
         marker.bindPopup(popupContent, { maxWidth: 300, closeButton: true, offset: [0, -10] })
         marker.on('popupopen', () => {
           markAsViewed(nearby.id)
           attachCarousel(marker.getPopup()?.getElement() || null, images)
-          marker.setIcon(dotIcon)
+          marker.setIcon(greyDotIcon)
         })
-        marker.on('popupclose', () => { marker.setIcon(nearbyIcon) })
+        marker.on('popupclose', () => {
+          // Restore as 'viewed' (grey) bubble
+          const viewedBubble = L.divIcon({
+            className: '',
+            html: `<div style="background:#c8c7c2;border-radius:99px;padding:4px 10px;font-size:11px;font-weight:600;color:#4a4a45;box-shadow:0 1px 6px rgba(0,0,0,0.15);border:1px solid rgba(0,0,0,0.12);white-space:nowrap;font-family:Georgia,serif;cursor:pointer;position:relative;text-align:center;">£${nearby.price.toLocaleString()}${(nearby.listing_type || listingType) !== 'buy' ? '/mo' : ''}<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #c8c7c2;"></div></div>`,
+            iconSize: [110, 32],
+            iconAnchor: [55, 37],
+          })
+          marker.setIcon(viewedBubble)
+        })
+        ;(marker as any)._listingId = nearby.id
+        ;(marker as any)._listingPrice = nearby.price
+        ;(marker as any)._listingAddress = nearby.address
+        ;(marker as any)._listingBeds = nearby.bedrooms
+        ;(marker as any)._listingPtype = nearby.property_type
         nearbyCluster.addLayer(marker)
 
         const dotMarker = L.marker([lat, lng], { icon: dotIcon, zIndexOffset: hasViewed ? 0 : 100 })
@@ -560,6 +583,44 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
         dotMarker.on('popupopen', () => { markAsViewed(nearby.id); attachCarousel(dotMarker.getPopup()?.getElement() || null, images) })
         nearbyDotsCluster.addLayer(dotMarker)
       })
+
+      function openNearbyListPopup(latlng: any, markers: any[]) {
+        const items = markers.map((m: any) => {
+          const id = m._listingId
+          const price = m._listingPrice
+          const address = m._listingAddress
+          const beds = m._listingBeds
+          const ptype = m._listingPtype
+          return `<a href="/listings/${id}" target="_blank" onclick="window.__markViewed && window.__markViewed('${id}')" style="display:block;padding:8px 10px;border-radius:6px;background:#fafaf8;margin-bottom:6px;text-decoration:none;color:#1a1a18;">
+            <div style="font-size:13px;font-weight:600;font-family:Georgia,serif;">£${price?.toLocaleString()}${listingType === 'rent' ? '<span style="font-size:11px;color:#9e9e99;font-weight:400;font-family:sans-serif;">/mo</span>' : ''}</div>
+            <div style="font-size:11px;color:#6b6b67;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${address}</div>
+            <div style="font-size:11px;color:#9e9e99;margin-top:2px;">${beds || '?'} bed · ${ptype || ''}</div>
+          </a>`
+        }).join('')
+        const html = `<div style="width:260px;font-family:sans-serif;max-height:340px;overflow-y:auto;">
+          <div style="font-size:11px;color:#9e9e99;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${markers.length} listings at this location</div>
+          ${items}
+        </div>`
+        L.popup({ maxWidth: 280, closeButton: true })
+          .setLatLng(latlng)
+          .setContent(html)
+          .openOn(mapRef.current)
+      }
+      const handleNearbyClusterClick = (e: any) => {
+        const childMarkers = e.layer.getAllChildMarkers()
+        const bounds = e.layer.getBounds()
+        const nw = mapRef.current.latLngToContainerPoint(bounds.getNorthWest())
+        const se = mapRef.current.latLngToContainerPoint(bounds.getSouthEast())
+        const pxSpan = Math.max(Math.abs(se.x - nw.x), Math.abs(se.y - nw.y))
+        const maxZoom = mapRef.current.getMaxZoom()
+        if (pxSpan < 30 && mapRef.current.getZoom() >= maxZoom - 1) {
+          openNearbyListPopup(e.latlng, childMarkers)
+        } else {
+          mapRef.current.flyToBounds(bounds, { padding: [40, 40] })
+        }
+      }
+      nearbyCluster.on('clusterclick', handleNearbyClusterClick)
+      nearbyDotsCluster.on('clusterclick', handleNearbyClusterClick)
 
       // Switch between dot layer and bubble layer based on zoom
       const BUBBLE_ZOOM = 14

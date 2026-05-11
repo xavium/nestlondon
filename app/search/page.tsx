@@ -336,6 +336,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         if (!/\bparking\b|\bgarage\b/.test(combined)) return false
       } else if (fl === 'bills included') {
         if (!/bills? included|bills? inc/.test(combined)) return false
+      } else if (fl === 'lift') {
+        // Require 'lift' to appear in key_features or photo_tags (structured signal),
+        // OR phrased as 'lift access' / 'with lift' / 'building lift' in description
+        const rd = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+        const kf = (rd?.key_features || []).join(' ').toLowerCase()
+        const pt = (rd?.photo_tags?.features || []).join(' ').toLowerCase()
+        const hasInStructured = /\b(lift|elevator)\b/.test(kf) || /\b(lift|elevator)\b/.test(pt)
+        const hasQualified = /\blift\s+access\b|\bwith\s+lift\b|\bbuilding\s+lift\b|\belevator\b/.test(combined)
+        if (!hasInStructured && !hasQualified) return false
       } else if (fl === 'recently refurbished') {
         if (!/refurb|renovated|newly decorated|recently updated|modernised/.test(combined)) return false
       } else if (fl === 'new build') {

@@ -378,7 +378,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     structuredDetails['Outside Space'] = 'No'
   } else {
     const _outsideTypes: string[] = []
-    if (/\bgardens?\b/.test(_combined) && !/no garden|without garden/.test(_combined)) _outsideTypes.push('Garden')
+    // Garden — require qualifier OR signal in structured fields. Avoid 'Hatton Garden' (location) etc.
+    const gardenStructured = _featuresLower.some((f: string) => /\bgardens?\b/.test(f)) || _photoTagsLower.some((f: string) => /\bgardens?\b/.test(f))
+    const gardenQualified = /\b(private|own|rear|south.facing|landscaped|communal)\s+gardens?\b/.test(_combined)
+    if ((gardenStructured || gardenQualified) && !/no garden|without garden/.test(_combined)) _outsideTypes.push('Garden')
     if (/\bbalcon(y|ies)\b/.test(_combined)) _outsideTypes.push('Balcony')
     if (/\bterrace\b/.test(_combined) && !/\bterraced\b/.test(_combined)) _outsideTypes.push('Terrace')
     if (/\bpatio\b/.test(_combined)) _outsideTypes.push('Patio')

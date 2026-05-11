@@ -19,7 +19,7 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   function switchView(v: 'grid' | 'map') {
     setView(v)
     if (typeof window !== 'undefined') {
-      const sp = new URLSearchParams(window.location.search)
+      const sp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
       if (v === 'map') sp.set('view', 'map')
       else sp.delete('view')
       window.history.replaceState(null, '', '/search?' + sp.toString())
@@ -78,7 +78,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   const [sortBy, setSortBy] = useState<'relevant' | 'newest' | 'price_asc' | 'price_desc' | 'nearest' | 'size_asc' | 'size_desc' | 'psqm_desc' | 'psqm_asc'>('relevant')
 
   useEffect(() => {
-    const sp = new URLSearchParams(window.location.search)
+    const sp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
     if (sp.get('view') === 'map') setView('map')
     const urlSort = sp.get('sort')
     if (urlSort) setSortBy(urlSort as any)
@@ -111,7 +111,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
 
     // nearby: allListings outside radius, with basic filter criteria applied
     const inRadiusIds = new Set(inRadius.map((l: any) => l.id))
-    const sp = new URLSearchParams(window.location.search)
+    const sp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
     const nbMinBeds = sp.get('minBeds') ? parseInt(sp.get('minBeds')!) : null
     const nbMaxBeds = sp.get('maxBeds') ? parseInt(sp.get('maxBeds')!) : null
     const nbMinPrice = sp.get('minPrice') ? parseInt(sp.get('minPrice')!) : null
@@ -334,7 +334,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
             onChange={e => {
               const v = e.target.value as any
               setSortBy(v)
-              const sp = new URLSearchParams(window.location.search)
+              const sp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
               if (v === 'relevant') sp.delete('sort'); else sp.set('sort', v)
               const qs = sp.toString()
               window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)

@@ -87,7 +87,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     { label: 'Outside space', options: ['Garden', 'Balcony', 'Terrace', 'Patio', 'Roof terrace'] },
     { label: 'Parking', options: ['Parking', 'Garage', 'Underground parking'] },
     { label: 'Character features', options: ['Fireplace', 'Bay windows', 'Sash windows', 'High ceilings', 'Period features', 'Exposed brick', 'Exposed beams', 'Parquet flooring', 'Wooden floors'] },
-    { label: 'Lifestyle', options: ['Pets allowed', 'Bills included', 'Concierge', 'Gym', 'Swimming pool'] },
+    { label: 'Lifestyle', options: ['Pets allowed', 'Bills included', 'Concierge', 'Lift', 'Gym', 'Swimming pool'] },
   ]
   const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed', 'No floorplan']
 

@@ -35,6 +35,8 @@ function extractFeatureTags(listing: any): {label: string, positive: boolean}[] 
   // Parking — only count it if it's a property feature (in key_features or photo_tags), not just a structured 'PARKING: On street' section.
   // The description-stripped 'desc' shouldn't catch the trailing PARKING section anyway, but we further require key_features signal for confidence.
   if (/\b(?:private|allocated|secure|own|underground|gated|off.street)\s+parking\b/.test(combined) || /\bgarage\b/.test(combined) || /\bparking\b/.test(keyFeatures)) tags.push({label: 'Parking', positive: true})
+  if (/\bconcierge\b/.test(keyFeatures) || /\bconcierge\b/.test(photoFeatures)) tags.push({label: 'Concierge', positive: true})
+  if (/\b(?:lift|elevator)\b/.test(keyFeatures)) tags.push({label: 'Lift', positive: true})
   if (combined.includes('bills included') || combined.includes('bills inc')) tags.push({label: 'Bills incl.', positive: true})
   if (combined.includes('pet')) tags.push({label: 'Pets OK', positive: true})
   if (combined.includes('top floor') || combined.includes('penthouse')) tags.push({label: 'Top floor', positive: true})
