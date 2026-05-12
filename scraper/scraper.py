@@ -54,6 +54,41 @@ def resolve_borough(lat, lng):
                 if _point_in_ring(lng_f, lat_f, polygon[0]):
                     return name
     return None
+
+_POSTCODE_POLYGONS = None
+def _load_postcode_polygons():
+    global _POSTCODE_POLYGONS
+    if _POSTCODE_POLYGONS is not None:
+        return _POSTCODE_POLYGONS
+    import json
+    from pathlib import Path
+    p = Path(__file__).parent.parent / 'public' / 'boundaries' / 'postcodes.json'
+    if not p.exists():
+        _POSTCODE_POLYGONS = []
+        return _POSTCODE_POLYGONS
+    _POSTCODE_POLYGONS = json.loads(p.read_text()).get('features', [])
+    return _POSTCODE_POLYGONS
+
+def resolve_postcode_district(lat, lng):
+    if lat is None or lng is None:
+        return None
+    try:
+        lat_f, lng_f = float(lat), float(lng)
+    except (TypeError, ValueError):
+        return None
+    for feature in _load_postcode_polygons():
+        name = feature['properties'].get('name')
+        geom = feature.get('geometry') or {}
+        gtype = geom.get('type')
+        coords = geom.get('coordinates') or []
+        if gtype == 'Polygon':
+            if _point_in_ring(lng_f, lat_f, coords[0]):
+                return name
+        elif gtype == 'MultiPolygon':
+            for polygon in coords:
+                if _point_in_ring(lng_f, lat_f, polygon[0]):
+                    return name
+    return None
 from playwright.async_api import async_playwright
 from supabase import create_client
 from dotenv import load_dotenv
@@ -584,6 +619,7 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
                 'listed_at': listing.get('listed_at'),
                 'longitude': listing.get('longitude'),
                 'borough': resolve_borough(listing.get('latitude'), listing.get('longitude')),
+                'postcode_district': resolve_postcode_district(listing.get('latitude'), listing.get('longitude')),
                 'images': json.dumps(images),
                 'is_active': True,
                 'is_direct': False,

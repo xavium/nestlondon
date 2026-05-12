@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SearchFilters, { type SearchFiltersHandle } from '@/components/SearchFilters'
 
+const LONDON_BOROUGHS = ['Barking and Dagenham','Barnet','Bexley','Brent','Bromley','Camden','City of London','Croydon','Ealing','Enfield','Greenwich','Hackney','Hammersmith and Fulham','Haringey','Harrow','Havering','Hillingdon','Hounslow','Islington','Kensington and Chelsea','Kingston upon Thames','Lambeth','Lewisham','Merton','Newham','Redbridge','Richmond upon Thames','Southwark','Sutton','Tower Hamlets','Waltham Forest','Wandsworth','Westminster']
+
 const SUGGESTIONS = [
   'Angel', 'Balham', 'Battersea', 'Bermondsey', 'Bethnal Green', 'Bow', 'Brixton',
   'Camden', 'Canary Wharf', 'Clapham', 'Clerkenwell', 'Dalston', 'Earls Court',
@@ -124,7 +126,13 @@ export default function NavSearchBar({
     const maxP = overrides.maxP !== undefined ? overrides.maxP : maxPrice
     if (loc) p.set('location', loc)
     if (r) p.set('radius', String(r))
-    else if (loc) p.set('radius', '0.25')
+    else if (loc) {
+      // Don't auto-set radius when the location is a London borough or postcode district,
+      // since those should be filtered by polygon match, not radius
+      const isBorough = LONDON_BOROUGHS.some((b: string) => b.toLowerCase() === loc.toLowerCase())
+      const isPostcode = /^[A-Z]{1,2}[0-9]{1,2}$/i.test(loc.trim())
+      if (!isBorough && !isPostcode) p.set('radius', '0.25')
+    }
     if (minB !== null) p.set('minBeds', String(minB))
     if (maxB !== null) p.set('maxBeds', String(maxB))
     if (minP) p.set('minPrice', String(minP))

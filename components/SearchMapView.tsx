@@ -22,13 +22,14 @@ interface Listing {
 interface Coords { lat: number, lng: number }
 
 
-export default function SearchMapView({ listings, radius, locationCoords, location, boroughMatch, listingType = "rent" }: {
+export default function SearchMapView({ listings, radius, locationCoords, location, boroughMatch, postcodeMatch, listingType = "rent" }: {
   listings: Listing[]
   listingType?: string
   radius?: number | null
   locationCoords?: Coords | null
   location?: string
   boroughMatch?: string | null
+  postcodeMatch?: string | null
 }) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -63,7 +64,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       await import('leaflet.markercluster/dist/MarkerCluster.css')
       await import('leaflet.markercluster/dist/MarkerCluster.Default.css')
       const viewed = getViewedListings()
-      const effectiveRadius = boroughMatch ? null : (radius ?? (locationCoords ? 0.25 : null))
+      const effectiveRadius = (boroughMatch || postcodeMatch) ? null : (radius ?? (locationCoords ? 0.25 : null))
       const filteredMapped = (effectiveRadius && locationCoords)
         ? mapped.filter(l => distanceMiles(locationCoords.lat, locationCoords.lng, Number(l.latitude), Number(l.longitude)) <= effectiveRadius)
         : mapped
@@ -262,9 +263,37 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
               interactive: false,
             })
             layer.addTo(mapRef.current)
-            mapRef.current.fitBounds(layer.getBounds(), { padding: [20, 20] })
+            mapRef.current.fitBounds(layer.getBounds(), { padding: [20, 20], maxZoom: 12 })
           }
         } catch (e) { console.error('failed to load borough polygon', e) }
+      }
+
+      // If searching by postcode district, render that polygon (or sub-district polygons)
+      if (postcodeMatch) {
+        try {
+          const res = await fetch('/boundaries/postcodes.json')
+          const data = await res.json()
+          const match = postcodeMatch.toUpperCase()
+          const subDistrictRegex = new RegExp('^' + match + '[A-Z]$')
+          const features = (data.features || []).filter((f: any) => {
+            const n = (f.properties?.name || '').toUpperCase()
+            return n === match || subDistrictRegex.test(n)
+          })
+          if (features.length > 0) {
+            const layer = L.geoJSON({ type: 'FeatureCollection', features } as any, {
+              style: {
+                color: '#D85A30',
+                weight: 2,
+                opacity: 0.7,
+                fillColor: '#D85A30',
+                fillOpacity: 0.08,
+              },
+              interactive: false,
+            })
+            layer.addTo(mapRef.current)
+            mapRef.current.fitBounds(layer.getBounds(), { padding: [20, 20], maxZoom: 12 })
+          }
+        } catch (e) { console.error('failed to load postcode polygon', e) }
       }
 
       const handleClusterClick = (e: any) => {
@@ -305,7 +334,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
         return { lat: lats.reduce((a: number, b: number) => a + b) / lats.length, lng: lngs.reduce((a: number, b: number) => a + b) / lngs.length }
       })() : null)
 
-      if (effectiveRadius && circleCentre && !boroughMatch) {
+      if (effectiveRadius && circleCentre && !boroughMatch && !postcodeMatch) {
         const radiusMetres = effectiveRadius * 1609.34
         L.circle([circleCentre.lat, circleCentre.lng], {
           radius: radiusMetres,
@@ -344,10 +373,12 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
       }
 
       // Fit to location or markers
-      if (!effectiveRadius && locationCoords) {
+      // Skip street-level zoom when polygon (borough or postcode) is being rendered;
+      // those have their own fitBounds set above.
+      if (!effectiveRadius && locationCoords && !boroughMatch && !postcodeMatch) {
         // Have a location but no radius - zoom to it at street level
         mapRef.current.setView([locationCoords.lat, locationCoords.lng], 15, { animate: false })
-      } else if (!effectiveRadius && filteredMapped.length > 0) {
+      } else if (!effectiveRadius && filteredMapped.length > 0 && !boroughMatch && !postcodeMatch) {
         const bounds = L.latLngBounds(filteredMapped.map((l: any) => [parseFloat(String(l.latitude)), parseFloat(String(l.longitude))] as [number, number]))
         mapRef.current.fitBounds(bounds, { padding: [40, 40], animate: false })
       }

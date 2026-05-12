@@ -9,6 +9,17 @@ import SearchFilters from '@/components/SearchFilters'
 import ListingCard from '@/components/ListingCard'
 import { SearchResults } from '@/components/SearchResults'
 
+// Load list of London postcode district names from boundaries data (server-side)
+import { readFileSync } from 'fs'
+import path from 'path'
+let LONDON_POSTCODE_DISTRICTS: string[] = []
+try {
+  const p = path.join(process.cwd(), 'public', 'boundaries', 'postcodes.json')
+  const data = JSON.parse(readFileSync(p, 'utf8'))
+  LONDON_POSTCODE_DISTRICTS = (data.features || []).map((f: any) => f.properties?.name).filter(Boolean)
+} catch {}
+
+
 interface SearchParams {
   location?: string
   type?: string
@@ -199,7 +210,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       const isPostcode = /^[A-Z]{1,2}[0-9]{1,2}$/i.test(loc)
       if (isPostcode) {
         postcodeMatch = loc.toUpperCase()
-        query = query.ilike('postcode', postcodeMatch + '%')
+        // For central London codes like SW1/EC1/WC1/W1, the postcode dataset uses
+        // letter sub-districts (SW1A, SW1E, ...). Expand the query to match them.
+        const subDistrictRegex = new RegExp('^' + postcodeMatch + '[A-Z]$')
+        const expanded = LONDON_POSTCODE_DISTRICTS.filter(d => d === postcodeMatch || subDistrictRegex.test(d))
+        if (expanded.length > 0) {
+          query = query.in('postcode_district', expanded)
+        } else {
+          // Fallback to exact match (returns nothing if no listings match)
+          query = query.eq('postcode_district', postcodeMatch)
+        }
       }
       // Otherwise no DB filter — fallback to JS radius below
     }
@@ -486,7 +506,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
+        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
         }
       </div>
     </main>
