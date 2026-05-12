@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import SearchMapView from '@/components/SearchMapView'
 
 interface SavedProperty {
   id: string
@@ -18,6 +19,11 @@ interface SavedProperty {
     borough: string | null
     images: string
     is_active: boolean
+    latitude: number | null
+    longitude: number | null
+    listing_type: string | null
+    description: string | null
+    raw_data: any
   } | null
 }
 
@@ -35,6 +41,7 @@ function getImg(images: string): string | null {
 
 export default function SavedPropertiesClient({ savedProperties }: { savedProperties: SavedProperty[] }) {
   const [props, setProps] = useState(savedProperties)
+  const [view, setView] = useState<'grid' | 'map'>('grid')
   const [folders, setFolders] = useState<Folder[]>([])
   const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = all
   const [newFolderName, setNewFolderName] = useState('')
@@ -219,8 +226,40 @@ export default function SavedPropertiesClient({ savedProperties }: { savedProper
         )}
       </div>
 
+      {/* View toggle */}
+      {displayed.length > 0 && (
+        <div className="flex justify-end mb-4">
+          <div className="inline-flex bg-white border border-[#E8E2DA] rounded-xl p-0.5">
+            <button onClick={() => setView('grid')} className={'px-4 py-1.5 rounded-lg text-sm transition-colors ' + (view === 'grid' ? 'bg-[#1B2E4B] text-white' : 'text-[#9B928E] hover:text-[#3D3A38]')}>
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" strokeWidth="1.5"/><rect x="13" y="4" width="7" height="7" strokeWidth="1.5"/><rect x="4" y="13" width="7" height="7" strokeWidth="1.5"/><rect x="13" y="13" width="7" height="7" strokeWidth="1.5"/></svg>
+                List
+              </span>
+            </button>
+            <button onClick={() => setView('map')} className={'px-4 py-1.5 rounded-lg text-sm transition-colors ' + (view === 'map' ? 'bg-[#1B2E4B] text-white' : 'text-[#9B928E] hover:text-[#3D3A38]')}>
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6z" strokeWidth="1.5"/><line x1="9" y1="4" x2="9" y2="20" strokeWidth="1.5"/><line x1="15" y1="6" x2="15" y2="22" strokeWidth="1.5"/></svg>
+                Map
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Map view */}
+      {view === 'map' && displayed.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#E8E2DA] overflow-hidden mb-6">
+          <SearchMapView
+            listings={displayed.filter(p => p.listings && p.listings.latitude && p.listings.longitude).map(p => p.listings as any)}
+            radius={null}
+            locationCoords={null}
+            listingType="rent"
+          />
+        </div>
+      )}
+
       {/* Property grid */}
-      {displayed.length === 0 ? (
+      {view === 'grid' && (displayed.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-[#E8E2DA]">
           <p className="text-sm text-[#9B928E]">No properties in this folder yet.</p>
           <button onClick={() => setActiveFolder(null)} className="text-xs text-[#D3755A] hover:underline mt-2">View all properties</button>
@@ -299,7 +338,7 @@ export default function SavedPropertiesClient({ savedProperties }: { savedProper
             )
           })}
         </div>
-      )}
+      ))}
     </div>
   )
 }
