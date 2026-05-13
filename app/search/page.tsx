@@ -287,13 +287,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       const layout = (rd?.letting_details?.Layout || '').toLowerCase()
       const combined = descLower + ' ' + layout
       if (floorLayout === 'Single level') {
-        if (!/single.level|single level/.test(combined) && !/(flat|apartment|studio)/.test(combined)) return false
-        if (/split.level|over two floors|maisonette|duplex/.test(combined)) return false
+        // Single level: must be flat/apartment/studio OR explicitly say 'single level', and must NOT mention multi-floor markers.
+        const isSingle = /\bsingle[- ]?level\b/.test(combined) || /\b(flat|apartment|studio)\b/.test(combined)
+        if (!isSingle) return false
+        if (/split[- ]?level|over (?:two|three) floors|maisonette|duplex|two[- ]?storey|three[- ]?storey/.test(combined)) return false
       } else if (floorLayout === 'Split-level') {
         if (!/split[- ]?level/.test(combined)) return false
-        if (!/split.level|split level/.test(combined)) return false
       } else if (floorLayout === 'Multiple floors') {
-        if (!/multiple floors|over two floors|over three floors|two.storey|three.storey|maisonette/.test(combined) && !/multiple floors/i.test(layout)) return false
+        if (!/multiple floors|over (?:two|three) floors|two[- ]?storey|three[- ]?storey|maisonette|duplex/.test(combined) && !/multiple floors/i.test(layout)) return false
       }
     }
 
@@ -323,25 +324,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       if (minPricePerSqm && ppsqm < minPricePerSqm) return false
       if (maxPricePerSqm && ppsqm > maxPricePerSqm) return false
     }
-    }
-
-    // Available from filter — match 'available now/immediately' or no specific future date mentioned
-    if (availableFrom) {
-      const af = new Date(availableFrom)
-      const today = new Date()
-      const isNow = af <= today
-      if (isNow) {
-        // Looking for immediate availability
-        if (!/available\s+now|available\s+immediately|available\s+from\s+(?:today|this week|asap)/i.test(combined)) return false
-      } else {
-        // Looking for available by a future date — match 'available now' or a date before/on availableFrom
-        const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december']
-        const afMonth = monthNames[af.getMonth()]
-        const afYear = af.getFullYear()
-        const hasNow = /available\s+now|available\s+immediately/i.test(combined)
-        const hasFutureDate = new RegExp(afMonth + '[\s\S]{0,20}' + afYear, 'i').test(combined)
-        if (!hasNow && !hasFutureDate) return false
-      }
     }
 
     // Available from filter — match 'available now/immediately' or no specific future date mentioned
