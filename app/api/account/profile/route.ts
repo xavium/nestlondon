@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { normalizeCommuteLocations } from '@/lib/commute'
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function PATCH(req: NextRequest) {
     const { data: { user } } = await authClient.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { name, phone, commute_address, commute_mode } = await req.json()
+    const { name, phone, commute_address, commute_mode, commute_locations } = await req.json()
 
     // Update auth user metadata via service role
     const adminClient = createClient(
@@ -24,6 +25,7 @@ export async function PATCH(req: NextRequest) {
     const updateMeta: any = { ...user.user_metadata, name, phone }
     if (commute_address !== undefined) updateMeta.commute_address = commute_address
     if (commute_mode !== undefined) updateMeta.commute_mode = commute_mode
+    if (commute_locations !== undefined) updateMeta.commute_locations = normalizeCommuteLocations(commute_locations)
 
     const { error } = await adminClient.auth.admin.updateUserById(user.id, {
       user_metadata: updateMeta

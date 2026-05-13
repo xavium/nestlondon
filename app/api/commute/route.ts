@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { normalizeCommuteLocations } from '@/lib/commute'
 
 // Resolve a postcode or 'lat,lng' string to coordinates using postcodes.io (no API key)
 async function resolveCoords(s: string): Promise<{ lat: number, lng: number } | null> {
@@ -59,47 +60,57 @@ export async function GET(req: NextRequest) {
     }
     const tflMode = TFL_MODE_MAP[mode] || TFL_MODE_MAP.public
 
-    const encodedFrom = encodeURIComponent(from)
-    const encodedTo = encodeURIComponent(to)
-    const tflUrl = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodedFrom}/to/${encodedTo}?mode=${tflMode}`
-
-    const res = await fetch(tflUrl, { next: { revalidate: 3600 } })
-    if (!res.ok) {
-      if (mode === 'walk' || mode === 'bike') {
-        const fallback = await estimateByDistance(from, to, mode)
-        if (fallback) return NextResponse.json(fallback)
+    // Compute one journey for a single destination. Pulled out so we can map it
+    // across multiple destinations when `to` is comma-separated.
+    async function computeOne(dest: string) {
+      const encodedFrom = encodeURIComponent(from!)
+      const encodedTo = encodeURIComponent(dest)
+      const tflUrl = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodedFrom}/to/${encodedTo}?mode=${tflMode}`
+      const r = await fetch(tflUrl, { next: { revalidate: 3600 } })
+      if (!r.ok) {
+        if (mode === 'walk' || mode === 'bike') {
+          const fb = await estimateByDistance(from!, dest, mode)
+          if (fb) return fb
+        }
+        return { duration: null, legs: [], modes: [], fare: null, error: 'TfL API error' as const }
       }
+      const data = await r.json()
+      const journeys = data.journeys || []
+      if (!journeys.length) {
+        if (mode === 'walk' || mode === 'bike') {
+          const fb = await estimateByDistance(from!, dest, mode)
+          if (fb) return fb
+        }
+        return { duration: null, legs: [], modes: [], fare: null }
+      }
+      const fastest = journeys.reduce((a: any, b: any) => a.duration < b.duration ? a : b)
+      const legs = fastest.legs.map((leg: any) => ({
+        mode: leg.mode?.name || 'walk',
+        duration: leg.duration,
+        summary: leg.instruction?.summary || '',
+      }))
+      const modes = [...new Set(legs.map((l: any) => l.mode).filter((m: string) => m !== 'walking'))]
+      return {
+        duration: fastest.duration,
+        legs,
+        modes,
+        fare: fastest.fare?.totalCost ? Math.round(fastest.fare.totalCost / 100) : null,
+      }
+    }
+
+    // Multi-destination: comma-separated `to=`. Returns { results: [...] } parallel to input order.
+    const destinations = to.split(',').map(s => s.trim()).filter(Boolean)
+    if (destinations.length > 1) {
+      const results = await Promise.all(destinations.map(computeOne))
+      return NextResponse.json({ results })
+    }
+
+    // Single destination: legacy shape (flat object) so existing callers don't break.
+    const single = await computeOne(destinations[0] || to)
+    if ((single as any).error === 'TfL API error') {
       return NextResponse.json({ error: 'TfL API error' }, { status: 502 })
     }
-
-    const data = await res.json()
-    const journeys = data.journeys || []
-
-    if (!journeys.length) {
-      if (mode === 'walk' || mode === 'bike') {
-        const fallback = await estimateByDistance(from, to, mode)
-        if (fallback) return NextResponse.json(fallback)
-      }
-      return NextResponse.json({ duration: null, legs: [] })
-    }
-
-    // Take fastest journey
-    const fastest = journeys.reduce((a: any, b: any) => a.duration < b.duration ? a : b)
-
-    const legs = fastest.legs.map((leg: any) => ({
-      mode: leg.mode?.name || 'walk',
-      duration: leg.duration,
-      summary: leg.instruction?.summary || '',
-    }))
-
-    const modes = [...new Set(legs.map((l: any) => l.mode).filter((m: string) => m !== 'walking'))]
-
-    return NextResponse.json({
-      duration: fastest.duration,
-      legs,
-      modes,
-      fare: fastest.fare?.totalCost ? Math.round(fastest.fare.totalCost / 100) : null,
-    })
+    return NextResponse.json(single)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -129,6 +140,9 @@ export async function POST(req: NextRequest) {
     const patch: Record<string, any> = { ...user.user_metadata }
     if (typeof commute_address !== 'undefined') patch.commute_address = commute_address
     if (typeof commute_mode !== 'undefined') patch.commute_mode = commute_mode
+    if (typeof body.commute_locations !== 'undefined') {
+      patch.commute_locations = normalizeCommuteLocations(body.commute_locations)
+    }
 
     await supabase.auth.admin.updateUserById(user.id, {
       user_metadata: patch,
