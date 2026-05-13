@@ -8,6 +8,7 @@ import NavAuthButton from '@/components/NavAuthButton'
 import SearchFilters from '@/components/SearchFilters'
 import ListingCard from '@/components/ListingCard'
 import { SearchResults } from '@/components/SearchResults'
+import { parseCommuteLocations, migrateLegacyCommute, type CommuteLocation } from '@/lib/commute'
 
 // Load list of London postcode district names from boundaries data (server-side)
 import { readFileSync } from 'fs'
@@ -40,6 +41,7 @@ interface SearchParams {
   commuteAddress?: string
   commuteMode?: string
   maxCommute?: string
+  commute?: string  // pipe/comma-encoded multi-location list: label|address|timeLimit|mode,...
   tenure?: string
   chainFree?: string
   newBuild?: string
@@ -82,7 +84,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   let commuteAddress = params.commuteAddress || null
   let commuteMode: string | null = params.commuteMode || null
   const maxCommute = params.maxCommute ? parseInt(params.maxCommute) : null
-  if (!commuteAddress || !commuteMode) {
+  // Multi-location commute: URL param wins; fall back to user_metadata.commute_locations,
+  // which itself falls back to the legacy singular commute_address via migrateLegacyCommute.
+  let commuteLocations: CommuteLocation[] = params.commute ? parseCommuteLocations(params.commute) : []
+  if (!commuteAddress || !commuteMode || commuteLocations.length === 0) {
     try {
       const cookieStore = await cookies()
       const supabaseAuth = createServerClient(
@@ -91,11 +96,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         { cookies: { getAll: () => cookieStore.getAll() } }
       )
       const { data: { user } } = await supabaseAuth.auth.getUser()
-      if (!commuteAddress && user?.user_metadata?.commute_address) {
-        commuteAddress = user.user_metadata.commute_address
-      }
-      if (!commuteMode && user?.user_metadata?.commute_mode) {
-        commuteMode = user.user_metadata.commute_mode
+      const meta = user?.user_metadata || {}
+      if (!commuteAddress && meta.commute_address) commuteAddress = meta.commute_address
+      if (!commuteMode && meta.commute_mode) commuteMode = meta.commute_mode
+      if (commuteLocations.length === 0) {
+        commuteLocations = migrateLegacyCommute(meta.commute_locations, meta.commute_address, meta.commute_mode)
       }
     } catch {}
   }
