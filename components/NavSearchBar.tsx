@@ -40,6 +40,7 @@ interface Props {
   availableFrom?: string | null
   style?: string | null
   commuteAddress?: string | null
+  commuteMode?: string | null
   maxCommute?: number | null
   tenure?: string | null
   chainFree?: boolean
@@ -66,6 +67,7 @@ export default function NavSearchBar({
   availableFrom = null,
   style = null,
   commuteAddress = null,
+  commuteMode = null,
   maxCommute = null,
   tenure = null,
   chainFree = false,
@@ -248,6 +250,7 @@ export default function NavSearchBar({
             style={style}
             commuteAddress={commuteAddress || ''}
             maxCommute={maxCommute}
+            commuteMode={commuteMode}
             tenure={tenure}
             chainFree={chainFree}
             newBuild={newBuild}

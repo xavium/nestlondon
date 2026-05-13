@@ -41,7 +41,7 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   )
 }
 
-export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, boroughMatch, postcodeMatch, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, listingType }: {
+export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, boroughMatch, postcodeMatch, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, commuteMode, listingType }: {
   filtered: any[]
   allListings: any[]
   allListingsForMap: any[]
@@ -56,6 +56,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   maxPrice?: number | null
   commuteAddress?: string | null
   maxCommute?: number | null
+  commuteMode?: string | null
   listingType?: string
 }) {
   const [view, setView] = useState<'grid' | 'map'>('grid')
@@ -268,7 +269,7 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
       .slice(0, 60)
     Promise.all(allToCheck.map(async (l: any) => {
       const from = l.postcode ? l.postcode.replace(/\s/g, '') : `${l.latitude},${l.longitude}`
-      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(commuteAddress!)}`)
+      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(commuteAddress!)}&mode=${encodeURIComponent(commuteMode || 'public')}`)
       const d = await res.json()
       return { id: l.id, duration: d.duration }
     })).then(results => {

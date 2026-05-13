@@ -38,6 +38,7 @@ interface SearchParams {
   floorLayout?: string
   style?: string
   commuteAddress?: string
+  commuteMode?: string
   maxCommute?: string
   tenure?: string
   chainFree?: string
@@ -79,8 +80,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const nestOnly = params.nestOnly === '1'
   // Get saved commute address from user profile if not in URL
   let commuteAddress = params.commuteAddress || null
+  let commuteMode: string | null = params.commuteMode || null
   const maxCommute = params.maxCommute ? parseInt(params.maxCommute) : null
-  if (!commuteAddress) {
+  if (!commuteAddress || !commuteMode) {
     try {
       const cookieStore = await cookies()
       const supabaseAuth = createServerClient(
@@ -89,8 +91,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         { cookies: { getAll: () => cookieStore.getAll() } }
       )
       const { data: { user } } = await supabaseAuth.auth.getUser()
-      if (user?.user_metadata?.commute_address) {
+      if (!commuteAddress && user?.user_metadata?.commute_address) {
         commuteAddress = user.user_metadata.commute_address
+      }
+      if (!commuteMode && user?.user_metadata?.commute_mode) {
+        commuteMode = user.user_metadata.commute_mode
       }
     } catch {}
   }
@@ -492,6 +497,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               style={style}
               commuteAddress={commuteAddress}
               maxCommute={maxCommute}
+              commuteMode={commuteMode}
               tenure={tenure}
               chainFree={chainFree}
               newBuild={newBuild}
@@ -506,7 +512,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} listingType={listingType} />
+        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} commuteMode={commuteMode} listingType={listingType} />
         }
       </div>
     </main>

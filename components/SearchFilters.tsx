@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-import { MapPin } from 'lucide-react'
+import { MapPin, Bus, Footprints, Bike } from 'lucide-react'
 interface Props {
   location: string
   listingType: string
@@ -21,6 +21,7 @@ interface Props {
   onApply?: (params: URLSearchParams) => void
   commuteAddress?: string
   maxCommute?: number | null
+  commuteMode?: string | null
   tenure?: string | null
   chainFree?: boolean
   newBuild?: boolean
@@ -62,6 +63,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
   const [floorLayouts, setFloorLayouts] = useState<string[]>(sp.get('floorLayout') ? sp.get('floorLayout')!.split(',') : [])
   const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
   const [commuteAddress, setCommuteAddress] = useState<string>(sp.get('commuteAddress') || props.commuteAddress || '')
+  const [commuteMode, setCommuteMode] = useState<string | null>(sp.get('commuteMode') || props.commuteMode || null);
   const [maxCommute, setMaxCommute] = useState<number | null>(sp.get('maxCommute') ? parseInt(sp.get('maxCommute')!) : (props.maxCommute || null))
   const [editingCommute, setEditingCommute] = useState(false)
   const [commuteDraft, setCommuteDraft] = useState(sp.get('commuteAddress') || props.commuteAddress || '')
@@ -122,6 +124,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     if (maxBaths) p.set('maxBaths', String(maxBaths))
     if (floorLayouts.length > 0) p.set('floorLayout', floorLayouts.join(','))
     if (commuteAddress && maxCommute) { p.set('commuteAddress', commuteAddress); p.set('maxCommute', String(maxCommute)) }
+    if (commuteMode) p.set('commuteMode', commuteMode)
     if (tenures.length > 0) p.set('tenure', tenures.join(','))
     if (chainFree) p.set('chainFree', 'true')
     if (newBuild) p.set('newBuild', 'true')
@@ -153,7 +156,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     router.push('/search?' + p.toString())
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (maxCommute ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (commuteAddress ? 1 : 0) + (maxCommute ? 1 : 0) + (commuteMode ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -405,7 +408,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
                   fetch('/api/commute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ commute_address: commuteDraft })
+                    body: JSON.stringify({ commute_address: commuteDraft, commute_mode: commuteMode })
                   }).catch(() => {})
                 }}
                   className="px-3 py-1.5 rounded-xl text-white text-xs flex-shrink-0"
@@ -414,6 +417,27 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
                 </button>
               </div>
             )}
+            <div className="text-xs text-[#9B928E] mb-1.5">Travel mode</div>
+            <div className="flex items-center gap-1.5 mb-3">
+              {[
+                { v: 'public', label: 'Public', Icon: Bus },
+                { v: 'walk', label: 'Walk', Icon: Footprints },
+                { v: 'bike', label: 'Bike', Icon: Bike },
+              ].map(({ v, label, Icon }) => (
+                <button key={v} type="button" onClick={() => {
+                  // Toggle: clicking active deselects
+                  const next = commuteMode === v ? null : v
+                  setCommuteMode(next)
+                  if (commuteAddress) {
+                    fetch('/api/commute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commute_mode: next }) }).catch(() => {})
+                  }
+                }}
+                  className={'flex-1 px-2 py-1.5 rounded-lg text-xs inline-flex items-center justify-center gap-1.5 transition-colors ' + (commuteMode === v ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
+                  <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-[#9B928E]">Max commute time</span>
               <span className="text-xs font-semibold text-[#1B2E4B]">{maxCommute ? maxCommute + ' mins' : 'Any'}</span>

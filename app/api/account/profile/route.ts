@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest) {
     const { data: { user } } = await authClient.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { name, phone, commute_address } = await req.json()
+    const { name, phone, commute_address, commute_mode } = await req.json()
 
     // Update auth user metadata via service role
     const adminClient = createClient(
@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest) {
     )
     const updateMeta: any = { ...user.user_metadata, name, phone }
     if (commute_address !== undefined) updateMeta.commute_address = commute_address
+    if (commute_mode !== undefined) updateMeta.commute_mode = commute_mode
 
     const { error } = await adminClient.auth.admin.updateUserById(user.id, {
       user_metadata: updateMeta

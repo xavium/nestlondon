@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Bus, Footprints, Bike } from 'lucide-react'
 
 interface CommuteResult {
   duration: number | null
@@ -14,12 +15,14 @@ export default function CommuteWidget({
   listingLat,
   listingLng,
   initialCommuteAddress,
+  initialCommuteMode,
   onSaveAddress,
 }: {
   listingPostcode?: string | null
   listingLat?: number | null
   listingLng?: number | null
   initialCommuteAddress?: string | null
+  initialCommuteMode?: string | null
   onSaveAddress?: (address: string) => void
 }) {
   const [commuteAddress, setCommuteAddress] = useState(initialCommuteAddress || '')
@@ -28,6 +31,13 @@ export default function CommuteWidget({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [commuteMode, setCommuteMode] = useState<string>(initialCommuteMode || 'public')
+
+  // Recalc when mode changes (if we already have a destination)
+  useEffect(() => {
+    if (commuteAddress) calculate(commuteAddress)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commuteMode])
 
   // Auto-calculate if we already have a commute address
   useEffect(() => {
@@ -63,7 +73,7 @@ export default function CommuteWidget({
     setResult(null)
 
     try {
-      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&mode=${encodeURIComponent(commuteMode)}`)
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setResult(data)
@@ -122,6 +132,20 @@ export default function CommuteWidget({
         >
           {loading ? '...' : 'Go'}
         </button>
+      </div>
+
+      <div className="flex items-center gap-1.5 mb-3">
+        {[
+          { v: 'public', label: 'Public', Icon: Bus },
+          { v: 'walk', label: 'Walk', Icon: Footprints },
+          { v: 'bike', label: 'Bike', Icon: Bike },
+        ].map(({ v, label, Icon }) => (
+          <button key={v} type="button" onClick={() => setCommuteMode(v)}
+            className={'flex-1 px-2 py-1.5 rounded-lg text-xs inline-flex items-center justify-center gap-1.5 transition-colors ' + (commuteMode === v ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
+            <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+            {label}
+          </button>
+        ))}
       </div>
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}

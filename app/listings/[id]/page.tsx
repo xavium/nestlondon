@@ -40,6 +40,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const navRadius = navSp.get('radius') ? parseInt(navSp.get('radius')!) : null
   const navAddedWithin = navSp.get('addedWithin') ? parseInt(navSp.get('addedWithin')!) : null
   const navAvailableFrom = navSp.get('availableFrom') || null
+  const navCommuteAddress = navSp.get('commuteAddress') || null
+  const navMaxCommute = navSp.get('maxCommute') ? parseInt(navSp.get('maxCommute')!) : null
+  const navCommuteMode = navSp.get('commuteMode') || null
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,6 +69,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
+  const commuteMode = currentUser?.user_metadata?.commute_mode || null
 
   // Ownership check (matches dashboards' logic)
   const listingRawData = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
@@ -410,7 +414,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               features={navFeatures}
               addedWithin={navAddedWithin}
               availableFrom={navAvailableFrom}
-              commuteAddress={commuteAddress}
+              commuteAddress={navCommuteAddress || commuteAddress}
+              maxCommute={navMaxCommute}
+              commuteMode={navCommuteMode || commuteMode}
             />
           </div>
           <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline mr-2">Borough guides</Link>
@@ -566,6 +572,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               listingLat={listing.latitude ? parseFloat(String(listing.latitude)) : null}
               listingLng={listing.longitude ? parseFloat(String(listing.longitude)) : null}
               initialCommuteAddress={commuteAddress}
+              initialCommuteMode={commuteMode}
             />
 
             {(() => {
