@@ -22,6 +22,7 @@ import CommuteWidget from '@/components/CommuteWidget'
 import BuyListingPanel from '@/components/BuyListingPanel'
 import BoroughGuideInline from '@/components/BoroughGuideInline'
 import { getBoroughByPostcode } from '@/data/boroughGuides'
+import { parseCommuteLocations, migrateLegacyCommute, type CommuteLocation } from '@/lib/commute'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -43,6 +44,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const navCommuteAddress = navSp.get('commuteAddress') || null
   const navMaxCommute = navSp.get('maxCommute') ? parseInt(navSp.get('maxCommute')!) : null
   const navCommuteMode = navSp.get('commuteMode') || null
+  const navCommuteLocations: CommuteLocation[] = parseCommuteLocations(navSp.get('commute'))
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,6 +72,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
   const commuteMode = currentUser?.user_metadata?.commute_mode || null
+  // Multi-location commute. URL (from clicked search) wins; otherwise migrate from user metadata
+  // (which may itself be the legacy singular commute_address surfaced as a virtual location).
+  const commuteLocations: CommuteLocation[] = navCommuteLocations.length > 0
+    ? navCommuteLocations
+    : migrateLegacyCommute(currentUser?.user_metadata?.commute_locations, commuteAddress, commuteMode)
 
   // Ownership check (matches dashboards' logic)
   const listingRawData = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
@@ -417,6 +424,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               commuteAddress={navCommuteAddress || commuteAddress}
               maxCommute={navMaxCommute}
               commuteMode={navCommuteMode || commuteMode}
+              commuteLocations={commuteLocations}
             />
           </div>
           <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline mr-2">Borough guides</Link>
@@ -573,6 +581,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               listingLng={listing.longitude ? parseFloat(String(listing.longitude)) : null}
               initialCommuteAddress={commuteAddress}
               initialCommuteMode={commuteMode}
+              initialCommuteLocations={commuteLocations}
             />
 
             {(() => {

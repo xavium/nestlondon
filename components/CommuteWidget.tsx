@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Bus, Footprints, Bike } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Bus, Footprints, Bike, Plus, X, MapPin } from 'lucide-react'
+import {
+  type CommuteLocation, type CommuteMode,
+  MAX_COMMUTE_LOCATIONS, newLocationId, migrateLegacyCommute,
+} from '@/lib/commute'
 
 interface CommuteResult {
   duration: number | null
@@ -10,97 +14,146 @@ interface CommuteResult {
   legs: { mode: string; duration: number; summary: string }[]
 }
 
+// Per-row state held in the widget: the location plus its computed result and load flag.
+interface RowState extends CommuteLocation {
+  result?: CommuteResult | null
+  loading?: boolean
+  error?: string | null
+}
+
 export default function CommuteWidget({
   listingPostcode,
   listingLat,
   listingLng,
   initialCommuteAddress,
   initialCommuteMode,
-  onSaveAddress,
+  initialCommuteLocations,
 }: {
   listingPostcode?: string | null
   listingLat?: number | null
   listingLng?: number | null
   initialCommuteAddress?: string | null
   initialCommuteMode?: string | null
-  onSaveAddress?: (address: string) => void
+  initialCommuteLocations?: CommuteLocation[]
 }) {
-  const [commuteAddress, setCommuteAddress] = useState(initialCommuteAddress || '')
-  const [input, setInput] = useState(initialCommuteAddress || '')
-  const [result, setResult] = useState<CommuteResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-  const [commuteMode, setCommuteMode] = useState<string>(initialCommuteMode || 'public')
+  // Seed from props. The parent (listing page) resolves URL → metadata → legacy migration before passing in.
+  const seed = (initialCommuteLocations && initialCommuteLocations.length > 0)
+    ? initialCommuteLocations
+    : migrateLegacyCommute(undefined, initialCommuteAddress, initialCommuteMode)
 
-  // Recalc when mode changes (if we already have a destination)
-  useEffect(() => {
-    if (commuteAddress) calculate(commuteAddress)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commuteMode])
+  const [rows, setRows] = useState<RowState[]>(seed)
+  const [globalMode, setGlobalMode] = useState<CommuteMode>(
+    (initialCommuteMode === 'public' || initialCommuteMode === 'walk' || initialCommuteMode === 'bike') ? initialCommuteMode : 'public'
+  )
 
-  // Auto-calculate if we already have a commute address
+  // Refresh from /api/commute/saved on mount in case metadata changed elsewhere (e.g. user
+  // added a location from the search filters panel and then navigated to a listing).
+  // Skip if we already have rows passed in via props.
+  const didFetchSaved = useRef(false)
   useEffect(() => {
-    // Fetch latest saved commute address from profile
+    if (didFetchSaved.current) return
+    didFetchSaved.current = true
+    if (rows.length > 0) return
     fetch('/api/commute/saved')
       .then(r => r.json())
       .then(d => {
-        const addr = d.commute_address || initialCommuteAddress || ''
-        setInput(addr)
-        if (addr && (listingPostcode || (listingLat && listingLng))) {
-          calculate(addr)
+        if (Array.isArray(d.commute_locations) && d.commute_locations.length > 0) {
+          setRows(d.commute_locations)
+        }
+        if (d.commute_mode === 'public' || d.commute_mode === 'walk' || d.commute_mode === 'bike') {
+          setGlobalMode(d.commute_mode)
         }
       })
-      .catch(() => {
-        if (initialCommuteAddress && (listingPostcode || (listingLat && listingLng))) {
-          calculate(initialCommuteAddress)
-        }
-      })
+      .catch(() => {})
   }, [])
 
-  async function calculate(to: string) {
-    const from = listingPostcode
-      ? listingPostcode.replace(/\s/g, '')
-      : listingLat && listingLng
-        ? `${listingLat},${listingLng}`
-        : null
+  const fromCoord = listingPostcode
+    ? listingPostcode.replace(/\s/g, '')
+    : (listingLat && listingLng) ? `${listingLat},${listingLng}` : null
 
-    if (!from) { setError('Listing location not available'); return }
-    if (!to.trim()) { setError('Please enter a destination'); return }
-
-    setLoading(true)
-    setError(null)
-    setResult(null)
-
-    try {
-      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&mode=${encodeURIComponent(commuteMode)}`)
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setResult(data)
-      setCommuteAddress(to)
-    } catch (e: any) {
-      setError('Could not calculate commute. Try a postcode or station name.')
-    } finally {
-      setLoading(false)
-    }
+  // Calculate one row.
+  async function calculateRow(row: RowState): Promise<CommuteResult | null> {
+    if (!fromCoord || !row.address.trim()) return null
+    const mode = row.mode || globalMode
+    const res = await fetch(`/api/commute?from=${encodeURIComponent(fromCoord)}&to=${encodeURIComponent(row.address)}&mode=${encodeURIComponent(mode)}`)
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+    return data
   }
 
-  async function saveAddress() {
-    await fetch('/api/commute', {
+  // Refresh all results when rows or globalMode change. Only fetches for addressed rows.
+  useEffect(() => {
+    if (!fromCoord) return
+    let cancelled = false
+    rows.forEach(async (row, idx) => {
+      if (!row.address.trim()) return
+      if (row.result !== undefined && !row.loading) {
+        // If address didn't change and we have a result already, leave it alone.
+        // Detected via the dependency below; this is only for safety.
+      }
+      try {
+        setRows(prev => prev.map((r, i) => i === idx ? { ...r, loading: true, error: null } : r))
+        const result = await calculateRow(row)
+        if (cancelled) return
+        setRows(prev => prev.map((r, i) => i === idx ? { ...r, result, loading: false } : r))
+      } catch {
+        if (cancelled) return
+        setRows(prev => prev.map((r, i) => i === idx ? { ...r, loading: false, error: 'Could not calculate' } : r))
+      }
+    })
+    return () => { cancelled = true }
+    // Trigger when address or mode of any row changes, or global mode changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromCoord, globalMode, rows.map(r => r.id + '|' + r.address + '|' + (r.mode || '')).join(',')])
+
+  // Persist locations to user metadata. Debounced via a ref to avoid spamming PATCHes while typing.
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function persistRows(next: RowState[]) {
+    if (persistTimer.current) clearTimeout(persistTimer.current)
+    persistTimer.current = setTimeout(() => {
+      const payload = next.map(r => ({
+        id: r.id, address: r.address, label: r.label, timeLimit: r.timeLimit, mode: r.mode,
+      }))
+      fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commute_locations: payload }),
+      }).catch(() => {})
+    }, 600)
+  }
+
+  function addRow() {
+    if (rows.length >= MAX_COMMUTE_LOCATIONS) return
+    const next: RowState[] = [...rows, {
+      id: newLocationId(), label: '', address: '', timeLimit: null, mode: undefined,
+    }]
+    setRows(next)
+    // Don't persist empty row yet — wait for address.
+  }
+  function updateRow(id: string, patch: Partial<CommuteLocation>) {
+    const next = rows.map(r => r.id === id ? { ...r, ...patch, result: 'address' in patch || 'mode' in patch ? undefined : r.result } : r)
+    setRows(next)
+    if (next.find(r => r.id === id)?.address.trim()) persistRows(next)
+  }
+  function removeRow(id: string) {
+    const next = rows.filter(r => r.id !== id)
+    setRows(next)
+    persistRows(next)
+  }
+  function setMode(m: CommuteMode) {
+    setGlobalMode(m)
+    // Persist global mode separately — it's its own user metadata field.
+    fetch('/api/commute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commute_address: commuteAddress })
-    })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-    onSaveAddress?.(commuteAddress)
+      body: JSON.stringify({ commute_mode: m }),
+    }).catch(() => {})
   }
 
-  const durationLabel = result?.duration
-    ? result.duration < 60
-      ? `${result.duration} mins`
-      : `${Math.floor(result.duration / 60)}h ${result.duration % 60}m`
-    : null
+  function fmtDuration(mins: number | null | undefined): string | null {
+    if (mins == null) return null
+    return mins < 60 ? `${mins} mins` : `${Math.floor(mins / 60)}h ${mins % 60}m`
+  }
 
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-2xl p-5">
@@ -110,109 +163,107 @@ export default function CommuteWidget({
             <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <div>
-          <div className="text-sm font-semibold text-[#1B2E4B]">Commute time</div>
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-[#1B2E4B]">Commute times</div>
           <div className="text-xs text-[#9B928E]">Powered by TfL</div>
         </div>
+        <span className="text-[10px] text-[#9B928E]">{rows.length}/{MAX_COMMUTE_LOCATIONS}</span>
       </div>
 
-      <div className="flex gap-2 mb-3">
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && calculate(input)}
-          placeholder="Work postcode or station (e.g. EC1A 1BB)"
-          className="flex-1 border border-[#E8E2DA] rounded-xl px-3 py-2 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] transition-colors bg-white"
-        />
-        <button
-          onClick={() => calculate(input)}
-          disabled={loading || !input.trim()}
-          className="px-4 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90 flex-shrink-0"
-          style={{background:'#D3755A'}}
-        >
-          {loading ? '...' : 'Go'}
-        </button>
-      </div>
-
-      <div className="flex items-center gap-1.5 mb-3">
+      {/* Global default mode */}
+      <div className="text-xs text-[#9B928E] mb-1.5">Default travel mode</div>
+      <div className="flex items-center gap-1.5 mb-4">
         {[
-          { v: 'public', label: 'Public', Icon: Bus },
-          { v: 'walk', label: 'Walk', Icon: Footprints },
-          { v: 'bike', label: 'Bike', Icon: Bike },
+          { v: 'public' as const, label: 'Public', Icon: Bus },
+          { v: 'walk' as const, label: 'Walk', Icon: Footprints },
+          { v: 'bike' as const, label: 'Bike', Icon: Bike },
         ].map(({ v, label, Icon }) => (
-          <button key={v} type="button" onClick={() => setCommuteMode(v)}
-            className={'flex-1 px-2 py-1.5 rounded-lg text-xs inline-flex items-center justify-center gap-1.5 transition-colors ' + (commuteMode === v ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
+          <button key={v} type="button" onClick={() => setMode(v)}
+            className={'flex-1 px-2 py-1.5 rounded-lg text-xs inline-flex items-center justify-center gap-1.5 transition-colors ' + (globalMode === v ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
             <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
             {label}
           </button>
         ))}
       </div>
 
-      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+      {/* Empty state */}
+      {rows.length === 0 && (
+        <p className="text-xs text-[#9B928E] mb-3">Add up to {MAX_COMMUTE_LOCATIONS} places you commute to. Times update as you type.</p>
+      )}
 
-      {result && durationLabel && (
-        <div>
-          <div className="bg-[#F5EBE0] rounded-xl p-4 mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <div className="text-2xl font-light text-[#1B2E4B]">{durationLabel}</div>
-                <div className="text-xs text-[#9B928E]">to {commuteAddress}</div>
+      {/* Rows */}
+      <div className="flex flex-col gap-3 mb-3">
+        {rows.map((row, idx) => {
+          const effectiveMode = row.mode || globalMode
+          const durationLabel = fmtDuration(row.result?.duration)
+          return (
+            <div key={row.id} className="border border-[#E8E2DA] rounded-xl p-3 bg-[#FAFAF8]">
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  value={row.label}
+                  onChange={e => updateRow(row.id, { label: e.target.value })}
+                  placeholder={`Location ${idx + 1} (e.g. Work)`}
+                  maxLength={40}
+                  className="flex-1 border border-[#E8E2DA] rounded-lg px-2.5 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
+                />
+                <button type="button" onClick={() => removeRow(row.id)}
+                  className="text-[#9B928E] hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                  aria-label="Remove location">
+                  <X className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
               </div>
-              <div className="flex gap-1.5">
-                {result.modes.slice(0, 3).map((m, i) => (
-                  <span key={i} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-white text-[#1B2E4B] border border-[#E8E2DA] capitalize">
-                    {m.includes('tube') || m.includes('elizabeth') || m.includes('dlr') || m.includes('overground') ? (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="2" strokeWidth="1.5"/><path d="M7 8V6a2 2 0 012-2h6a2 2 0 012 2v2" strokeWidth="1.5" strokeLinecap="round"/><circle cx="7.5" cy="15" r="1" fill="currentColor"/><circle cx="16.5" cy="15" r="1" fill="currentColor"/></svg>
-                    ) : m.includes('bus') ? (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" strokeWidth="1.5"/><path d="M3 10h18M8 19v2M16 19v2" strokeWidth="1.5" strokeLinecap="round"/><circle cx="7.5" cy="15" r="1" fill="currentColor"/><circle cx="16.5" cy="15" r="1" fill="currentColor"/></svg>
-                    ) : m.includes('national-rail') || m.includes('tram') ? (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 17l2 2h12l2-2V8a2 2 0 00-2-2H6a2 2 0 00-2 2v9z" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 19l-2 2M15 19l2 2M4 12h16" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                    ) : (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                    )}
-                    {m.replace(/-/g, ' ')}
-                  </span>
+              <input
+                type="text"
+                value={row.address}
+                onChange={e => updateRow(row.id, { address: e.target.value })}
+                placeholder="Postcode or station (e.g. EC1A 1BB)"
+                className="w-full border border-[#E8E2DA] rounded-lg px-2.5 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-2"
+              />
+
+              {/* Per-row mode override */}
+              <div className="flex items-center gap-1 mb-2">
+                <button type="button" onClick={() => updateRow(row.id, { mode: undefined })}
+                  className={'flex-1 px-1.5 py-1 rounded-md text-[10px] transition-colors ' + (row.mode === undefined ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#9B928E] hover:bg-[#F5EBE0]')}>
+                  Default
+                </button>
+                {(['public', 'walk', 'bike'] as const).map(m => (
+                  <button key={m} type="button" onClick={() => updateRow(row.id, { mode: m })}
+                    className={'flex-1 px-1.5 py-1 rounded-md text-[10px] capitalize transition-colors ' + (row.mode === m ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
+                    {m}
+                  </button>
                 ))}
               </div>
+
+              {/* Result line — shows duration or status */}
+              {row.address.trim() ? (
+                <div className="bg-[#F5EBE0] rounded-lg px-3 py-2 flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-[#D3755A] flex-shrink-0" strokeWidth={1.75} />
+                  <span className="text-xs text-[#1B2E4B] flex-1 min-w-0 truncate">
+                    {row.loading
+                      ? 'Calculating…'
+                      : row.error
+                        ? row.error
+                        : durationLabel
+                          ? <>{durationLabel} <span className="text-[#9B928E]">via {effectiveMode}</span></>
+                          : 'No route found'}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-[10px] text-[#9B928E] italic">Enter an address to see commute time.</div>
+              )}
             </div>
-            {result.fare !== null && (
-              <div className="text-xs text-[#9B928E]">~£{result.fare} fare (off-peak)</div>
-            )}
-          </div>
+          )
+        })}
+      </div>
 
-          {/* Leg breakdown */}
-          <div className="flex flex-col gap-1.5 mb-3">
-            {result.legs.map((leg, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs text-[#3D3A38]">
-                <span className="flex items-center gap-1 text-xs text-[#9B928E] capitalize w-20 flex-shrink-0">
-                {leg.mode === 'walking' ? (
-                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 4a1 1 0 11-2 0 1 1 0 012 0zM7 20l2-6m4 6l1-4-3-2 1-5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                ) : leg.mode.includes('bus') ? (
-                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" strokeWidth="1.5"/><path d="M3 10h18M8 19v2M16 19v2" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                ) : (
-                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="2" strokeWidth="1.5"/><path d="M7 8V6a2 2 0 012-2h6a2 2 0 012 2v2" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                )}
-                {leg.mode.replace(/-/g, ' ')}
-              </span>
-                <span className="flex-1 truncate text-[#9B928E]">{leg.summary || leg.mode}</span>
-                <span className="font-medium flex-shrink-0">{leg.duration} min</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Save address */}
-          {commuteAddress !== initialCommuteAddress && (
-            <button onClick={saveAddress}
-              className="w-full py-2 rounded-xl border border-[#E8E2DA] text-xs text-[#3D3A38] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors">
-              {saved ? '✓ Saved to your profile' : 'Save this as my commute address'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {result?.duration === null && !loading && !error && (
-        <p className="text-xs text-[#9B928E]">No route found. Try a different postcode or station.</p>
-      )}
+      {/* Add button */}
+      <button type="button" onClick={addRow}
+        disabled={rows.length >= MAX_COMMUTE_LOCATIONS}
+        className="w-full px-3 py-2 rounded-xl border border-dashed border-[#E8E2DA] text-xs text-[#9B928E] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+        <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+        {rows.length === 0 ? 'Add a commute location' : rows.length >= MAX_COMMUTE_LOCATIONS ? `Maximum ${MAX_COMMUTE_LOCATIONS} locations` : 'Add another location'}
+      </button>
     </div>
   )
 }
