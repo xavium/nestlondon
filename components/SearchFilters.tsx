@@ -85,7 +85,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
   function addCommuteLocation() {
     if (commuteLocations.length >= MAX_COMMUTE_LOCATIONS) return
     setCommuteLocations(prev => [...prev, {
-      id: newLocationId(), label: '', address: '', timeLimit: null, mode: undefined,
+      id: newLocationId(), label: '', address: '', timeLimit: null, mode: 'public',
     }])
   }
   function updateCommuteLocation(id: string, patch: Partial<CommuteLocation>) {
@@ -420,27 +420,6 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
               <span className="text-[10px] text-[#9B928E]">{commuteLocations.length}/{MAX_COMMUTE_LOCATIONS} locations</span>
             </div>
 
-            {/* Default travel mode — applies to any location without its own override. */}
-            <div className="text-xs text-[#9B928E] mb-1.5">Default travel mode</div>
-            <div className="flex items-center gap-1.5 mb-4">
-              {[
-                { v: 'public' as const, label: 'Public', Icon: Bus },
-                { v: 'walk' as const, label: 'Walk', Icon: Footprints },
-                { v: 'bike' as const, label: 'Bike', Icon: Bike },
-              ].map(({ v, label, Icon }) => (
-                <button key={v} type="button" onClick={() => {
-                  const next = commuteMode === v ? null : v
-                  setCommuteMode(next)
-                  // Persist default mode to user metadata so it sticks across sessions.
-                  fetch('/api/commute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commute_mode: next }) }).catch(() => {})
-                }}
-                  className={'flex-1 px-2 py-1.5 rounded-lg text-xs inline-flex items-center justify-center gap-1.5 transition-colors ' + (commuteMode === v ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
-                  <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {/* Per-location rows */}
             {commuteLocations.length === 0 && (
               <p className="text-xs text-[#9B928E] mb-3">Add up to {MAX_COMMUTE_LOCATIONS} places you commute to — work, family, gym. Listings must meet every time limit.</p>
@@ -472,18 +451,22 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
                     className="w-full border border-[#E8E2DA] rounded-lg px-2.5 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-2"
                   />
 
-                  {/* Per-location mode override. 'Use default' means no override (mode === undefined). */}
+                  {/* Per-location mode. Defaults to 'public' if undefined. */}
                   <div className="flex items-center gap-1 mb-2">
-                    <button type="button" onClick={() => updateCommuteLocation(loc.id, { mode: undefined })}
-                      className={'flex-1 px-1.5 py-1 rounded-md text-[10px] transition-colors ' + (loc.mode === undefined ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#9B928E] hover:bg-[#F5EBE0]')}>
-                      Default
-                    </button>
-                    {(['public', 'walk', 'bike'] as const).map(m => (
-                      <button key={m} type="button" onClick={() => updateCommuteLocation(loc.id, { mode: m })}
-                        className={'flex-1 px-1.5 py-1 rounded-md text-[10px] capitalize transition-colors ' + (loc.mode === m ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
-                        {m}
-                      </button>
-                    ))}
+                    {([
+                      { v: 'public' as const, label: 'Public', Icon: Bus },
+                      { v: 'walk' as const, label: 'Walk', Icon: Footprints },
+                      { v: 'bike' as const, label: 'Bike', Icon: Bike },
+                    ]).map(({ v, label, Icon }) => {
+                      const active = (loc.mode || 'public') === v
+                      return (
+                        <button key={v} type="button" onClick={() => updateCommuteLocation(loc.id, { mode: v })}
+                          className={'flex-1 px-1.5 py-1 rounded-md text-[10px] inline-flex items-center justify-center gap-1 transition-colors ' + (active ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
+                          <Icon className="w-3 h-3" strokeWidth={1.75} />
+                          {label}
+                        </button>
+                      )
+                    })}
                   </div>
 
                   <div className="flex items-center justify-between mb-1">
