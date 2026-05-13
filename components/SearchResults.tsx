@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import SearchMapView from '@/components/SearchMapView'
 import SaveSearchButton from '@/components/SaveSearchButton'
 import ListingCard from '@/components/ListingCard'
+import { type CommuteLocation } from '@/lib/commute'
 
 interface Coords { lat: number, lng: number }
 
@@ -41,7 +42,7 @@ export function ViewToggle({ view, setView }: { view: string, setView: (v: 'grid
   )
 }
 
-export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, boroughMatch, postcodeMatch, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, commuteMode, listingType }: {
+export function SearchResults({ filtered, allListings, allListingsForMap, radius, locationCoords, location, boroughMatch, postcodeMatch, minBeds, maxBeds, minPrice, maxPrice, commuteAddress, maxCommute, commuteMode, commuteLocations, listingType }: {
   filtered: any[]
   allListings: any[]
   allListingsForMap: any[]
@@ -57,13 +58,34 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
   commuteAddress?: string | null
   maxCommute?: number | null
   commuteMode?: string | null
+  commuteLocations?: CommuteLocation[]
   listingType?: string
 }) {
   const [view, setView] = useState<'grid' | 'map'>('grid')
   const [viewReady, setViewReady] = useState(false)
-  const [commuteTimes, setCommuteTimes] = useState<Record<string, number>>({})
+  // commuteTimes: per-listing array of durations, parallel to effectiveLocations order. -1 means unknown.
+  const [commuteTimes, setCommuteTimes] = useState<Record<string, number[]>>({})
   const [commuteLoading, setCommuteLoading] = useState(false)
   const [commuteFiltered, setCommuteFiltered] = useState<any[] | null>(null)
+
+  // Build the canonical list of commute locations to filter against. Three sources, in order:
+  //   1. New multi-location prop (commuteLocations)
+  //   2. Legacy singular commuteAddress/maxCommute (back-compat for old URLs and old user metadata)
+  // We compute this once per render — it's small, max 3 entries.
+  const effectiveLocations: CommuteLocation[] = (() => {
+    if (commuteLocations && commuteLocations.length > 0) return commuteLocations
+    if (commuteAddress) {
+      return [{
+        id: 'legacy',
+        label: 'Commute',
+        address: commuteAddress,
+        timeLimit: maxCommute ?? null,
+        mode: (commuteMode === 'public' || commuteMode === 'walk' || commuteMode === 'bike') ? commuteMode : undefined,
+      }]
+    }
+    return []
+  })()
+  const hasAnyTimeLimit = effectiveLocations.some(l => l.timeLimit != null)
   const [showHidden, setShowHidden] = useState(false)
   const showHiddenRef = useRef(false)
   useEffect(() => { showHiddenRef.current = showHidden }, [showHidden])
@@ -174,12 +196,19 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
       .slice(0, 24) // fetch more so commute filter has enough to work with
   }
 
-  // Apply commute filter to nearby
-  if (maxCommute && commuteAddress && Object.keys(commuteTimes).length > 0) {
+  // Apply multi-location commute filter to nearby. A listing passes if every location
+  // with a timeLimit is met. Missing data (no commute calculated yet) is treated as pass-through
+  // — we don't want to drop listings just because TfL hasn't responded yet.
+  if (hasAnyTimeLimit && Object.keys(commuteTimes).length > 0) {
     nearby = nearby.filter((l: any) => {
-      const t = commuteTimes[l.id]
-      if (t == null) return true
-      return t <= maxCommute
+      const times = commuteTimes[l.id]
+      if (!times) return true
+      return effectiveLocations.every((loc, i) => {
+        if (loc.timeLimit == null) return true
+        const t = times[i]
+        if (t == null || t < 0) return true  // unknown — pass through
+        return t <= loc.timeLimit
+      })
     }).slice(0, 12)
   } else {
     nearby = nearby.slice(0, 12)
@@ -259,31 +288,65 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
     return new Date(b.scraped_at || 0).getTime() - new Date(a.scraped_at || 0).getTime()
   })
 
-  // Commute filter — applied after sort, covers both inRadius and nearby
+  // Multi-location commute filter — applied after sort, covers both inRadius and nearby.
+  // For each listing, we fire ONE request to /api/commute with all destinations comma-separated.
+  // The API returns { results: [...] } parallel to the destinations list.
+  // A listing passes the filter if every location with a timeLimit is met.
   useEffect(() => {
-    if (!commuteAddress || !maxCommute) { setCommuteFiltered(null); return }
+    if (effectiveLocations.length === 0) { setCommuteFiltered(null); return }
     setCommuteLoading(true)
     const allToCheck = [...sortedResults, ...nearby]
       .filter((l: any) => l.postcode || (l.latitude && l.longitude))
-      .filter((l: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === l.id) === i) // dedupe
+      .filter((l: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === l.id) === i)
       .slice(0, 60)
+    // Group destinations by mode so each mode gets its own request (TfL needs a single mode per query).
+    const globalMode = commuteMode || 'public'
+    const byMode = new Map<string, { idx: number, address: string }[]>()
+    effectiveLocations.forEach((loc, idx) => {
+      const m = loc.mode || globalMode
+      if (!byMode.has(m)) byMode.set(m, [])
+      byMode.get(m)!.push({ idx, address: loc.address })
+    })
     Promise.all(allToCheck.map(async (l: any) => {
       const from = l.postcode ? l.postcode.replace(/\s/g, '') : `${l.latitude},${l.longitude}`
-      const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(commuteAddress!)}&mode=${encodeURIComponent(commuteMode || 'public')}`)
-      const d = await res.json()
-      return { id: l.id, duration: d.duration }
-    })).then(results => {
-      const times: Record<string, number> = {}
-      results.forEach(r => { if (r.duration != null) times[r.id] = r.duration })
+      const durations: number[] = new Array(effectiveLocations.length).fill(-1)
+      // One request per mode group
+      await Promise.all(Array.from(byMode.entries()).map(async ([m, group]) => {
+        const toParam = group.map(g => g.address).join(',')
+        try {
+          const res = await fetch(`/api/commute?from=${encodeURIComponent(from)}&to=${encodeURIComponent(toParam)}&mode=${encodeURIComponent(m)}`)
+          const d = await res.json()
+          if (group.length === 1) {
+            // Legacy flat shape
+            if (typeof d.duration === 'number') durations[group[0].idx] = d.duration
+          } else if (Array.isArray(d.results)) {
+            d.results.forEach((r: any, i: number) => {
+              if (r && typeof r.duration === 'number') durations[group[i].idx] = r.duration
+            })
+          }
+        } catch {}
+      }))
+      return { id: l.id, durations }
+    })).then(rows => {
+      const times: Record<string, number[]> = {}
+      rows.forEach(r => { times[r.id] = r.durations })
       setCommuteTimes(times)
       setCommuteFiltered(sortedResults.filter((l: any) => {
-        const t = times[l.id]
-        if (t == null) return true
-        return t <= maxCommute!
+        const ts = times[l.id]
+        if (!ts) return true
+        return effectiveLocations.every((loc, i) => {
+          if (loc.timeLimit == null) return true
+          const t = ts[i]
+          if (t == null || t < 0) return true
+          return t <= loc.timeLimit
+        })
       }))
       setCommuteLoading(false)
     }).catch(() => setCommuteLoading(false))
-  }, [commuteAddress, maxCommute, sortedResults.length, nearby.length])
+    // sortedResults/nearby length proxies for "the filtered set changed".
+    // Stringify effectiveLocations so we re-fetch when locations change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(effectiveLocations), commuteMode, sortedResults.length, nearby.length])
 
   const displayResults = commuteFiltered ?? sortedResults
 

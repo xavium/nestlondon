@@ -500,7 +500,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} commuteMode={commuteMode} listingType={listingType} />
+        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} commuteMode={commuteMode} commuteLocations={commuteLocations} listingType={listingType} />
         }
       </div>
     </main>
