@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SearchFilters, { type SearchFiltersHandle } from '@/components/SearchFilters'
+import { serializeCommuteLocations, type CommuteLocation } from '@/lib/commute'
 
 const LONDON_BOROUGHS = ['Barking and Dagenham','Barnet','Bexley','Brent','Bromley','Camden','City of London','Croydon','Ealing','Enfield','Greenwich','Hackney','Hammersmith and Fulham','Haringey','Harrow','Havering','Hillingdon','Hounslow','Islington','Kensington and Chelsea','Kingston upon Thames','Lambeth','Lewisham','Merton','Newham','Redbridge','Richmond upon Thames','Southwark','Sutton','Tower Hamlets','Waltham Forest','Wandsworth','Westminster']
 
@@ -42,6 +43,7 @@ interface Props {
   commuteAddress?: string | null
   commuteMode?: string | null
   maxCommute?: number | null
+  commuteLocations?: CommuteLocation[]
   tenure?: string | null
   chainFree?: boolean
   newBuild?: boolean
@@ -76,7 +78,8 @@ export default function NavSearchBar({
   minBaths = null,
   maxBaths = null,
   maxPricePerSqm = null,
-  minPricePerSqm = null,}: Props) {
+  minPricePerSqm = null,
+  commuteLocations = [],}: Props) {
   const PRICE_OPTIONS = listingType === 'buy' ? BUY_PRICE_OPTIONS : RENT_PRICE_OPTIONS
   const [location, setLocation] = useState(initLocation)
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -144,6 +147,10 @@ export default function NavSearchBar({
     if (style) p.set('style', style)
     if (commuteAddress) p.set('commuteAddress', commuteAddress)
     if (maxCommute) p.set('maxCommute', String(maxCommute))
+    if (commuteLocations && commuteLocations.length > 0) {
+      const encoded = serializeCommuteLocations(commuteLocations)
+      if (encoded) p.set('commute', encoded)
+    }
     if (features.length > 0) p.set('features', features.join(','))
     const aw = localAddedWithin
     if (aw) p.set('addedWithin', String(aw))
@@ -251,6 +258,7 @@ export default function NavSearchBar({
             commuteAddress={commuteAddress || ''}
             maxCommute={maxCommute}
             commuteMode={commuteMode}
+            commuteLocations={commuteLocations}
             tenure={tenure}
             chainFree={chainFree}
             newBuild={newBuild}

@@ -493,6 +493,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               maxBaths={maxBaths}
               maxPricePerSqm={maxPricePerSqm}
               minPricePerSqm={minPricePerSqm}
+              commuteLocations={commuteLocations}
             />
           </div>
           <NavAuthButton variant="light" />

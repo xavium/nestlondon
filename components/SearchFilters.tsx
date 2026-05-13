@@ -3,7 +3,11 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-import { MapPin, Bus, Footprints, Bike } from 'lucide-react'
+import { MapPin, Bus, Footprints, Bike, Plus, X } from 'lucide-react'
+import {
+  type CommuteLocation, type CommuteMode,
+  MAX_COMMUTE_LOCATIONS, newLocationId, serializeCommuteLocations,
+} from '@/lib/commute'
 interface Props {
   location: string
   listingType: string
@@ -30,6 +34,7 @@ interface Props {
   maxBaths?: number | null
   maxPricePerSqm?: number | null
   minPricePerSqm?: number | null
+  commuteLocations?: CommuteLocation[]
 }
 
 export interface SearchFiltersHandle {
@@ -71,6 +76,24 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
   const [chainFree, setChainFree] = useState<boolean>(sp.get('chainFree') === 'true' || props.chainFree || false)
   const [newBuild, setNewBuild] = useState<boolean>(sp.get('newBuild') === 'true' || props.newBuild || false)
   const [leaseholdMin, setLeaseholdMin] = useState<number | null>(sp.get('leaseholdMin') ? parseInt(sp.get('leaseholdMin')!) : (props.leaseholdMin || null))
+  // Multi-location commute state. Initialise from props (which the search page resolves
+  // from URL → user_metadata → legacy singular field).
+  const [commuteLocations, setCommuteLocations] = useState<CommuteLocation[]>(props.commuteLocations || [])
+  // Sync if parent prop changes (e.g. user opens filters on a different search URL)
+  useEffect(() => { setCommuteLocations(props.commuteLocations || []) }, [JSON.stringify(props.commuteLocations || [])])
+
+  function addCommuteLocation() {
+    if (commuteLocations.length >= MAX_COMMUTE_LOCATIONS) return
+    setCommuteLocations(prev => [...prev, {
+      id: newLocationId(), label: '', address: '', timeLimit: null, mode: undefined,
+    }])
+  }
+  function updateCommuteLocation(id: string, patch: Partial<CommuteLocation>) {
+    setCommuteLocations(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l))
+  }
+  function removeCommuteLocation(id: string) {
+    setCommuteLocations(prev => prev.filter(l => l.id !== id))
+  }
 
   // Sync commute address from profile if not in URL
   useEffect(() => {
@@ -129,6 +152,17 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     if (chainFree) p.set('chainFree', 'true')
     if (newBuild) p.set('newBuild', 'true')
     if (leaseholdMin) p.set('leaseholdMin', String(leaseholdMin))
+    // Multi-location commute: serialize to URL and persist to user metadata so the locations
+    // survive across sessions and other entry points (CommuteWidget on listing pages, account page).
+    if (commuteLocations.length > 0) {
+      const enc = serializeCommuteLocations(commuteLocations)
+      if (enc) p.set('commute', enc)
+    }
+    fetch('/api/account/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commute_locations: commuteLocations })
+    }).catch(() => {})
     setOpen(false)
     if (nestOnly) p.set('nestOnly', '1')
     if (onApply) { onApply(p) } else { router.push('/search?' + p.toString()) }
@@ -146,7 +180,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     setFloorLayouts([])
     setMinSize(null); setMaxSize(null); setMinBaths(null); setMaxBaths(null)
     setMinPricePerSqm(null); setMaxPricePerSqm(null)
-    setCommuteAddress(''); setMaxCommute(null); setCommuteDraft('')
+    setCommuteAddress(''); setMaxCommute(null); setCommuteDraft(''); setCommuteLocations([])
     window.dispatchEvent(new Event('nestlondon:clearFilters'))
 
     // Build a URL keeping ONLY the things that aren't filters (location + type).
@@ -156,7 +190,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     router.push('/search?' + p.toString())
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (commuteAddress ? 1 : 0) + (maxCommute ? 1 : 0) + (commuteMode ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0)
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (commuteAddress ? 1 : 0) + (maxCommute ? 1 : 0) + (commuteMode ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0) + commuteLocations.length
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
@@ -381,56 +415,24 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
 
           {!isBuy && (
           <div className="mb-5">
-            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide block mb-2">Commute time</label>
-            {commuteAddress && !editingCommute ? (
-              <div className="flex items-center gap-2 bg-[#F5EBE0] rounded-xl px-3 py-2 mb-3">
-                <span className="text-xs text-[#1B2E4B] flex-1 truncate inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.75} /> {commuteAddress}</span>
-                <button onClick={() => { setEditingCommute(true); setCommuteDraft(commuteAddress) }}
-                  className="text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  value={commuteDraft}
-                  onChange={e => setCommuteDraft(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { setCommuteAddress(commuteDraft); setEditingCommute(false) } if (e.key === 'Escape') setEditingCommute(false) }}
-                  placeholder="Work postcode or station (e.g. EC1A 1BB)"
-                  className="flex-1 border border-[#E8E2DA] rounded-xl px-3 py-2 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
-                />
-                <button onClick={async () => {
-                  setCommuteAddress(commuteDraft)
-                  setEditingCommute(false)
-                  fetch('/api/commute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ commute_address: commuteDraft, commute_mode: commuteMode })
-                  }).catch(() => {})
-                }}
-                  className="px-3 py-1.5 rounded-xl text-white text-xs flex-shrink-0"
-                  style={{background:'#D3755A'}}>
-                  Set
-                </button>
-              </div>
-            )}
-            <div className="text-xs text-[#9B928E] mb-1.5">Travel mode</div>
-            <div className="flex items-center gap-1.5 mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Commute</label>
+              <span className="text-[10px] text-[#9B928E]">{commuteLocations.length}/{MAX_COMMUTE_LOCATIONS} locations</span>
+            </div>
+
+            {/* Default travel mode — applies to any location without its own override. */}
+            <div className="text-xs text-[#9B928E] mb-1.5">Default travel mode</div>
+            <div className="flex items-center gap-1.5 mb-4">
               {[
-                { v: 'public', label: 'Public', Icon: Bus },
-                { v: 'walk', label: 'Walk', Icon: Footprints },
-                { v: 'bike', label: 'Bike', Icon: Bike },
+                { v: 'public' as const, label: 'Public', Icon: Bus },
+                { v: 'walk' as const, label: 'Walk', Icon: Footprints },
+                { v: 'bike' as const, label: 'Bike', Icon: Bike },
               ].map(({ v, label, Icon }) => (
                 <button key={v} type="button" onClick={() => {
-                  // Toggle: clicking active deselects
                   const next = commuteMode === v ? null : v
                   setCommuteMode(next)
-                  if (commuteAddress) {
-                    fetch('/api/commute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commute_mode: next }) }).catch(() => {})
-                  }
+                  // Persist default mode to user metadata so it sticks across sessions.
+                  fetch('/api/commute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commute_mode: next }) }).catch(() => {})
                 }}
                   className={'flex-1 px-2 py-1.5 rounded-lg text-xs inline-flex items-center justify-center gap-1.5 transition-colors ' + (commuteMode === v ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
                   <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -438,26 +440,79 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
                 </button>
               ))}
             </div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-[#9B928E]">Max commute time</span>
-              <span className="text-xs font-semibold text-[#1B2E4B]">{maxCommute ? maxCommute + ' mins' : 'Any'}</span>
+
+            {/* Per-location rows */}
+            {commuteLocations.length === 0 && (
+              <p className="text-xs text-[#9B928E] mb-3">Add up to {MAX_COMMUTE_LOCATIONS} places you commute to — work, family, gym. Listings must meet every time limit.</p>
+            )}
+
+            <div className="flex flex-col gap-3 mb-3">
+              {commuteLocations.map((loc, idx) => (
+                <div key={loc.id} className="border border-[#E8E2DA] rounded-xl p-3 bg-[#FAFAF8]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={loc.label}
+                      onChange={e => updateCommuteLocation(loc.id, { label: e.target.value })}
+                      placeholder={`Location ${idx + 1} (e.g. Work)`}
+                      maxLength={40}
+                      className="flex-1 border border-[#E8E2DA] rounded-lg px-2.5 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white"
+                    />
+                    <button type="button" onClick={() => removeCommuteLocation(loc.id)}
+                      className="text-[#9B928E] hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                      aria-label="Remove location">
+                      <X className="w-3.5 h-3.5" strokeWidth={2} />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={loc.address}
+                    onChange={e => updateCommuteLocation(loc.id, { address: e.target.value })}
+                    placeholder="Postcode or station (e.g. EC1A 1BB)"
+                    className="w-full border border-[#E8E2DA] rounded-lg px-2.5 py-1.5 text-xs text-[#1B2E4B] outline-none focus:border-[#D3755A] bg-white mb-2"
+                  />
+
+                  {/* Per-location mode override. 'Use default' means no override (mode === undefined). */}
+                  <div className="flex items-center gap-1 mb-2">
+                    <button type="button" onClick={() => updateCommuteLocation(loc.id, { mode: undefined })}
+                      className={'flex-1 px-1.5 py-1 rounded-md text-[10px] transition-colors ' + (loc.mode === undefined ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#9B928E] hover:bg-[#F5EBE0]')}>
+                      Default
+                    </button>
+                    {(['public', 'walk', 'bike'] as const).map(m => (
+                      <button key={m} type="button" onClick={() => updateCommuteLocation(loc.id, { mode: m })}
+                        className={'flex-1 px-1.5 py-1 rounded-md text-[10px] capitalize transition-colors ' + (loc.mode === m ? 'bg-[#1B2E4B] text-white' : 'bg-white border border-[#E8E2DA] text-[#3D3A38] hover:bg-[#F5EBE0]')}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-[#9B928E]">Max time</span>
+                    <span className="text-[10px] font-semibold text-[#1B2E4B]">{loc.timeLimit ? loc.timeLimit + ' mins' : 'Any'}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={90}
+                    step={5}
+                    value={loc.timeLimit || 90}
+                    onChange={e => {
+                      const v = parseInt(e.target.value)
+                      updateCommuteLocation(loc.id, { timeLimit: v === 90 ? null : v })
+                    }}
+                    className="w-full range-fill accent-[#D3755A]"
+                    style={{ ['--value' as any]: `${(((loc.timeLimit || 90) - 5) / 85) * 100}%` }}
+                  />
+                </div>
+              ))}
             </div>
-            <input
-              type="range"
-              min={5}
-              max={90}
-              step={5}
-              value={maxCommute || 90}
-              onChange={e => setMaxCommute(parseInt(e.target.value) === 90 ? null : parseInt(e.target.value))}
-              className="w-full range-fill accent-[#D3755A]"
-              style={{ ['--value' as any]: `${(((maxCommute || 90) - 5) / 85) * 100}%` }}
-            />
-            <div className="flex justify-between text-[10px] text-[#9B928E] mt-1">
-              <span>5 min</span>
-              <span>30 min</span>
-              <span>60 min</span>
-              <span>Any</span>
-            </div>
+
+            <button type="button" onClick={addCommuteLocation}
+              disabled={commuteLocations.length >= MAX_COMMUTE_LOCATIONS}
+              className="w-full px-3 py-2 rounded-xl border border-dashed border-[#E8E2DA] text-xs text-[#9B928E] hover:border-[#D3755A] hover:text-[#D3755A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+              <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+              {commuteLocations.length === 0 ? 'Add a commute location' : commuteLocations.length >= MAX_COMMUTE_LOCATIONS ? `Maximum ${MAX_COMMUTE_LOCATIONS} locations` : 'Add another location'}
+            </button>
           </div>
           )}
 
