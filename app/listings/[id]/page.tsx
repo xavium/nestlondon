@@ -23,6 +23,7 @@ import BuyListingPanel from '@/components/BuyListingPanel'
 import BoroughGuideInline from '@/components/BoroughGuideInline'
 import { getBoroughByPostcode } from '@/data/boroughGuides'
 import { parseCommuteLocations, migrateLegacyCommute, type CommuteLocation } from '@/lib/commute'
+import { Home, Clock, Paintbrush, Receipt } from 'lucide-react'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -480,21 +481,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
 
 
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 items-stretch">
-              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
-                <TileIcon name="Available" />
-                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">{isBuyListing ? 'Tenure' : 'Available'}</div>
-                <div className="text-sm font-semibold text-[#374151]">{isBuyListing ? ((() => {
-                  const ld = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
-                  const ldTenure = ld?.letting_details?.Tenure
-                  if (ldTenure) return ldTenure
-                  // Check key features for tenure
-                  const kfTenure = (ld?.key_features || []).find((f: string) => /tenure/i.test(f))
-                  if (kfTenure) { const m = kfTenure.match(/tenure[:\s]+(.+)/i); if (m) return m[1].trim() }
-                  const t = (listing.description || '').match(/freehold|leasehold|share of freehold/i)
-                  return t ? t[0].replace(/^\w/, (c: string) => c.toUpperCase()) : 'Ask agent'
-                })()) : (availableText || 'Ask agent')}</div>
-              </div>
+            <div className={`grid ${isBuyListing ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3 sm:grid-cols-5'} gap-3 items-stretch`}>
+              {!isBuyListing && (
+                <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <TileIcon name="Available" />
+                  <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Available</div>
+                  <div className="text-sm font-semibold text-[#374151]">{availableText || 'Ask agent'}</div>
+                </div>
+              )}
               <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
                 <TileIcon name="Bedrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bedrooms</div>
@@ -539,33 +533,61 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             </div>
 
-            {/* Lease costs — only renders when at least one field has data.
-                Each row is independent: missing fields simply don't appear, no "Ask agent" placeholders. */}
-            {(listing.lease_years_remaining != null || listing.service_charge_annual != null || listing.ground_rent_annual != null) && (
-              <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Lease costs</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {listing.lease_years_remaining != null && (
-                    <div>
-                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Lease remaining</div>
-                      <div className="text-sm font-semibold text-[#374151]">{listing.lease_years_remaining.toLocaleString()} years</div>
+            {/* Lease/tenure tiles — buy listings only. Sits directly under the 4 main tiles
+                (beds/baths/size/£-per-size), forming a 2x4 visual grid with them.
+                Each tile shows the value when present, otherwise 'Ask agent'. */}
+            {isBuyListing && (() => {
+              const tenureValue = (() => {
+                const ld = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data || '{}') : (listing.raw_data || {})
+                const ldTenure = ld?.letting_details?.Tenure
+                if (ldTenure) return ldTenure
+                const kfTenure = (ld?.key_features || []).find((f: string) => /tenure/i.test(f))
+                if (kfTenure) { const m = kfTenure.match(/tenure[:\s]+(.+)/i); if (m) return m[1].trim() }
+                const t = (listing.description || '').match(/freehold|leasehold|share of freehold/i)
+                return t ? t[0].replace(/^\w/, (c: string) => c.toUpperCase()) : null
+              })()
+              // 'N/A' for pure freehold (lease costs don't apply), 'Ask agent' otherwise.
+              // Share-of-freehold is treated as leasehold here — service charges typically apply.
+              const tenureLower = (tenureValue || '').toLowerCase()
+              const isPureFreehold = tenureLower.includes('freehold') && !tenureLower.includes('share') && !tenureLower.includes('lease')
+              const fallback = isPureFreehold ? 'N/A' : 'Ask agent'
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <Home className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Tenure</div>
+                    <div className="text-sm font-semibold text-[#374151]">{tenureValue || 'Ask agent'}</div>
+                  </div>
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <Clock className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Lease remaining</div>
+                    <div className="text-sm font-semibold text-[#374151]">
+                      {listing.lease_years_remaining != null
+                        ? <>{listing.lease_years_remaining.toLocaleString()} years</>
+                        : fallback}
                     </div>
-                  )}
-                  {listing.service_charge_annual != null && (
-                    <div>
-                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Service charge</div>
-                      <div className="text-sm font-semibold text-[#374151]">£{listing.service_charge_annual.toLocaleString()} <span className="text-stone-400 font-normal">/ year</span></div>
+                  </div>
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <Paintbrush className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Service charge</div>
+                    <div className="text-sm font-semibold text-[#374151]">
+                      {listing.service_charge_annual != null
+                        ? <>£{listing.service_charge_annual.toLocaleString()}<span className="text-stone-400 font-normal"> / yr</span></>
+                        : fallback}
                     </div>
-                  )}
-                  {listing.ground_rent_annual != null && (
-                    <div>
-                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Ground rent</div>
-                      <div className="text-sm font-semibold text-[#374151]">£{listing.ground_rent_annual.toLocaleString()} <span className="text-stone-400 font-normal">/ year</span></div>
+                  </div>
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                    <Receipt className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
+                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Ground rent</div>
+                    <div className="text-sm font-semibold text-[#374151]">
+                      {listing.ground_rent_annual != null
+                        ? <>£{listing.ground_rent_annual.toLocaleString()}<span className="text-stone-400 font-normal"> / yr</span></>
+                        : fallback}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {keyFeatures.length > 0 && (
               <KeyFeatures features={keyFeatures} />
