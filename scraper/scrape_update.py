@@ -8,6 +8,7 @@ import os
 from playwright.async_api import async_playwright
 from supabase import create_client
 from scraper import get_full_description
+from lease_extractor import extract_lease_details
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -42,15 +43,38 @@ async def update_listing(context, listing):
             updates['images'] = json.dumps(full_data['images'])
             changed.append(f'images ({len(existing)}→{len(full_data["images"])})')
 
-    # Letting details / tenure
+    # Letting details / tenure + lease extraction
     if full_data.get('letting_details'):
         rd = json.loads(listing['raw_data']) if isinstance(listing.get('raw_data'), str) else (listing.get('raw_data') or {})
         existing_ld = rd.get('letting_details') or {}
         new_ld = {**existing_ld, **full_data['letting_details']}
+
+        # Re-extract lease info from the merged letting_details + key_features + description.
+        # Use the freshest description we have (the one we may have just updated above).
+        desc_for_extract = updates.get('description') or listing.get('description') or ''
+        kf = (rd.get('key_features') or [])
+        lease_info = extract_lease_details(new_ld, kf, desc_for_extract)
+
+        # Apply any tenure cleanup directly into the new_ld so raw_data holds the clean value.
+        if lease_info['tenure_cleaned'] and new_ld.get('Tenure'):
+            new_ld['Tenure'] = lease_info['tenure_cleaned']
+
         if new_ld != existing_ld:
             rd['letting_details'] = new_ld
             updates['raw_data'] = json.dumps(rd)
             changed.append('letting_details')
+
+        # Lease numeric columns — write each only if it differs from current value on the row.
+        for col, key in [
+            ('lease_years_remaining', 'lease_years_remaining'),
+            ('service_charge_annual', 'service_charge_annual'),
+            ('ground_rent_annual', 'ground_rent_annual'),
+        ]:
+            new_val = lease_info[key]
+            cur_val = listing.get(col)
+            if new_val != cur_val:
+                updates[col] = new_val
+                changed.append(col)
 
     # Size
     if full_data.get('size_text'):
@@ -81,7 +105,7 @@ async def update_listing(context, listing):
 async def main(batch_size=30):
     print('Fetching active listings to update...')
     result = supabase.table('listings') \
-        .select('id,source_url,description,images,raw_data,postcode,latitude,longitude,listing_type') \
+        .select('id,source_url,description,images,raw_data,postcode,latitude,longitude,listing_type,lease_years_remaining,service_charge_annual,ground_rent_annual') \
         .eq('is_active', True) \
         .filter('source_url', 'neq', 'null') \
         .order('scraped_at') \

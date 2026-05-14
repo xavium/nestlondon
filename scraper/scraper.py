@@ -5,6 +5,7 @@ import re
 import hashlib
 import urllib.request
 from datetime import datetime
+from lease_extractor import extract_lease_details
 
 # Borough resolution from lat/lng using ONS GeoJSON
 _BOROUGH_POLYGONS = None
@@ -598,6 +599,19 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
             source_urls = {source_name: source_url} if source_url else {}
             # Lift EPC rating from letting_details (Rightmove text scrape) into top-level column
             scraped_epc = (listing.get('letting_details') or {}).get('EPC')
+
+            # Lease detail extraction. Runs for every listing (cheap regex). Returns four fields;
+            # only leasehold listings will populate the numeric ones.
+            lease_info = extract_lease_details(
+                listing.get('letting_details'),
+                listing.get('key_features'),
+                listing.get('description'),
+            )
+            # If we cleaned the Tenure string (e.g. stripped 'Lease Years Remaining: 986'),
+            # mutate the in-memory letting_details so the raw_data we save below holds the clean value.
+            if lease_info['tenure_cleaned'] and listing.get('letting_details', {}).get('Tenure'):
+                listing['letting_details']['Tenure'] = lease_info['tenure_cleaned']
+
             record = {
                 'source': source_name,
                 'source_url': source_url,
@@ -624,6 +638,9 @@ async def save_to_supabase(listings, source_name='Rightmove', listing_type='rent
                 'is_active': True,
                 'is_direct': False,
                 'epc_rating': scraped_epc if scraped_epc else None,
+                'lease_years_remaining': lease_info['lease_years_remaining'],
+                'service_charge_annual': lease_info['service_charge_annual'],
+                'ground_rent_annual': lease_info['ground_rent_annual'],
                 'raw_data': json.dumps({'key_features': listing.get('key_features'), 'size_text': listing.get('size_text'), 'letting_details': listing.get('letting_details'), 'additional': listing.get('additional'), 'floorplans': listing.get('floorplans') or []}),
                 'scraped_at': datetime.utcnow().isoformat(),
             }

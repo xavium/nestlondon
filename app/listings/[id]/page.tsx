@@ -539,6 +539,34 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             </div>
 
+            {/* Lease costs — only renders when at least one field has data.
+                Each row is independent: missing fields simply don't appear, no "Ask agent" placeholders. */}
+            {(listing.lease_years_remaining != null || listing.service_charge_annual != null || listing.ground_rent_annual != null) && (
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Lease costs</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {listing.lease_years_remaining != null && (
+                    <div>
+                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Lease remaining</div>
+                      <div className="text-sm font-semibold text-[#374151]">{listing.lease_years_remaining.toLocaleString()} years</div>
+                    </div>
+                  )}
+                  {listing.service_charge_annual != null && (
+                    <div>
+                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Service charge</div>
+                      <div className="text-sm font-semibold text-[#374151]">£{listing.service_charge_annual.toLocaleString()} <span className="text-stone-400 font-normal">/ year</span></div>
+                    </div>
+                  )}
+                  {listing.ground_rent_annual != null && (
+                    <div>
+                      <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Ground rent</div>
+                      <div className="text-sm font-semibold text-[#374151]">£{listing.ground_rent_annual.toLocaleString()} <span className="text-stone-400 font-normal">/ year</span></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {keyFeatures.length > 0 && (
               <KeyFeatures features={keyFeatures} />
             )}
