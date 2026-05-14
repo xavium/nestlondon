@@ -23,7 +23,7 @@ import BuyListingPanel from '@/components/BuyListingPanel'
 import BoroughGuideInline from '@/components/BoroughGuideInline'
 import { getBoroughByPostcode } from '@/data/boroughGuides'
 import { parseCommuteLocations, migrateLegacyCommute, type CommuteLocation } from '@/lib/commute'
-import { Home, Clock, Paintbrush, Receipt } from 'lucide-react'
+import { Home, Clock, Paintbrush, LandPlot } from 'lucide-react'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -483,31 +483,31 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             <div className={`grid ${isBuyListing ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3 sm:grid-cols-5'} gap-3 items-stretch`}>
               {!isBuyListing && (
-                <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                   <TileIcon name="Available" />
                   <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Available</div>
                   <div className="text-sm font-semibold text-[#374151]">{availableText || 'Ask agent'}</div>
                 </div>
               )}
-              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                 <TileIcon name="Bedrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bedrooms</div>
                 <div className="text-sm font-semibold text-[#374151]">{(listing.bedrooms === 0 || String(listing.bedrooms) === '0' || /studio/i.test(listing.property_type || '')) ? 'Studio' : (listing.bedrooms ?? '—')}</div>
               </div>
-              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                 <TileIcon name="Bathrooms" />
                 <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Bathrooms</div>
                 <div className="text-sm font-semibold text-[#374151]">{listing.bathrooms ?? '—'}</div>
               </div>
               {resolvedSize ? (
                 <>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
                     <div className="text-sm font-semibold text-[#374151]">{resolvedSize}</div>
                     {resolvedSize && resolvedSize.includes('sq ft') && <div className="text-xs text-stone-400 mt-0.5">{Math.round(parseFloat(resolvedSize.replace(/,/g,'')) * 0.0929).toLocaleString()} sq m</div>}
                   </div>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <TileIcon name="£/sqm" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Price / size</div>
                     <div className="text-sm font-semibold text-[#374151]">{pricePerSqft ? '£' + pricePerSqft.toLocaleString() + ' / sq ft' : 'Ask agent'}</div>
@@ -518,12 +518,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <FloorplanSize key={floorplans[0]} floorplanUrl={floorplans[0]} price={listingPrice} listingId={listing.id} />
               ) : (
                 <>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <TileIcon name="Size" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Size</div>
                     <div className="text-sm font-semibold text-[#374151]">Ask agent</div>
                   </div>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <TileIcon name="£/sqm" />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Price / size</div>
                     <div className="text-sm font-semibold text-[#374151]">Ask agent</div>
@@ -553,12 +553,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               const fallback = isPureFreehold ? 'N/A' : 'Ask agent'
               return (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch">
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <Home className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Tenure</div>
                     <div className="text-sm font-semibold text-[#374151]">{tenureValue || 'Ask agent'}</div>
                   </div>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <Clock className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Lease remaining</div>
                     <div className="text-sm font-semibold text-[#374151]">
@@ -567,7 +567,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                         : fallback}
                     </div>
                   </div>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
                     <Paintbrush className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Service charge</div>
                     <div className="text-sm font-semibold text-[#374151]">
@@ -576,8 +576,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                         : fallback}
                     </div>
                   </div>
-                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full">
-                    <Receipt className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
+                  <div className="bg-white border border-[#E8E2DA] rounded-xl p-4 text-center flex flex-col items-center justify-center h-full min-h-[7.5rem]">
+                    <LandPlot className="w-4 h-4 text-[#D85A30] mb-1" strokeWidth={1.5} />
                     <div className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Ground rent</div>
                     <div className="text-sm font-semibold text-[#374151]">
                       {listing.ground_rent_annual != null
