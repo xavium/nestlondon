@@ -4,68 +4,93 @@ import { useState } from 'react';
 import { boroughGuides } from '@/data/boroughGuides';
 import { useRouter } from 'next/navigation';
 
-const STEPS = [
-  {
-    id: 'priorities',
-    q: "What matters most to your day-to-day life?",
-    hint: 'Pick all that apply',
-    type: 'multi' as const,
-    options: ['Green spaces','Nightlife','Coffee shops','Restaurants & food','Arts & culture','Young community','Family-friendly','Quiet streets','Markets & indie shops','Sport & fitness'],
-  },
-  {
-    id: 'transport',
-    q: "How do you get around?",
-    type: 'single' as const,
-    options: ['Tube / Elizabeth line','Bus','Cycling','Walking everywhere','Car'],
-  },
-  {
-    id: 'vibe',
-    q: "What kind of neighbourhood vibe are you after?",
-    type: 'single' as const,
-    options: ['Village feel — quiet, local, community-oriented','Buzzy & urban — always something on','Up-and-coming — edgy, evolving, affordable','Leafy & residential — calm, green, spacious'],
-  },
-  {
-    id: 'who',
-    q: "Who are you renting with?",
-    type: 'single' as const,
-    options: ['Just me','Me and a partner','Housemates','Family with kids'],
-  },
-  {
-    id: 'commute',
-    q: 'Where do you need to commute to?',
-    hint: 'Optional — helps us find well-connected boroughs',
-    type: 'text' as const,
-    placeholder: 'e.g. London Bridge, Canary Wharf, Oxford Street…',
-  },
-  {
-    id: 'commuteTime',
-    q: 'How long are you happy to commute?',
-    type: 'single' as const,
-    options: ['Under 15 minutes','Up to 30 minutes','Up to 45 minutes','Up to 1 hour','I work from home'],
-  },
-  {
-    id: 'lifeStage',
-    q: 'Which best describes you?',
-    type: 'single' as const,
-    options: ['Student','Young professional','Established professional','Family','Retired / semi-retired'],
-  },
-  {
-    id: 'extra',
-    q: "Anything you absolutely can't live without nearby?",
-    hint: 'Optional — skip if not sure',
-    type: 'text' as const,
-    placeholder: 'e.g. a good park, a farmers market, a live music venue…',
-  },
-  {
-    id: 'rent',
-    q: "What's your maximum monthly rent?",
-    type: 'slider' as const,
-    min: 800,
-    max: 5000,
-    step: 50,
-    default: 2000,
-  },
-];
+type Intent = 'rent' | 'buy'
+
+// Intent question is always step 0. After intent is picked we render the remaining steps,
+// some of which depend on intent (e.g. budget slider range, household question wording).
+const INTENT_STEP = {
+  id: 'intent',
+  q: "First — are you looking to rent or buy?",
+  type: 'single' as const,
+  options: ['Renting', 'Buying'],
+}
+
+function buildSteps(intent: Intent) {
+  return [
+    {
+      id: 'priorities',
+      q: "What matters most to your day-to-day life?",
+      hint: 'Pick all that apply',
+      type: 'multi' as const,
+      options: ['Green spaces','Nightlife','Coffee shops','Restaurants & food','Arts & culture','Young community','Family-friendly','Quiet streets','Markets & indie shops','Sport & fitness'],
+    },
+    {
+      id: 'transport',
+      q: "How do you get around?",
+      type: 'single' as const,
+      options: ['Tube / Elizabeth line','Bus','Cycling','Walking everywhere','Car'],
+    },
+    {
+      id: 'vibe',
+      q: "What kind of neighbourhood vibe are you after?",
+      type: 'single' as const,
+      options: ['Village feel — quiet, local, community-oriented','Buzzy & urban — always something on','Up-and-coming — edgy, evolving, affordable','Leafy & residential — calm, green, spacious'],
+    },
+    {
+      id: 'who',
+      q: "Who will live in the home?",
+      type: 'single' as const,
+      options: ['Just me','Me and a partner','With family','With parents','With housemates'],
+    },
+    {
+      id: 'commute',
+      q: 'Where do you need to commute to?',
+      hint: 'Optional — helps us find well-connected boroughs',
+      type: 'text' as const,
+      placeholder: 'e.g. London Bridge, Canary Wharf, Oxford Street…',
+    },
+    {
+      id: 'commuteTime',
+      q: 'How long are you happy to commute?',
+      type: 'single' as const,
+      options: ['Under 15 minutes','Up to 30 minutes','Up to 45 minutes','Up to 1 hour','I work from home'],
+    },
+    {
+      id: 'lifeStage',
+      q: 'Which best describes you?',
+      type: 'single' as const,
+      options: ['Student','Young professional','Established professional','Family','Retired / semi-retired'],
+    },
+    {
+      id: 'extra',
+      q: "Anything you absolutely can't live without nearby?",
+      hint: 'Optional — skip if not sure',
+      type: 'text' as const,
+      placeholder: 'e.g. a good park, a farmers market, a live music venue…',
+    },
+    intent === 'rent'
+      ? {
+          id: 'budget',
+          q: "What's your maximum monthly rent?",
+          type: 'slider' as const,
+          min: 500,
+          max: 5000,
+          step: 50,
+          default: 2000,
+          intent: 'rent' as const,
+        }
+      : {
+          id: 'budget',
+          q: "What's your maximum purchase price?",
+          type: 'slider' as const,
+          min: 150_000,
+          max: 5_000_000,
+          step: 50_000,
+          default: 500_000,
+          intent: 'buy' as const,
+        },
+  ]
+}
 
 type Answers = Record<string, string | string[] | number>;
 
@@ -74,7 +99,7 @@ interface BoroughResult {
   matchPercent: number;
   tags: string[];
   bullets: string[];
-  avgRent: string;
+  avgPrice: string;          // formatted, e.g. '£1,800–£2,400/mo' or '£500k–£700k'
   searchSlug: string;
 }
 
@@ -114,19 +139,35 @@ function getBoroughImage(name: string): string | null {
 
 const DEFAULT_IMG = 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80';
 
-function fmtRent(v: number) {
-  return v >= 5000 ? '£5,000+' : `£${v.toLocaleString()}`;
+// Format money for the budget slider. Handles both rent (£/mo, cap £5k) and buy (£total, cap £5m+).
+// At the slider max, show '+' so the user understands the cap is open-ended.
+function fmtMoney(v: number, intent: Intent, max?: number) {
+  if (intent === 'rent') {
+    if (max != null && v >= max) return '£' + max.toLocaleString() + '/mo'
+    return '£' + v.toLocaleString() + '/mo'
+  }
+  // buy
+  const atMax = max != null && v >= max
+  // Display millions as e.g. £1.5m, hundreds-of-thousands as £750k
+  let display: string
+  if (v >= 1_000_000) display = '£' + (v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1).replace(/\.0$/, '') + 'm'
+  else display = '£' + Math.round(v / 1000) + 'k'
+  return atMax ? display + '+' : display
 }
 
 export default function BoroughQuiz() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  // step = -1 → intent question (always first); step >= 0 → into the main quiz.
+  const [step, setStep] = useState<number>(-1);
+  const [intent, setIntent] = useState<Intent | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [phase, setPhase] = useState<'quiz' | 'loading' | 'results'>('quiz');
   const [results, setResults] = useState<BoroughResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const current = STEPS[step];
+  // The active step list depends on intent. Once intent is chosen, switch to the built steps.
+  const STEPS = intent ? buildSteps(intent) : [];
+  const current = step < 0 ? INTENT_STEP : STEPS[step];
 
   const canAdvance = () => {
     if (current.type === 'multi') return ((answers[current.id] as string[]) || []).length > 0;
@@ -140,6 +181,12 @@ export default function BoroughQuiz() {
   };
 
   const advance = () => {
+    if (step < 0) {
+      // Coming out of the intent question. Move into the main quiz at step 0.
+      if (!intent) return;
+      setStep(0);
+      return;
+    }
     if (step < STEPS.length - 1) setStep(step + 1);
     else submit();
   };
@@ -149,10 +196,13 @@ export default function BoroughQuiz() {
     setError(null);
 
     try {
+      // Budget falls back to the per-intent default when the user never touched the slider.
+      const budgetDefault = intent === 'buy' ? 500_000 : 2000
+      const budget = (answers.budget as number) || budgetDefault
       const res = await fetch('/api/borough-quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, rent: (answers.rent as number) || 2000 }),
+        body: JSON.stringify({ answers, intent, budget }),
       });
       const data = await res.json();
       const parsed: { boroughs: BoroughResult[] } = JSON.parse(
@@ -167,14 +217,18 @@ export default function BoroughQuiz() {
   };
 
   const retake = () => {
-    setStep(0);
+    setStep(-1);
+    setIntent(null);
     setAnswers({});
     setPhase('quiz');
     setResults([]);
     setError(null);
   };
 
-  const pct = Math.round((step / STEPS.length) * 100);
+  // Progress includes the intent step at the front. Total = 1 + main steps. Current = step<0 ? 0 : step+1.
+  const totalSteps = 1 + (STEPS.length || 9)  // 9 = main quiz length when intent set; falls back so the meter is non-zero on intent screen
+  const completedSteps = step < 0 ? 0 : step + 1
+  const pct = Math.round((completedSteps / totalSteps) * 100);
 
   if (phase === 'loading') {
     return (
@@ -214,7 +268,7 @@ export default function BoroughQuiz() {
                     {b.tags.map(t => (
                       <span key={t} className="text-xs text-[#3D3A38]/60 bg-[#F5EBE0] px-3 py-1 rounded-full">{t}</span>
                     ))}
-                    <span className="text-xs text-[#3D3A38]/60 bg-[#F5EBE0] px-3 py-1 rounded-full">{b.avgRent}</span>
+                    <span className="text-xs text-[#3D3A38]/60 bg-[#F5EBE0] px-3 py-1 rounded-full">{b.avgPrice}</span>
                   </div>
                   <ul className="mb-5 space-y-2">
                     {b.bullets.map(bul => (
@@ -225,10 +279,10 @@ export default function BoroughQuiz() {
                     ))}
                   </ul>
                   <button
-                    onClick={() => router.push(`/search?location=${encodeURIComponent(b.name)}`)}
+                    onClick={() => router.push(`/search?type=${intent || 'rent'}&location=${encodeURIComponent(b.name)}`)}
                     className="bg-[#1B2E4B] text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-[#1B2E4B]/90 transition-colors"
                   >
-                    Search listings in {b.name} →
+                    {intent === 'buy' ? `View homes for sale in ${b.name}` : `View rentals in ${b.name}`} →
                   </button>
                 </div>
               </div>
@@ -260,7 +314,7 @@ export default function BoroughQuiz() {
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="text-xs text-[#3D3A38]/50 mt-2">Step {step + 1} of {STEPS.length}</p>
+          <p className="text-xs text-[#3D3A38]/50 mt-2">Step {completedSteps + 1} of {totalSteps}</p>
         </div>
 
         {error && (
@@ -298,11 +352,21 @@ export default function BoroughQuiz() {
           {current.type === 'single' && (
             <div className="flex flex-col gap-2">
               {current.options.map(o => {
-                const sel = answers[current.id] === o;
+                const sel = current.id === 'intent'
+                  ? (intent === 'buy' && o === 'Buying') || (intent === 'rent' && o === 'Renting')
+                  : answers[current.id] === o;
                 return (
                   <button
                     key={o}
                     onClick={() => {
+                      if (current.id === 'intent') {
+                        const next: Intent = o === 'Buying' ? 'buy' : 'rent'
+                        setIntent(next)
+                        setAnswers({ ...answers, intent: next });
+                        // Wait a beat for the highlight, then transition to step 0 of the main quiz.
+                        setTimeout(() => setStep(0), 200);
+                        return;
+                      }
                       setAnswers({ ...answers, [current.id]: o });
                       setTimeout(advance, 200);
                     }}
@@ -338,13 +402,13 @@ export default function BoroughQuiz() {
                     />
                   );
                 })()}
-                <span className="text-xl font-medium text-[#D3755A] min-w-[90px]">
-                  {fmtRent((answers[current.id] as number) || current.default)}
+                <span className="text-xl font-medium text-[#D3755A] min-w-[110px] text-right">
+                  {fmtMoney((answers[current.id] as number) || current.default, intent || 'rent', current.max)}
                 </span>
               </div>
               <div className="flex justify-between text-xs text-[#3D3A38]/40">
-                <span>{fmtRent(current.min)}</span>
-                <span>{fmtRent(current.max)}</span>
+                <span>{fmtMoney(current.min, intent || 'rent')}</span>
+                <span>{fmtMoney(current.max, intent || 'rent', current.max)}</span>
               </div>
             </>
           )}
