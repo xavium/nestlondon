@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { recordPriceChange } from '@/lib/priceHistory'
 
 // Status transitions on edit:
 //   live          → pending (off-site while admin re-reviews)
@@ -119,6 +120,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       update.latitude = latitude
       update.longitude = longitude
     }
+
+    // Record price change BEFORE updating the listing. The helper does its own
+    // buy-only and idempotency checks, so we can pass update.price unconditionally.
+    await recordPriceChange(svc, id, update.price as number | null | undefined)
 
     const { error } = await svc.from('listings').update(update).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

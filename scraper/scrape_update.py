@@ -28,8 +28,34 @@ async def update_listing(context, listing):
     updates = {}
     changed = []
 
-    # Price change detection
-    # (price comes from search page not detail page - skip for now)
+    # Price change detection (buy listings only — rent prices we ignore).
+    # The detail-page scraper now returns 'price' (see scraper.py). When the price
+    # changes, update listings.price AND append a price_history row. The price_history
+    # write is idempotent — it checks the latest history row first and skips on no-op.
+    if listing.get('listing_type') == 'buy' and full_data.get('price'):
+        new_price = full_data['price']
+        old_price = listing.get('price')
+        if new_price != old_price:
+            updates['price'] = new_price
+            changed.append('price (' + str(old_price) + '→' + str(new_price) + ')')
+
+        # Always check price_history (handles case where listings.price was already
+        # current but no history row exists yet — e.g. existing listings pre-rollout).
+        try:
+            latest = (supabase.table('price_history')
+                      .select('price')
+                      .eq('listing_id', listing['id'])
+                      .order('changed_at', desc=True)
+                      .limit(1)
+                      .execute())
+            latest_price = latest.data[0]['price'] if latest.data else None
+            if latest_price is None or float(latest_price) != float(new_price):
+                supabase.table('price_history').insert({
+                    'listing_id': listing['id'],
+                    'price': new_price,
+                }).execute()
+        except Exception as pe:
+            print('  price_history write error: ' + str(pe))
 
     # Description
     if full_data.get('description') and full_data['description'] != listing.get('description'):
@@ -105,7 +131,7 @@ async def update_listing(context, listing):
 async def main(batch_size=30):
     print('Fetching active listings to update...')
     result = supabase.table('listings') \
-        .select('id,source_url,description,images,raw_data,postcode,latitude,longitude,listing_type,lease_years_remaining,service_charge_annual,ground_rent_annual') \
+        .select('id,source_url,description,images,raw_data,postcode,latitude,longitude,listing_type,price,lease_years_remaining,service_charge_annual,ground_rent_annual') \
         .eq('is_active', True) \
         .filter('source_url', 'neq', 'null') \
         .order('scraped_at') \

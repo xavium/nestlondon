@@ -228,6 +228,38 @@ async def get_full_description(context, source_url):
             if size_text and size_text not in ['Ask agent', 'None']:
                 result['size_text'] = size_text.strip()
 
+        # Price — try multiple selectors since Rightmove varies the markup between buy/rent
+        # and across page refreshes. Falls back to regex on page text if no selector matches.
+        # Used by scrape_update.py to detect price changes and write to price_history.
+        try:
+            price_text = None
+            for selector in [
+                '[data-testid="primary-price"]',
+                'article[data-testid] [class*="price"] ._1gfnqJ3Vtd1z40MlC0MzXu',  # Rightmove-specific
+                '[class*="property-header"] [class*="price"]',
+            ]:
+                price_el = await page.query_selector(selector)
+                if price_el:
+                    txt = await page.evaluate('el => el.innerText', price_el)
+                    if txt and '£' in txt:
+                        price_text = txt
+                        break
+
+            # Last resort: regex over the page text for "£X,XXX,XXX" near the top.
+            if not price_text:
+                page_text = await page.evaluate('() => document.body.innerText')
+                # Look for the first £ amount in the first 500 chars (price usually appears near top)
+                m = re.search(r'£\s*[\d,]+(?:\s*pcm)?', page_text[:800])
+                if m:
+                    price_text = m.group(0)
+
+            if price_text:
+                cleaned = clean_price(price_text)
+                if cleaned and cleaned > 0:
+                    result['price'] = cleaned
+        except Exception as pe:
+            print('  Price extract error: ' + str(pe))
+
 
 
         # Postcode - extract from page URL or address
