@@ -38,9 +38,6 @@ interface SearchParams {
   maxSize?: string
   floorLayout?: string
   style?: string
-  commuteAddress?: string
-  commuteMode?: string
-  maxCommute?: string
   commute?: string  // pipe/comma-encoded multi-location list: label|address|timeLimit|mode,...
   tenure?: string
   chainFree?: string
@@ -81,9 +78,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const minPricePerSqm = params.minPricePerSqm ? parseInt(params.minPricePerSqm) : null
   const nestOnly = params.nestOnly === '1'
   // Get saved commute address from user profile if not in URL
-  let commuteAddress = params.commuteAddress || null
-  let commuteMode: string | null = params.commuteMode || null
-  const maxCommute = params.maxCommute ? parseInt(params.maxCommute) : null
+  // Legacy singular commute_address/mode read from user metadata as a fallback for
+  // migrateLegacyCommute (folds old singular field into commute_locations). URL no longer
+  // carries these — the encoded `commute=` param is the source of truth for filtering.
+  let commuteAddress: string | null = null
+  let commuteMode: string | null = null
   // Multi-location commute: URL param wins; fall back to user_metadata.commute_locations,
   // which itself falls back to the legacy singular commute_address via migrateLegacyCommute.
   let commuteLocations: CommuteLocation[] = params.commute ? parseCommuteLocations(params.commute) : []
@@ -482,9 +481,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               addedWithin={addedWithin}
               availableFrom={availableFrom}
               style={style}
-              commuteAddress={commuteAddress}
-              maxCommute={maxCommute}
-              commuteMode={commuteMode}
               tenure={tenure}
               chainFree={chainFree}
               newBuild={newBuild}
@@ -500,7 +496,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteAddress={commuteAddress} maxCommute={maxCommute} commuteMode={commuteMode} commuteLocations={commuteLocations} listingType={listingType} />
+        {<SearchResults filtered={filtered} allListings={allListingsNearby.length > 0 ? allListingsNearby : (listings || [])} allListingsForMap={allListingsForMap || []} radius={radius} locationCoords={locationCoords} location={location} boroughMatch={boroughMatch} postcodeMatch={postcodeMatch} minBeds={minBeds} maxBeds={maxBeds} minPrice={minPrice} maxPrice={maxPrice} commuteLocations={commuteLocations} listingType={listingType} />
         }
       </div>
     </main>

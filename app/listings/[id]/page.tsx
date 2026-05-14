@@ -41,9 +41,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const navRadius = navSp.get('radius') ? parseInt(navSp.get('radius')!) : null
   const navAddedWithin = navSp.get('addedWithin') ? parseInt(navSp.get('addedWithin')!) : null
   const navAvailableFrom = navSp.get('availableFrom') || null
-  const navCommuteAddress = navSp.get('commuteAddress') || null
-  const navMaxCommute = navSp.get('maxCommute') ? parseInt(navSp.get('maxCommute')!) : null
-  const navCommuteMode = navSp.get('commuteMode') || null
   const navCommuteLocations: CommuteLocation[] = parseCommuteLocations(navSp.get('commute'))
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -421,9 +418,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               features={navFeatures}
               addedWithin={navAddedWithin}
               availableFrom={navAvailableFrom}
-              commuteAddress={navCommuteAddress || commuteAddress}
-              maxCommute={navMaxCommute}
-              commuteMode={navCommuteMode || commuteMode}
               commuteLocations={commuteLocations}
             />
           </div>

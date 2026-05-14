@@ -40,9 +40,6 @@ interface Props {
   addedWithin?: number | null
   availableFrom?: string | null
   style?: string | null
-  commuteAddress?: string | null
-  commuteMode?: string | null
-  maxCommute?: number | null
   commuteLocations?: CommuteLocation[]
   tenure?: string | null
   chainFree?: boolean
@@ -68,9 +65,6 @@ export default function NavSearchBar({
   addedWithin = null,
   availableFrom = null,
   style = null,
-  commuteAddress = null,
-  commuteMode = null,
-  maxCommute = null,
   tenure = null,
   chainFree = false,
   newBuild = false,
@@ -255,9 +249,6 @@ export default function NavSearchBar({
             addedWithin={addedWithin}
             availableFrom={availableFrom}
             style={style}
-            commuteAddress={commuteAddress || ''}
-            maxCommute={maxCommute}
-            commuteMode={commuteMode}
             commuteLocations={commuteLocations}
             tenure={tenure}
             chainFree={chainFree}

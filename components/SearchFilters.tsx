@@ -23,9 +23,6 @@ interface Props {
   addedWithin?: number | null
   availableFrom?: string | null
   onApply?: (params: URLSearchParams) => void
-  commuteAddress?: string
-  maxCommute?: number | null
-  commuteMode?: string | null
   tenure?: string | null
   chainFree?: boolean
   newBuild?: boolean
@@ -67,11 +64,6 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
   const [maxSize, setMaxSize] = useState<number | null>(null)
   const [floorLayouts, setFloorLayouts] = useState<string[]>(sp.get('floorLayout') ? sp.get('floorLayout')!.split(',') : [])
   const [availableFrom, setAvailableFrom] = useState<string | null>(props.availableFrom || null)
-  const [commuteAddress, setCommuteAddress] = useState<string>(sp.get('commuteAddress') || props.commuteAddress || '')
-  const [commuteMode, setCommuteMode] = useState<string | null>(sp.get('commuteMode') || props.commuteMode || null);
-  const [maxCommute, setMaxCommute] = useState<number | null>(sp.get('maxCommute') ? parseInt(sp.get('maxCommute')!) : (props.maxCommute || null))
-  const [editingCommute, setEditingCommute] = useState(false)
-  const [commuteDraft, setCommuteDraft] = useState(sp.get('commuteAddress') || props.commuteAddress || '')
   const [tenures, setTenures] = useState<string[]>(sp.get('tenure') ? sp.get('tenure')!.split(',') : (props.tenure ? [props.tenure] : []))
   const [chainFree, setChainFree] = useState<boolean>(sp.get('chainFree') === 'true' || props.chainFree || false)
   const [newBuild, setNewBuild] = useState<boolean>(sp.get('newBuild') === 'true' || props.newBuild || false)
@@ -95,13 +87,6 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     setCommuteLocations(prev => prev.filter(l => l.id !== id))
   }
 
-  // Sync commute address from profile if not in URL
-  useEffect(() => {
-    if (!sp.get('commuteAddress') && props.commuteAddress) {
-      setCommuteAddress(props.commuteAddress)
-      setCommuteDraft(props.commuteAddress)
-    }
-  }, [props.commuteAddress])
 
   // Sync with URL params when they change (e.g. NavFilters updates URL)
   useEffect(() => { setRadius(props.radius || null) }, [props.radius])
@@ -181,7 +166,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     setFloorLayouts([])
     setMinSize(null); setMaxSize(null); setMinBaths(null); setMaxBaths(null)
     setMinPricePerSqm(null); setMaxPricePerSqm(null)
-    setCommuteAddress(''); setMaxCommute(null); setCommuteDraft(''); setCommuteLocations([])
+    setCommuteLocations([])
     window.dispatchEvent(new Event('nestlondon:clearFilters'))
 
     // Build a URL keeping ONLY the things that aren't filters (location + type).
@@ -191,7 +176,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     router.push('/search?' + p.toString())
   }
 
-  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (commuteAddress ? 1 : 0) + (maxCommute ? 1 : 0) + (commuteMode ? 1 : 0) + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0) + commuteLocations.length
+  const activeCount = [minBeds, maxBeds, minPrice, maxPrice, radius, furnished, addedWithin, availableFrom, minSize, maxSize, minBaths, maxBaths, maxPricePerSqm, minPricePerSqm].filter(Boolean).length + floorLayouts.length + propertyTypes.length + tenures.length + features.length + styles.length + (chainFree ? 1 : 0) + (newBuild ? 1 : 0) + (leaseholdMin ? 1 : 0) + commuteLocations.length
 
   useEffect(() => {
     function handleCloseAll() { setOpen(false) }
