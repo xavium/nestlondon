@@ -67,6 +67,18 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   if (!listing) notFound()
 
+  // Price history for buy listings. Server-side fetch — fast and rendered statically.
+  // Rent listings won't have any rows (helper is buy-only), so we still fetch but expect empty.
+  const { data: priceHistoryRaw } = await queryClient
+    .from('price_history')
+    .select('price, changed_at')
+    .eq('listing_id', id)
+    .order('changed_at', { ascending: false })
+  const priceHistory: Array<{ price: number; changed_at: string }> = (priceHistoryRaw || []).map((r: any) => ({
+    price: Number(r.price),
+    changed_at: r.changed_at,
+  }))
+
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
   const commuteMode = currentUser?.user_metadata?.commute_mode || null
@@ -591,6 +603,38 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
             {keyFeatures.length > 0 && (
               <KeyFeatures features={keyFeatures} />
+            )}
+
+            {/* Price history — buy listings only. Renders if there's at least one row.
+                Single row = "Listed at £X on Y". Multiple rows = full history reverse-chronological. */}
+            {isBuyListing && priceHistory.length > 0 && (
+              <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-[#1C2B3A] mb-3">Price history</h2>
+                <div className="space-y-2">
+                  {priceHistory.map((row, i) => {
+                    // Rows are newest-first. The "previous" row chronologically is at index i+1.
+                    const previous = priceHistory[i + 1]
+                    const delta = previous ? row.price - previous.price : 0
+                    const date = new Date(row.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    const isBaseline = !previous
+                    return (
+                      <div key={i} className="flex items-center justify-between text-sm py-2 border-b border-[#F0EBE3] last:border-b-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-stone-400 min-w-[88px]">{date}</span>
+                          <span className="font-semibold text-[#1C2B3A]">£{row.price.toLocaleString()}</span>
+                        </div>
+                        {isBaseline ? (
+                          <span className="text-xs text-stone-400">Listed</span>
+                        ) : (
+                          <span className={`text-xs font-medium ${delta < 0 ? 'text-green-700' : 'text-orange-700'}`}>
+                            {delta < 0 ? '↓' : '↑'} £{Math.abs(delta).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             )}
 
             <PropertyDetailsTiles
