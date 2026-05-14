@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { boroughGuides } from '@/data/boroughGuides';
 import { useRouter } from 'next/navigation';
 
@@ -87,6 +87,7 @@ function buildSteps(intent: Intent) {
           max: 5_000_000,
           step: 50_000,
           default: 500_000,
+          curve: 2.5 as const,  // non-linear; £500k sits near the middle, big jumps above £1m
           intent: 'buy' as const,
         },
   ]
@@ -155,6 +156,20 @@ function fmtMoney(v: number, intent: Intent, max?: number) {
   return atMax ? display + '+' : display
 }
 
+// Slider curve helpers. For a curve exponent k > 1, slider position t in [0,1] maps to value
+//   v = min + (max - min) * t^k
+// so the visual middle (t=0.5) sits at a low value. Inverse: t = ((v - min) / (max - min))^(1/k).
+function curveValueToPos(value: number, min: number, max: number, k: number): number {
+  if (max === min) return 0
+  const t = Math.pow(Math.max(0, Math.min(1, (value - min) / (max - min))), 1 / k)
+  return t
+}
+function curvePosToValue(t: number, min: number, max: number, k: number, step: number): number {
+  const raw = min + (max - min) * Math.pow(t, k)
+  // Snap to nearest step so the displayed value isn't, say, £472,683.
+  return Math.round(raw / step) * step
+}
+
 export default function BoroughQuiz() {
   const router = useRouter();
   // step = -1 → intent question (always first); step >= 0 → into the main quiz.
@@ -166,7 +181,15 @@ export default function BoroughQuiz() {
   const [error, setError] = useState<string | null>(null);
 
   // The active step list depends on intent. Once intent is chosen, switch to the built steps.
-  const STEPS = intent ? buildSteps(intent) : [];
+  // STEPS rebuilds when intent changes or when the commute answer flips between blank/non-blank.
+  // We deliberately don't depend on every answer change — only the conditions that gate steps.
+  const commuteAnswered = ((answers.commute as string) || '').trim().length > 0
+  const STEPS = useMemo(() => {
+    if (!intent) return []
+    const all = buildSteps(intent)
+    // Hide commuteTime if commute address is blank/skipped.
+    return all.filter(s => s.id !== 'commuteTime' || commuteAnswered)
+  }, [intent, commuteAnswered])
   const current = step < 0 ? INTENT_STEP : STEPS[step];
 
   const canAdvance = () => {
@@ -388,6 +411,29 @@ export default function BoroughQuiz() {
               <div className="flex items-center gap-4 mb-3">
                 {(() => {
                   const val = (answers[current.id] as number) || current.default;
+                  const curve = (current as any).curve as number | undefined
+                  if (curve) {
+                    // Non-linear: slider position is in [0, 1000] integer space; we map to/from value via the curve.
+                    const t = curveValueToPos(val, current.min, current.max, curve)
+                    const pos = Math.round(t * 1000)
+                    return (
+                      <input
+                        type="range"
+                        min={0}
+                        max={1000}
+                        step={1}
+                        value={pos}
+                        onChange={e => {
+                          const nextT = parseInt(e.target.value) / 1000
+                          const nextVal = curvePosToValue(nextT, current.min, current.max, curve, current.step)
+                          setAnswers({ ...answers, [current.id]: nextVal })
+                        }}
+                        className="flex-1 range-fill accent-[#D3755A]"
+                        style={{ ['--value' as any]: `${t * 100}%` }}
+                      />
+                    )
+                  }
+                  // Linear slider (rent path).
                   const pct = ((val - current.min) / (current.max - current.min)) * 100;
                   return (
                     <input
