@@ -146,8 +146,9 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     if (minBaths) p.set('minBaths', String(minBaths))
     if (maxBaths) p.set('maxBaths', String(maxBaths))
     if (floorLayouts.length > 0) p.set('floorLayout', floorLayouts.join(','))
-    if (commuteAddress && maxCommute) { p.set('commuteAddress', commuteAddress); p.set('maxCommute', String(maxCommute)) }
-    if (commuteMode) p.set('commuteMode', commuteMode)
+    // Legacy commuteAddress / maxCommute / commuteMode URL params removed — per-row time
+    // limits + modes now live inside the encoded `commute=` param (set just below).
+
     if (tenures.length > 0) p.set('tenure', tenures.join(','))
     if (chainFree) p.set('chainFree', 'true')
     if (newBuild) p.set('newBuild', 'true')

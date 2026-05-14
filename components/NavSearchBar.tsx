@@ -145,8 +145,8 @@ export default function NavSearchBar({
     if (furnished) p.set('furnished', furnished)
     if (propertyType) p.set('propertyType', propertyType)
     if (style) p.set('style', style)
-    if (commuteAddress) p.set('commuteAddress', commuteAddress)
-    if (maxCommute) p.set('maxCommute', String(maxCommute))
+    // Legacy commuteAddress / maxCommute URL params removed — see encoded `commute=` below.
+
     if (commuteLocations && commuteLocations.length > 0) {
       const encoded = serializeCommuteLocations(commuteLocations)
       if (encoded) p.set('commute', encoded)

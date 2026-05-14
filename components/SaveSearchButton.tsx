@@ -12,11 +12,18 @@ export default function SaveSearchButton() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Reset state when the search URL changes so a previously-saved search doesn't
+    // leak its 'saved' badge onto a different search the user navigates to.
+    setSaved(false)
+    setLoading(true)
+    let cancelled = false
     fetch('/api/saved/search/check?' + new URLSearchParams(params).toString())
       .then(r => r.json())
-      .then(d => { if (d.saved) setSaved(true) })
+      .then(d => { if (!cancelled) setSaved(!!d.saved) })
       .catch(() => {})
-      .finally(() => setLoading(false))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey])
 
   async function save() {
