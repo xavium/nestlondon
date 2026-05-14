@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Bus, Footprints, Bike, Plus, X, MapPin, ChevronDown, ChevronUp } from 'lucide-react'
+import RoundelIcon, { hasRoundel } from '@/components/RoundelIcon'
 import {
   type CommuteLocation, type CommuteMode,
   MAX_COMMUTE_LOCATIONS, newLocationId, migrateLegacyCommute,
@@ -162,17 +163,15 @@ export default function CommuteWidget({
   }
 
   // Small helper: leg icon by mode string from TfL.
+  // TfL modes (tube/overground/elizabeth/dlr/tram/bus/national-rail) get the official roundel.
+  // Non-TfL modes (walking/cycling) get a lucide icon.
   function LegIcon({ mode }: { mode: string }) {
+    if (hasRoundel(mode)) {
+      // 14px for compact leg display — close to the original 'w-3 h-3' (12px) but slightly
+      // larger so the roundel text inside (UNDERGROUND, OVERGROUND, etc.) remains legible.
+      return <RoundelIcon mode={mode} size={14} />
+    }
     const m = mode.toLowerCase()
-    if (m.includes('tube') || m.includes('elizabeth') || m.includes('dlr') || m.includes('overground')) {
-      return <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="2" strokeWidth="1.5"/><path d="M7 8V6a2 2 0 012-2h6a2 2 0 012 2v2" strokeWidth="1.5" strokeLinecap="round"/><circle cx="7.5" cy="15" r="1" fill="currentColor"/><circle cx="16.5" cy="15" r="1" fill="currentColor"/></svg>
-    }
-    if (m.includes('bus')) {
-      return <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" strokeWidth="1.5"/><path d="M3 10h18M8 19v2M16 19v2" strokeWidth="1.5" strokeLinecap="round"/></svg>
-    }
-    if (m.includes('national-rail') || m.includes('tram')) {
-      return <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 17l2 2h12l2-2V8a2 2 0 00-2-2H6a2 2 0 00-2 2v9z" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 19l-2 2M15 19l2 2M4 12h16" strokeWidth="1.5" strokeLinecap="round"/></svg>
-    }
     if (m.includes('cycle') || m.includes('bike')) {
       return <Bike className="w-3 h-3 flex-shrink-0" strokeWidth={1.75} />
     }
