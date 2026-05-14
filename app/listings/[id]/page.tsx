@@ -626,7 +626,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                         {isBaseline ? (
                           <span className="text-xs text-stone-400">Listed</span>
                         ) : (
-                          <span className={`text-xs font-medium ${delta < 0 ? 'text-green-700' : 'text-orange-700'}`}>
+                          <span className="text-xs font-medium text-stone-500">
                             {delta < 0 ? '↓' : '↑'} £{Math.abs(delta).toLocaleString()}
                           </span>
                         )}
