@@ -16,3 +16,4 @@ Track schema changes here. Migrations are documentation — they are NOT auto-ap
 |---|------|-------------|
 | 0001 | `0001_lease_details.sql` | Adds lease_years_remaining, service_charge_annual, ground_rent_annual to listings |
 | 0002 | `0002_price_history.sql` | Adds price_history table for tracking buy-side price changes |
+| 0003 | `0003_blog_posts.sql` | Adds blog_posts table for the /blog section, with RLS for public-read-published and admin-all |
