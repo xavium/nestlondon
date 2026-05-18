@@ -114,13 +114,50 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return uni === 0 ? 0 : inter / uni
 }
 
-/** 0-1 address similarity, jaccard on normalised trigrams. */
+/**
+ * 0-1 address similarity. Smarter than plain Jaccard:
+ *
+ * The challenge: "Willow Road, London" and "Willow Road, Hampstead, London, NW3"
+ * are the same property but one has more context tokens. Plain Jaccard penalises
+ * this (only 3/6 tokens shared = 0.5). The right model is "are all of the smaller
+ * side's tokens present in the bigger side?" — i.e. subset compatibility.
+ *
+ * Strategy:
+ *   1. Tokenise both addresses (after normalisation: lowercased, no postcodes,
+ *      no punctuation, abbreviations expanded).
+ *   2. If either side has < 2 tokens, fall back to trigram Jaccard (too few
+ *      tokens for the subset rule to work without false positives).
+ *   3. Otherwise: |intersection| / min(|A|, |B|).
+ *      - "Willow Road, London" vs "Willow Road, Hampstead, London, NW3"
+ *          → tokens {willow, road, london} ∩ {willow, road, hampstead, london} = 3
+ *          → min = 3 → score = 1.00 ✓
+ *      - "31 Test Lane" vs "32 Test Lane"
+ *          → {31, test, lane} ∩ {32, test, lane} = 2
+ *          → min = 3 → score = 0.67 ✗ correctly demoted below 0.70 gate
+ *      - "Queen's Gate, London, SW7" vs "Queen's Gate, South Kensington, London, SW7"
+ *          → {queens, gate, london} ∩ {queens, gate, south, kensington, london} = 3
+ *          → min = 3 → score = 1.00 ✓
+ */
 export function addressSimilarity(a: string | null, b: string | null): number {
   const na = normaliseAddress(a)
   const nb = normaliseAddress(b)
   if (!na || !nb) return 0
-  if (na === nb) return 1.0  // exact match short-circuit
-  return jaccard(trigrams(na), trigrams(nb))
+  if (na === nb) return 1.0
+
+  const tokensA = na.split(/\s+/).filter(Boolean)
+  const tokensB = nb.split(/\s+/).filter(Boolean)
+
+  // Too few tokens for subset rule to be reliable — fall back to trigrams.
+  if (tokensA.length < 2 || tokensB.length < 2) {
+    return jaccard(trigrams(na), trigrams(nb))
+  }
+
+  const setA = new Set(tokensA)
+  const setB = new Set(tokensB)
+  let intersection = 0
+  for (const t of setA) if (setB.has(t)) intersection++
+
+  return intersection / Math.min(setA.size, setB.size)
 }
 
 // ---- Numeric similarity ----
@@ -206,17 +243,42 @@ export interface PairScoreResult {
   }
 }
 
+// Hard gates: requirements that must be true for a pair to be considered AT ALL.
+// If any gate fails, the overall score is forced to 0. Bedrooms must match exactly
+// (different bed count = different property). Address similarity must be high
+// (different street = different property; "31 Test Lane" vs "32 Test Lane" is NOT
+// the same property even though jaccard might score them ~0.85).
+const ADDRESS_GATE_THRESHOLD = 0.70   // below this = different property
+const BEDROOMS_HARD_GATE = true        // exact match required when both have data
+
 export function pairScore(a: ListingForDedupe, b: ListingForDedupe): PairScoreResult {
   const addrSim = addressSimilarity(a.address, b.address)
-  const priceSim = ratioSimilarity(a.price, b.price, 0.20)  // 20% tolerance for price
+  const priceSim = ratioSimilarity(a.price, b.price, 0.20)
   const bedSim = bedroomSimilarity(a.bedrooms, b.bedrooms)
   const sqftA = extractSqft(a.raw_data)
   const sqftB = extractSqft(b.raw_data)
   const sizeSim = ratioSimilarity(sqftA, sqftB, 0.20)
   const geoSim = geoSimilarity(a, b)
 
-  // When geo is unavailable, redistribute its weight to address (the next-best
-  // geographic signal). Otherwise use weights as defined.
+  // Gate 1: bedrooms. If both have a value and they differ → 0. Off-by-one is NOT
+  // a fuzzy match here; different bed count means different unit.
+  const bothHaveBeds = a.bedrooms != null && b.bedrooms != null
+  if (BEDROOMS_HARD_GATE && bothHaveBeds && a.bedrooms !== b.bedrooms) {
+    return { score: 0, breakdown: { address: addrSim, price: priceSim, bedrooms: 0, size: sizeSim, geo: geoSim } }
+  }
+
+  // Gate 2: address. Different street number = different property. The trigram
+  // similarity catches major differences ("Drayton" vs "Notting" → ~0.1) but can
+  // be high for same-street-different-house-number ("31 Test Lane" vs "32 Test Lane")
+  // — that's fine because the strict threshold is high enough to reject them as a
+  // confident duplicate. Set to 0.70 (tunable).
+  if (addrSim < ADDRESS_GATE_THRESHOLD) {
+    return { score: 0, breakdown: { address: addrSim, price: priceSim, bedrooms: bedSim, size: sizeSim, geo: geoSim } }
+  }
+
+  // Past the gates: score normally. Gates are non-negotiable; the score reflects
+  // the soft dimensions only (size, price, geo are the "are these the same unit
+  // in the same building" signal).
   let total = 0
   let weightSum = 0
   total += WEIGHTS.address * addrSim;   weightSum += WEIGHTS.address
