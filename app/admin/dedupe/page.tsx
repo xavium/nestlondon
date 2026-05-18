@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@/lib/admin'
 import { runAudit, CONFIDENT_THRESHOLD, REVIEW_THRESHOLD } from '@/lib/dedupeAudit'
+import { autoHideUndecided } from '@/lib/dedupeAutoHide'
 import NavAuthButton from '@/components/NavAuthButton'
 import DedupeActions from '@/components/DedupeActions'
 
@@ -30,8 +31,58 @@ export default async function AdminDedupePage() {
     .from('listings')
     .select('id, address, postcode, latitude, longitude, bedrooms, bathrooms, property_type, price, listing_type, raw_data, source, source_url, scraped_at, listed_at, is_active, is_direct')
     .is('canonical_listing_id', null)
+    .eq('is_active', true)
 
-  const audit = runAudit(listings || [])
+  let audit = runAudit(listings || [])
+
+  // Auto-hide any confident, non-null-recommendation pairs not already decided.
+  const hiddenCount = await autoHideUndecided(svc, audit.confident, user?.id ?? null)
+  if (hiddenCount > 0) {
+    const { data: refreshed } = await svc
+      .from('listings')
+      .select('id, address, postcode, latitude, longitude, bedrooms, bathrooms, property_type, price, listing_type, raw_data, source, source_url, scraped_at, listed_at, is_active, is_direct')
+      .is('canonical_listing_id', null)
+      .eq('is_active', true)
+    audit = runAudit(refreshed || [])
+  }
+
+  // Pending confirmations: auto_merge log rows with no subsequent confirm/reject.
+  // We fetch the merge log entries + the involved listings for side-by-side display.
+  const { data: logRows } = await svc
+    .from('listing_merge_log')
+    .select('id, action, canonical_listing_id, merged_listing_id, score, performed_at, notes')
+    .order('performed_at', { ascending: false })
+    .limit(500)
+
+  type LogRow = NonNullable<typeof logRows>[number]
+  const autoMergeRows: LogRow[] = []
+  const resolvedKeys = new Set<string>()
+  for (const r of logRows || []) {
+    const k = `${r.canonical_listing_id}|${r.merged_listing_id}`
+    if (r.action === 'confirm' || r.action === 'reject' || r.action === 'unmerge') {
+      resolvedKeys.add(k)
+    }
+  }
+  for (const r of logRows || []) {
+    if (r.action !== 'auto_merge') continue
+    const k = `${r.canonical_listing_id}|${r.merged_listing_id}`
+    if (resolvedKeys.has(k)) continue
+    autoMergeRows.push(r)
+  }
+
+  // Load the listing data for the pending pairs
+  const pendingIds = new Set<string>()
+  for (const r of autoMergeRows) {
+    if (r.canonical_listing_id) pendingIds.add(r.canonical_listing_id)
+    if (r.merged_listing_id) pendingIds.add(r.merged_listing_id)
+  }
+  const { data: pendingListings } = pendingIds.size > 0
+    ? await svc
+        .from('listings')
+        .select('id, address, postcode, latitude, longitude, bedrooms, bathrooms, property_type, price, listing_type, raw_data, source, source_url, scraped_at, listed_at, is_active, is_direct, canonical_listing_id')
+        .in('id', Array.from(pendingIds))
+    : { data: [] as any[] }
+  const byId = new Map<string, any>((pendingListings || []).map(l => [l.id, l]))
 
   return (
     <main className="min-h-screen" style={{ background: '#F8F4ED' }}>
@@ -56,6 +107,48 @@ export default async function AdminDedupePage() {
             View merge history →
           </Link>
         </div>
+
+        {/* Pending confirmation (auto-hidden, awaiting admin) */}
+        {autoMergeRows.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
+              Pending confirmation ({autoMergeRows.length})
+            </h2>
+            <div className="space-y-4">
+              {autoMergeRows.map(r => {
+                const canonical = byId.get(r.canonical_listing_id)
+                const merged = byId.get(r.merged_listing_id)
+                if (!canonical || !merged) return null
+                return (
+                  <div key={r.id} className="bg-white border border-[#E8E2DA] rounded-2xl overflow-hidden">
+                    <div className="px-5 py-3 border-b border-[#E8E2DA] flex items-center justify-between bg-amber-50/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-100">
+                          Auto-hidden · score {r.score ? r.score.toFixed(3) : '-'}
+                        </span>
+                        <span className="text-xs text-stone-500">{r.notes}</span>
+                      </div>
+                      <span className="text-xs text-stone-400">{new Date(r.performed_at).toLocaleString('en-GB')}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#E8E2DA]">
+                      <ListingMini listing={canonical} label="Canonical (kept)" />
+                      <ListingMini listing={merged} label="Hidden" />
+                    </div>
+                    <div className="px-5 py-3 border-t border-[#E8E2DA] bg-[#F8F4ED]/50">
+                      <DedupeActions
+                        listingAId={r.canonical_listing_id}
+                        listingBId={r.merged_listing_id}
+                        score={r.score || 0}
+                        recommendation={{ canonical: 'a', reason: r.notes || 'Auto-merged' }}
+                        alreadyAutoHidden={true}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Confident */}
         <section className="mb-12">
