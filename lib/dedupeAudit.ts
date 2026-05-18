@@ -8,7 +8,7 @@
  *   - scripts/find_potential_duplicates.mjs (CLI)
  *   - app/admin/dedupe/page.tsx (admin UI)
  */
-import { fingerprint, pairScore, type ListingForDedupe, type PairScoreResult } from './listingFingerprint'
+import { fingerprint, pairScore, type ListingForDedupe, type PairScoreResult } from './listingFingerprint.ts'
 
 export const CONFIDENT_THRESHOLD = 0.80
 export const REVIEW_THRESHOLD = 0.60
@@ -34,8 +34,23 @@ export function recommendCanonical(a: any, b: any): Recommendation {
   if (aDirect && !bDirect) return { canonical: 'a', reason: 'A is a direct listing; B is scraped' }
   if (bDirect && !aDirect) return { canonical: 'b', reason: 'B is a direct listing; A is scraped' }
 
-  // Both direct — ambiguous, escalate
-  if (aDirect && bDirect) return { canonical: null, reason: 'Both are direct listings — needs admin review' }
+  // Both direct: only safe to auto-merge if they belong to the SAME account.
+  // 'Same account' = both have agent_id set and they match. Anything else (different
+  // agents, or a mix of agent vs private/landlord, or two anonymous private listings)
+  // is treated as a potential dispute and must show BOTH listings until admin reviews.
+  if (aDirect && bDirect) {
+    const aAgent = a.agent_id || null
+    const bAgent = b.agent_id || null
+    if (aAgent && bAgent && aAgent === bAgent) {
+      // Same agent listed it twice — auto-merge, newer scrape wins (or A by default)
+      const aTime = a.scraped_at ? new Date(a.scraped_at).getTime() : 0
+      const bTime = b.scraped_at ? new Date(b.scraped_at).getTime() : 0
+      if (aTime >= bTime) return { canonical: 'a', reason: 'Same agent account; A is more recent' }
+      return { canonical: 'b', reason: 'Same agent account; B is more recent' }
+    }
+    // Different accounts — DO NOT auto-merge. Admin must investigate.
+    return { canonical: null, reason: 'Both are direct listings from different accounts — needs admin investigation. Both remain visible.' }
+  }
 
   // Neither direct — pick most recently scraped (freshest data wins)
   const aTime = a.scraped_at ? new Date(a.scraped_at).getTime() : 0

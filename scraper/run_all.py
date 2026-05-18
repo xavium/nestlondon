@@ -39,12 +39,38 @@ async def main():
         print('Stale check error: ' + str(e))
 
     # 4. EPC enrichment
-    print('\n[4/4] EPC enrichment')
+    print('\n[4/5] EPC enrichment')
     try:
         from epc_enricher import enrich_listings
         enrich_listings(batch_size=100)
     except Exception as e:
         print('EPC enricher error: ' + str(e))
+
+    # 5. Cross-source dedupe pass. Runs the Node script that scores listing pairs
+    #    and auto-hides confident duplicates. Idempotent — won't re-process pairs
+    #    that have already been decided. See scripts/dedupe_run.mjs + lib/dedupeAudit.ts.
+    print('\n[5/5] Cross-source dedupe pass')
+    try:
+        import subprocess
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        env_file = os.path.join(repo_root, '.env.local')
+        script = os.path.join(repo_root, 'scripts', 'dedupe_run.mjs')
+        result = subprocess.run(
+            ['node', '--env-file=' + env_file, script],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        # Stream output (the runner is verbose enough already)
+        if result.stdout: print(result.stdout.rstrip())
+        if result.stderr: print(result.stderr.rstrip())
+        if result.returncode != 0:
+            print('Dedupe runner exited with code ' + str(result.returncode))
+    except subprocess.TimeoutExpired:
+        print('Dedupe runner timed out (180s)')
+    except Exception as e:
+        print('Dedupe runner error: ' + str(e))
 
     print('\n' + '=' * 50)
     print('All done.')
