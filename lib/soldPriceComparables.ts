@@ -37,6 +37,17 @@ export interface SoldPriceComparison {
   // Display strings
   postcodeDistrict: string
   propertyTypeLabel: string
+  // The 5 most recent comparable sales, for the "recent sales" card.
+  // Independent of the trimmed/weighted stats above (these are the raw recent sales).
+  recentSales: RecentSale[]
+}
+
+export interface RecentSale {
+  paon: string | null
+  saon: string | null
+  street: string | null
+  price: number
+  date: string  // YYYY-MM-DD
 }
 
 /** Map listing's free-text property_type to LR's single-letter codes. */
@@ -128,7 +139,7 @@ export async function getSoldPriceComparison(
   const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from('sold_prices')
-    .select('price, date_of_transfer')
+    .select('price, date_of_transfer, paon, saon, street')
     .eq('postcode_district', district)
     .eq('property_type', lrType)
     .gte('date_of_transfer', cutoff)
@@ -175,6 +186,20 @@ export async function getSoldPriceComparison(
   const confidence: 'high' | 'medium' | 'low' =
     n >= 30 ? 'high' : n >= 10 ? 'medium' : 'low'
 
+  // Recent sales: 5 most recent comparable sales (any price, untrimmed) for the
+  // Recently Sold card. Filter out outliers for stats but show real recent activity here.
+  const recentSales = [...data]
+    .map(r => ({
+      paon: r.paon as string | null,
+      saon: r.saon as string | null,
+      street: r.street as string | null,
+      price: Number(r.price),
+      date: r.date_of_transfer as string,
+    }))
+    .filter(r => r.price > 0)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5)
+
   return {
     sampleSize: n,
     confidence,
@@ -187,5 +212,6 @@ export async function getSoldPriceComparison(
     signal,
     postcodeDistrict: district,
     propertyTypeLabel: TYPE_LABELS[lrType],
+    recentSales,
   }
 }

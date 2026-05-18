@@ -1,10 +1,12 @@
 import type { SoldPriceComparison } from '@/lib/soldPriceComparables'
 
 /**
- * Sold-price comparables card. Renders below price history on buy listing pages.
- * Returns null if no comparison data (e.g. no postcode, no comparables, rent listing).
+ * Percentile rank card: where does this listing sit in the distribution of
+ * recent SOLD prices in the same postcode district + property type?
+ *
+ * Companion cards: PricePerSqftCard, RecentSalesCard.
  */
-export default function SoldPriceComparables({
+export default function PercentileRankCard({
   comparison,
   listingPrice,
 }: {
@@ -15,8 +17,6 @@ export default function SoldPriceComparables({
 
   const { sampleSize, confidence, median, p25, p75, min, max, listingPercentile, signal, postcodeDistrict, propertyTypeLabel } = comparison
 
-  // Visual gauge: a horizontal bar showing the p25-p75 range,
-  // with the listing price marked, and min/max at the edges.
   const gaugeMin = min
   const gaugeMax = max
   const gaugeRange = gaugeMax - gaugeMin || 1
@@ -28,9 +28,9 @@ export default function SoldPriceComparables({
   const listingPct = listingPrice ? pctOf(listingPrice) : null
 
   const signalLabel =
-    signal === 'above' ? 'Above local sold range' :
-    signal === 'below' ? 'Below local sold range' :
-    signal === 'within' ? 'Within local sold range' : null
+    signal === 'above' ? 'Above the sold-price range' :
+    signal === 'below' ? 'Below the sold-price range' :
+    signal === 'within' ? 'Within the sold-price range' : null
   const signalColor =
     signal === 'above' ? 'text-orange-700 bg-orange-50 border-orange-100' :
     signal === 'below' ? 'text-green-700 bg-green-50 border-green-100' :
@@ -45,12 +45,11 @@ export default function SoldPriceComparables({
   return (
     <div className="bg-white border border-[#E8E2DA] rounded-xl p-5">
       <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-sm font-semibold text-[#1C2B3A]">Recent sold prices</h2>
+        <h2 className="text-sm font-semibold text-[#1C2B3A]">Where this listing sits vs sold prices</h2>
         <span className="text-xs text-stone-400">{postcodeDistrict} {propertyTypeLabel}, last 12 months</span>
       </div>
       <p className="text-xs text-stone-500 mb-4">{confidenceLabel}</p>
 
-      {/* Signal pill */}
       {signal && (
         <div className="mb-5">
           <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full border ${signalColor}`}>
@@ -64,7 +63,6 @@ export default function SoldPriceComparables({
         </div>
       )}
 
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-4 mb-5 text-center">
         <div>
           <div className="text-xs text-stone-500 mb-1">25th percentile</div>
@@ -82,42 +80,28 @@ export default function SoldPriceComparables({
         </div>
       </div>
 
-      {/* Gauge bar */}
       <div>
         <div className="relative h-10">
-          {/* Background track */}
           <div className="absolute inset-x-0 top-4 h-2 bg-[#F0EBE3] rounded-full" />
-          {/* IQR band (p25-p75) */}
           <div
             className="absolute top-4 h-2 rounded-full"
-            style={{
-              left: p25Pct + '%',
-              width: (p75Pct - p25Pct) + '%',
-              background: '#D3755A33',
-            }}
+            style={{ left: p25Pct + '%', width: (p75Pct - p25Pct) + '%', background: '#D3755A33' }}
           />
-          {/* Median tick */}
           <div
             className="absolute top-3 w-px h-4 bg-[#1C2B3A]"
             style={{ left: medianPct + '%' }}
             title={'Median £' + median.toLocaleString()}
           />
-          {/* This listing's marker */}
           {listingPct != null && (
             <>
               <div
                 className="absolute top-2 w-3 h-3 rounded-full border-2 border-white shadow-sm"
-                style={{
-                  left: 'calc(' + listingPct + '% - 6px)',
-                  background: '#D3755A',
-                }}
+                style={{ left: 'calc(' + listingPct + '% - 6px)', background: '#D3755A' }}
                 title={'This listing £' + listingPrice?.toLocaleString()}
               />
               <div
                 className="absolute top-7 text-[10px] font-medium text-[#D3755A] whitespace-nowrap"
-                style={{
-                  left: 'calc(' + listingPct + '% - 20px)',
-                }}
+                style={{ left: 'calc(' + listingPct + '% - 20px)' }}
               >
                 This listing
               </div>
@@ -131,7 +115,7 @@ export default function SoldPriceComparables({
       </div>
 
       <p className="text-[11px] text-stone-400 mt-4">
-        Source: HM Land Registry Price Paid Data. Sold prices, not asking prices. Adjusted for recency.
+        Source: HM Land Registry Price Paid Data (sold prices, not asking).
       </p>
     </div>
   )

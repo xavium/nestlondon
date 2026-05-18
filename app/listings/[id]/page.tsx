@@ -27,8 +27,11 @@ import { Home, Clock, Paintbrush, LandPlot } from 'lucide-react'
 import AmenitiesPanel from '@/components/AmenitiesPanel'
 import { getAmenitiesOrRefresh } from '@/lib/amenities'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import SoldPriceComparables from '@/components/SoldPriceComparables'
+import PercentileRankCard from '@/components/PercentileRankCard'
+import PricePerSqftCard from '@/components/PricePerSqftCard'
+import RecentSalesCard from '@/components/RecentSalesCard'
 import { getSoldPriceComparison } from '@/lib/soldPriceComparables'
+import { getPricePerSqftComparison } from '@/lib/pricePerSqftComparables'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -113,6 +116,16 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     property_type: listing.property_type,
     price: listing.price,
     listing_type: listing.listing_type,
+  })
+
+  const psqftComparison = await getPricePerSqftComparison(amenitiesServiceClient, {
+    id: listing.id,
+    postcode: listing.postcode,
+    address: listing.address,
+    property_type: listing.property_type,
+    price: listing.price,
+    listing_type: listing.listing_type,
+    raw_data: listing.raw_data,
   })
 
   const { data: { user: currentUser } } = await supabase.auth.getUser()
@@ -689,7 +702,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             )}
 
-            <SoldPriceComparables comparison={soldPriceComparison} listingPrice={listing.price} />
+            <PercentileRankCard comparison={soldPriceComparison} listingPrice={listing.price} />
+
+            <PricePerSqftCard comparison={psqftComparison} />
+
+            <RecentSalesCard comparison={soldPriceComparison} />
 
             <AmenitiesPanel amenities={amenities} />
 
