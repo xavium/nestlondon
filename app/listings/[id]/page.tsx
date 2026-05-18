@@ -24,6 +24,9 @@ import BoroughGuideInline from '@/components/BoroughGuideInline'
 import { getBoroughByPostcode } from '@/data/boroughGuides'
 import { parseCommuteLocations, migrateLegacyCommute, type CommuteLocation } from '@/lib/commute'
 import { Home, Clock, Paintbrush, LandPlot } from 'lucide-react'
+import AmenitiesPanel from '@/components/AmenitiesPanel'
+import { getAmenitiesOrRefresh } from '@/lib/amenities'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -78,6 +81,20 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     price: Number(r.price),
     changed_at: r.changed_at,
   }))
+
+  // Nearby amenities (Overpass/OSM, cached in listing_amenities). The helper handles cache
+  // freshness and refresh internally. If lat/lng are missing or Overpass fails completely,
+  // returns empty categories and AmenitiesPanel renders nothing.
+  const amenitiesServiceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+  const amenities = await getAmenitiesOrRefresh(
+    amenitiesServiceClient,
+    id,
+    listing.latitude,
+    listing.longitude,
+  )
 
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
@@ -651,6 +668,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <div className="text-sm text-[#4A5568] leading-relaxed whitespace-pre-line">{cleanDescription}</div>
               </div>
             )}
+
+            <AmenitiesPanel amenities={amenities} />
 
             {listing.latitude && listing.longitude && (
               <PropertyMap
