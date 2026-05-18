@@ -123,17 +123,25 @@ async function fetchFromOverpass(
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    // Overpass requires a User-Agent + Accept header set. Node's fetch handles these
+    // conservatively, so we send them explicitly. Body is form-encoded per Overpass docs.
+    const formBody = 'data=' + encodeURIComponent(query)
     const res = await fetch(OVERPASS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: query,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'User-Agent': 'NestLondon/1.0 (https://nestlondon.co.uk; contact: hello@nestlondon.co.uk)',
+      },
+      body: formBody,
       signal: controller.signal,
     })
-    clearTimeout(timeoutId)
     if (!res.ok) {
-      console.error('[amenities] Overpass HTTP', res.status)
+      const responseText = await res.text().catch(() => '(unreadable)')
+      console.error('[amenities] Overpass HTTP', res.status, 'body:', responseText.slice(0, 400))
       return []
     }
+    clearTimeout(timeoutId)
     json = await res.json()
   } catch (e: any) {
     console.error('[amenities] Overpass fetch error:', e?.message || e)
