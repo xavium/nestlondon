@@ -27,10 +27,7 @@ import { Home, Clock, Paintbrush, LandPlot } from 'lucide-react'
 import AmenitiesPanel from '@/components/AmenitiesPanel'
 import { getAmenitiesOrRefresh } from '@/lib/amenities'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import PercentileRankCard from '@/components/PercentileRankCard'
 import PricePerSqftCard from '@/components/PricePerSqftCard'
-import RecentSalesCard from '@/components/RecentSalesCard'
-import { getSoldPriceComparison } from '@/lib/soldPriceComparables'
 import { getPricePerSqftComparison } from '@/lib/pricePerSqftComparables'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
@@ -110,14 +107,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   // Sold price comparables (Land Registry). Buy listings only. Returns null gracefully
   // for rents, missing postcodes, or sparse data — the UI component hides itself in that case.
-  const soldPriceComparison = await getSoldPriceComparison(amenitiesServiceClient, {
-    postcode: listing.postcode,
-    address: listing.address,
-    property_type: listing.property_type,
-    price: listing.price,
-    listing_type: listing.listing_type,
-  })
-
   const psqftComparison = await getPricePerSqftComparison(amenitiesServiceClient, {
     id: listing.id,
     postcode: listing.postcode,
@@ -702,11 +691,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             )}
 
-            <PercentileRankCard comparison={soldPriceComparison} listingPrice={listing.price} />
-
             <PricePerSqftCard comparison={psqftComparison} />
-
-            <RecentSalesCard comparison={soldPriceComparison} />
 
             <AmenitiesPanel amenities={amenities} />
 
