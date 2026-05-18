@@ -49,6 +49,20 @@ function postcodeDistrict(postcode: string | null): string {
   return m ? m[1].toUpperCase() : ''
 }
 
+/** Normalise property type to a coarse category for blocking.
+ *  Rightmove uses many variants ("Detached", "Link Detached House", "End Terrace") that
+ *  effectively mean the same thing for dedupe purposes. Collapse them so we don't fail
+ *  to block on cosmetic differences. */
+function normalisePropertyType(ptype: string | null | undefined): string {
+  const s = lower(ptype)
+  if (!s) return '?'
+  if (s.includes('flat') || s.includes('apartment') || s.includes('maisonette') || s.includes('studio')) return 'flat'
+  if (s.includes('house') || s.includes('detached') || s.includes('terrace') || s.includes('semi') || s.includes('bungalow') || s.includes('cottage')) return 'house'
+  if (s.includes('land') || s.includes('plot')) return 'land'
+  if (s.includes('commercial')) return 'commercial'
+  return s.split(/\s+/)[0]
+}
+
 /** Bucket size into rough categories so we don't fail to block on tiny variance. */
 function sizeBucket(sqft: number | null): string {
   if (sqft == null) return 'unknown'
@@ -215,7 +229,7 @@ export function fingerprint(listing: ListingForDedupe): string {
       : 'unknown'
   )
   const beds = listing.bedrooms != null ? String(listing.bedrooms) : '?'
-  const ptype = lower(listing.property_type) || '?'
+  const ptype = normalisePropertyType(listing.property_type)
   const sqft = extractSqft(listing.raw_data)
   const sb = sizeBucket(sqft)
   const lt = listing.listing_type || '?'
