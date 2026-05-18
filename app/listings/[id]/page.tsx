@@ -27,6 +27,8 @@ import { Home, Clock, Paintbrush, LandPlot } from 'lucide-react'
 import AmenitiesPanel from '@/components/AmenitiesPanel'
 import { getAmenitiesOrRefresh } from '@/lib/amenities'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import SoldPriceComparables from '@/components/SoldPriceComparables'
+import { getSoldPriceComparison } from '@/lib/soldPriceComparables'
 
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string,string>> }) {
   const { id } = await params
@@ -102,6 +104,15 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     listing.latitude,
     listing.longitude,
   )
+
+  // Sold price comparables (Land Registry). Buy listings only. Returns null gracefully
+  // for rents, missing postcodes, or sparse data — the UI component hides itself in that case.
+  const soldPriceComparison = await getSoldPriceComparison(amenitiesServiceClient, {
+    postcode: listing.postcode,
+    property_type: listing.property_type,
+    price: listing.price,
+    listing_type: listing.listing_type,
+  })
 
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
@@ -676,6 +687,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <div className="text-sm text-[#4A5568] leading-relaxed whitespace-pre-line">{cleanDescription}</div>
               </div>
             )}
+
+            <SoldPriceComparables comparison={soldPriceComparison} listingPrice={listing.price} />
 
             <AmenitiesPanel amenities={amenities} />
 
