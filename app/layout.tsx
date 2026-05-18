@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Serif, Manrope } from "next/font/google";
 import "./globals.css";
 import PendingSaveHandler from "@/components/PendingSaveHandler";
+import Footer from "@/components/Footer";
 
 const notoSerif = Noto_Serif({
   variable: "--font-serif",
@@ -35,7 +36,7 @@ export default function RootLayout({
       lang="en"
       className={`${notoSerif.variable} ${manrope.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><PendingSaveHandler />{children}</body>
+      <body className="min-h-full flex flex-col"><PendingSaveHandler />{children}<Footer /></body>
     </html>
   );
 }

@@ -609,20 +609,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── FOOTER ──────────────────────────────────────────────── */}
-      <footer style={{background: '#1C2B3A'}} className="py-10 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="text-xl font-light text-white" style={{fontFamily: 'Georgia, serif'}}>
-            nest<span style={{color: '#D3755A'}} className="italic">london</span>
-          </div>
-          <p className="text-white/30 text-xs">© 2026 NestLondon. All listings sourced from public portals.</p>
-          <div className="flex gap-6 text-white/40 text-xs">
-            <span className="cursor-pointer hover:text-white/70 transition-colors">Privacy</span>
-            <span className="cursor-pointer hover:text-white/70 transition-colors">Terms</span>
-            <span className="cursor-pointer hover:text-white/70 transition-colors">For agents</span>
-          </div>
-        </div>
-      </footer>
     </main>
   )
 }
