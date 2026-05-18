@@ -153,6 +153,9 @@ export async function POST(req: NextRequest) {
       square_feet: square_feet ? parseInt(square_feet) : null,
       listing_type: listing_type === 'buy' ? 'buy' : 'rent',
       agent_id: lister === 'agent' && user ? user.id : null,
+      // owner_user_id: the user who created this listing, regardless of lister type.
+      // Used by RLS to authenticate ownership for actions like reading offers.
+      owner_user_id: user ? user.id : null,
       source: lister === 'private' ? 'Private owner' : lister === 'agent' ? 'Agent' : 'Landlord',
       source_url: null,
       is_active: false,

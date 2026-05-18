@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Missing token' }, { status: 400 })
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
     const { data: request } = await supabase.from('viewing_requests').select('*, listings(address, raw_data)').eq('confirmation_token', token).single()
     if (!request) return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest) {
     }
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
     const { data: request } = await supabase.from('viewing_requests').select('*, listings(address)').eq('id', request_id).single()
     if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
