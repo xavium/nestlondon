@@ -63,6 +63,7 @@ export async function GET() {
         .from('listings')
         .select('id, bedrooms, price, latitude, longitude')
         .eq('is_active', true)
+        .is('canonical_listing_id', null)
         .gte('scraped_at', since)
         .limit(200)
       if (params.minBeds) q = q.gte('bedrooms', parseInt(params.minBeds))

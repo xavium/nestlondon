@@ -111,7 +111,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     { cookies: { getAll() { return cookieStore.getAll() } } }
   )
   const isBuyMode = listingType === 'buy'
-  let query = supabase.from('listings').select('*').eq('is_active', true).order('scraped_at', { ascending: false }).limit(200)
+  let query = supabase.from('listings').select('*').eq('is_active', true).is('canonical_listing_id', null).order('scraped_at', { ascending: false }).limit(200)
   query = query.eq('listing_type', isBuyMode ? 'buy' : 'rent')
   if (nestOnly) query = query.neq('source', 'Rightmove').neq('source', 'rightmove')
 
@@ -451,6 +451,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       .from('listings')
       .select('id,address,price,images,bedrooms,bathrooms,property_type,latitude,longitude,description,raw_data')
       .eq('is_active', true)
+      .is('canonical_listing_id', null)
       .eq('listing_type', listingType)
       .not('latitude', 'is', null)
       .limit(500)

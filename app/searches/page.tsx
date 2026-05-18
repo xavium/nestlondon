@@ -68,6 +68,7 @@ export default async function SearchesPage() {
       .from('listings')
       .select('id, bedrooms, price, latitude, longitude, scraped_at')
       .eq('is_active', true)
+      .is('canonical_listing_id', null)
       .gte('scraped_at', since)
       .limit(200)
 

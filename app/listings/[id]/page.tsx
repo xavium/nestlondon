@@ -70,6 +70,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   if (!listing) notFound()
 
+  // If this listing has been merged into another, redirect to the canonical.
+  // Cleaner than rendering a "this was merged" banner — users land on the surviving record.
+  if (listing.canonical_listing_id) {
+    const { redirect } = await import('next/navigation')
+    redirect(`/listings/${listing.canonical_listing_id}`)
+  }
+
   // Price history for buy listings. Server-side fetch — fast and rendered statically.
   // Rent listings won't have any rows (helper is buy-only), so we still fetch but expect empty.
   const { data: priceHistoryRaw } = await queryClient
@@ -134,6 +141,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       .from('listings')
       .select('id,address,price,latitude,longitude,bedrooms,bathrooms,property_type,images,listing_type,description,raw_data')
       .eq('is_active', true)
+      .is('canonical_listing_id', null)
       .eq('listing_type', listing.listing_type || 'rent')
       .neq('id', id)
       .not('latitude', 'is', null)
@@ -297,7 +305,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       const minP = sp2.get('minPrice') ? parseInt(sp2.get('minPrice')!) : null
       const furn = sp2.get('furnished') || null
       const ptype = sp2.get('propertyType') || null
-      let q = supabase.from('listings').select('id,address,price,images,bedrooms,bathrooms,property_type,borough,latitude,longitude,listing_type,description,raw_data').eq('is_active', true).eq('listing_type', listing.listing_type || 'rent').neq('id', id).limit(6)
+      let q = supabase.from('listings').select('id,address,price,images,bedrooms,bathrooms,property_type,borough,latitude,longitude,listing_type,description,raw_data').eq('is_active', true).is('canonical_listing_id', null).eq('listing_type', listing.listing_type || 'rent').neq('id', id).limit(6)
       if (loc) {
         const locU = loc.trim().toUpperCase()
         const isPC = /^[A-Z]{1,2}[0-9]{1,2}$/.test(locU)

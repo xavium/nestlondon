@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
       .from('listings')
       .select('id, address, price, bedrooms, property_type, images, scraped_at, latitude, longitude')
       .eq('is_active', true)
+      .is('canonical_listing_id', null)
       .order('scraped_at', { ascending: false })
       .limit(100)
 
