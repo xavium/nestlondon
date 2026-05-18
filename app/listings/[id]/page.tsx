@@ -109,6 +109,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   // for rents, missing postcodes, or sparse data — the UI component hides itself in that case.
   const soldPriceComparison = await getSoldPriceComparison(amenitiesServiceClient, {
     postcode: listing.postcode,
+    address: listing.address,
     property_type: listing.property_type,
     price: listing.price,
     listing_type: listing.listing_type,

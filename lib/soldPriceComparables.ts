@@ -63,10 +63,20 @@ const TYPE_LABELS: Record<LRPropertyType, string> = {
   O: 'other property types',
 }
 
-function postcodeDistrict(postcode: string | null | undefined): string | null {
-  if (!postcode) return null
-  const m = postcode.trim().match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)\s*\d?/i)
-  return m ? m[1].toUpperCase() : null
+/**
+ * Extract the postcode district (outward code) from either a full postcode
+ * ("SW7 4XP") or an address that contains one ("32 Some Road, London, NW3 5XQ"
+ * or "32 Some Road, London, NW3").
+ */
+function postcodeDistrict(input: string | null | undefined): string | null {
+  if (!input) return null
+  const s = input.trim().toUpperCase()
+  // Match a UK postcode district: 1-2 letters + 1-2 digits + optional letter
+  // (W1, SW7, NW10, EC1A, etc). Anchored by either start-of-string or whitespace/comma.
+  // The match must be followed by either end-of-string or a non-letter (to avoid matching
+  // partial street words).
+  const m = s.match(/(?:^|[\s,])([A-Z]{1,2}\d{1,2}[A-Z]?)(?:\s|,|$)/)
+  return m ? m[1] : null
 }
 
 /** Exponential time-decay weight. Sale from today = 1.0, from 1 year ago = ~0.5. */
@@ -97,6 +107,7 @@ export async function getSoldPriceComparison(
   supabase: SupabaseClient,
   listing: {
     postcode?: string | null
+    address?: string | null   // fallback for district extraction when postcode is null
     property_type?: string | null
     price?: number | null
     listing_type?: string | null
@@ -105,7 +116,7 @@ export async function getSoldPriceComparison(
   // Buy listings only — rent comparables would need rental data, not LR
   if (listing.listing_type !== 'buy') return null
 
-  const district = postcodeDistrict(listing.postcode)
+  const district = postcodeDistrict(listing.postcode) || postcodeDistrict(listing.address || null)
   if (!district) return null
 
   const lrType = mapPropertyType(listing.property_type)
