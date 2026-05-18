@@ -13,11 +13,44 @@ import { fingerprint, pairScore, type ListingForDedupe, type PairScoreResult } f
 export const CONFIDENT_THRESHOLD = 0.80
 export const REVIEW_THRESHOLD = 0.60
 
+/**
+ * Recommendation for which side should be canonical, applied per the rule:
+ *   1. Direct listing wins over scraped
+ *   2. If neither or both are direct: most recent scraped_at wins
+ *   3. If both are direct: needs human review (canonical = null)
+ */
+export type Side = 'a' | 'b' | null
+
+export interface Recommendation {
+  canonical: Side          // null = needs admin review
+  reason: string
+}
+
+export function recommendCanonical(a: any, b: any): Recommendation {
+  const aDirect = !!a.is_direct
+  const bDirect = !!b.is_direct
+
+  // Direct trumps scraped
+  if (aDirect && !bDirect) return { canonical: 'a', reason: 'A is a direct listing; B is scraped' }
+  if (bDirect && !aDirect) return { canonical: 'b', reason: 'B is a direct listing; A is scraped' }
+
+  // Both direct — ambiguous, escalate
+  if (aDirect && bDirect) return { canonical: null, reason: 'Both are direct listings — needs admin review' }
+
+  // Neither direct — pick most recently scraped (freshest data wins)
+  const aTime = a.scraped_at ? new Date(a.scraped_at).getTime() : 0
+  const bTime = b.scraped_at ? new Date(b.scraped_at).getTime() : 0
+  if (aTime === bTime) return { canonical: 'a', reason: 'Both scraped at the same time; keeping A by default' }
+  if (aTime > bTime) return { canonical: 'a', reason: 'A has more recent data' }
+  return { canonical: 'b', reason: 'B has more recent data' }
+}
+
 export interface DupeSuggestion {
   a: ListingForDedupe
   b: ListingForDedupe
   score: number
   breakdown: PairScoreResult['breakdown']
+  recommendation: Recommendation
 }
 
 export interface AuditResult {
@@ -49,10 +82,12 @@ export function runAudit(listings: ListingForDedupe[]): AuditResult {
       for (let j = i + 1; j < group.length; j++) {
         totalComparisons++
         const result = pairScore(group[i], group[j])
+        const recommendation = recommendCanonical(group[i], group[j])
+        const suggestion = { a: group[i], b: group[j], score: result.score, breakdown: result.breakdown, recommendation }
         if (result.score >= CONFIDENT_THRESHOLD) {
-          confident.push({ a: group[i], b: group[j], score: result.score, breakdown: result.breakdown })
+          confident.push(suggestion)
         } else if (result.score >= REVIEW_THRESHOLD) {
-          review.push({ a: group[i], b: group[j], score: result.score, breakdown: result.breakdown })
+          review.push(suggestion)
         }
       }
     }

@@ -28,7 +28,7 @@ export default async function AdminDedupePage() {
   // Only audit non-merged listings. Merged ones are by definition already handled.
   const { data: listings } = await svc
     .from('listings')
-    .select('id, address, postcode, latitude, longitude, bedrooms, bathrooms, property_type, price, listing_type, raw_data, source, source_url, scraped_at, listed_at, is_active')
+    .select('id, address, postcode, latitude, longitude, bedrooms, bathrooms, property_type, price, listing_type, raw_data, source, source_url, scraped_at, listed_at, is_active, is_direct')
     .is('canonical_listing_id', null)
 
   const audit = runAudit(listings || [])
@@ -117,6 +117,7 @@ function DupeCard({ suggestion, bucket }: { suggestion: any; bucket: 'confident'
           listingAId={a.id}
           listingBId={b.id}
           score={score}
+          recommendation={suggestion.recommendation}
         />
       </div>
     </div>
