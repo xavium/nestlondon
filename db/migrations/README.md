@@ -18,3 +18,4 @@ Track schema changes here. Migrations are documentation — they are NOT auto-ap
 | 0002 | `0002_price_history.sql` | Adds price_history table for tracking buy-side price changes |
 | 0003 | `0003_blog_posts.sql` | Adds blog_posts table for the /blog section, with RLS for public-read-published and admin-all |
 | 0004 | `0004_listing_amenities.sql` | Adds listing_amenities table for cached nearby POI data from Overpass/OSM |
+| 0005 | `0005_listing_dedupe.sql` | Adds canonical_listing_id, listing_sources, listing_merge_log for cross-source dedupe |
