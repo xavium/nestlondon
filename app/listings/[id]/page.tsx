@@ -21,7 +21,7 @@ import ListingEventTracker from '@/components/ListingEventTracker'
 import CommuteWidget from '@/components/CommuteWidget'
 import BuyListingPanel from '@/components/BuyListingPanel'
 import BoroughGuideInline from '@/components/BoroughGuideInline'
-import { getBoroughByPostcode } from '@/data/boroughGuides'
+import { getBoroughByPostcode, getBoroughByName } from '@/data/boroughGuides'
 import { parseCommuteLocations, migrateLegacyCommute, type CommuteLocation } from '@/lib/commute'
 import { Home, Clock, Paintbrush, LandPlot } from 'lucide-react'
 import AmenitiesPanel from '@/components/AmenitiesPanel'
@@ -716,7 +716,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             />
 
             {(() => {
-              const _borough = getBoroughByPostcode(listing.postcode || listing.address || '')
+              // Prefer the trusted listing.borough field set by the borough classifier;
+              // fall back to postcode lookup if it's null (older listings without classifier output).
+              const _borough = (listing.borough && getBoroughByName(listing.borough))
+                || getBoroughByPostcode(listing.postcode || listing.address || '')
               return _borough ? <BoroughGuideInline borough={_borough} /> : null
             })()}
 

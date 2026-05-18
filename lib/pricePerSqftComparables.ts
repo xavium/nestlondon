@@ -19,6 +19,9 @@ export interface PricePerSqftComparison {
   // Quartiles for context
   p25: number
   p75: number
+  // Lowest and highest £/sqft in the area (for the visual gauge — show range)
+  minPricePerSqft: number
+  maxPricePerSqft: number
   // Sample size of comparable listings with size data
   sampleSize: number
   confidence: 'high' | 'medium' | 'low'
@@ -164,11 +167,16 @@ export async function getPricePerSqftComparison(
 
   const deltaPercent = ((targetPpsft - med) / med) * 100
 
+  const minVal = Math.min(...comps)
+  const maxVal = Math.max(...comps)
+
   return {
     listingPricePerSqft: Math.round(targetPpsft),
     medianPricePerSqft: Math.round(med),
     p25: Math.round(p25),
     p75: Math.round(p75),
+    minPricePerSqft: Math.round(minVal),
+    maxPricePerSqft: Math.round(maxVal),
     sampleSize: n,
     confidence,
     percentile: targetPercentile,

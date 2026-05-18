@@ -748,20 +748,38 @@ export function getBoroughByPostcode(postcode: string): BoroughGuide | null {
   // Match the postcode district anywhere in the input (handles full addresses, not just bare postcodes)
   const district = postcode.toUpperCase().match(/\b([A-Z]{1,2}[0-9][0-9A-Z]?)(?=\s*[0-9][A-Z]{2}\b|\s*,|\s*$)/)?.[1] || ""
   if (!district) return null
-  // Prefer longest postcode prefix match (e.g. "EC1V" should match Islington's "EC1V" not City's "EC1")
-  let best: BoroughGuide | null = null
-  let bestLen = 0
+  // Match by EXACT postcode district equality. The previous "startsWith" approach
+  // incorrectly mapped NW11→Camden (because "NW11".startsWith("NW1")) and similar
+  // bugs. Postcode districts are atomic identifiers; we treat them that way.
+  //
+  // Sub-district codes like "EC1V" still match EC1V exactly in Islington's list.
+  // If a borough listed "EC1" only, and we see "EC1V", we accept it as a partial
+  // fall-through only when no exact match exists anywhere — kept simple here as a
+  // second pass to preserve EC1 → EC1V / EC1A / etc behaviour.
+  for (const b of boroughGuides) {
+    if (b.postcodes.includes(district)) return b
+  }
+  // Fallback: prefix-match BUT only against same letter-portion + digit-portion,
+  // strictly bounded so "NW11" never matches "NW1" but "EC1V" can match "EC1".
   for (const b of boroughGuides) {
     for (const pc of b.postcodes) {
-      if (district.startsWith(pc) && pc.length > bestLen) {
-        best = b
-        bestLen = pc.length
+      // Allow EC1V→EC1 only if pc has no trailing digit beyond what district has
+      // — i.e. district starts with pc AND the next char in district is a letter (sub-district code, not a digit).
+      if (district.startsWith(pc) && district.length > pc.length) {
+        const nextChar = district[pc.length]
+        if (/[A-Z]/.test(nextChar)) return b
       }
     }
   }
-  return best
+  return null
 }
 
+
+export function getBoroughByName(name: string | null | undefined): BoroughGuide | null {
+  if (!name) return null
+  const normalised = name.trim().toLowerCase()
+  return boroughGuides.find(b => b.name.toLowerCase() === normalised || b.slug.toLowerCase() === normalised) || null
+}
 export function getBoroughBySlug(slug: string): BoroughGuide | null {
   return boroughGuides.find(b => b.slug === slug) || null
 }
