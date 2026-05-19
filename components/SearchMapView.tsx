@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
 import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace, buildCarouselHtml, attachCarousel } from '@/lib/popupIcons'
+import { parseListingImages } from '@/lib/listingImages'
 
 interface Listing {
   id: string
@@ -137,7 +138,7 @@ export default function SearchMapView({ listings, radius, locationCoords, locati
 
         let images: string[] = []
         try {
-          const imgs = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || [])
+          const imgs = parseListingImages(listing.images)
           images = Array.isArray(imgs) ? imgs.filter((u: string) => u && u.startsWith('http')) : []
         } catch {}
 

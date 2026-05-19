@@ -213,10 +213,23 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-7 w-96 bg-white border border-[#E8E2DA] rounded-2xl shadow-xl z-[200] p-6 max-h-[80vh] overflow-y-auto">
+        <>
+          {/* Backdrop — semi-transparent dark overlay over the whole page.
+              Clicking it closes the panel (same behaviour as the previous
+              outside-click handler, but rendered explicitly). */}
+          <div
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 bg-black/40 z-[199]"
+          />
+          {/* Slide-in sidebar — pinned to the right edge of the viewport,
+              full height, 500px wide on desktop / full-width on mobile.
+              The trigger’s outside-click handler doesn’t apply here because
+              the panel is a sibling of the trigger via React Fragment, but
+              the backdrop above handles closing on click-outside. */}
+          <div className="fixed top-0 right-0 h-full w-full sm:w-[500px] bg-white shadow-2xl z-[200] p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-medium text-[#1C2B3A]">Filters</h3>
-            <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-[#4A5568] text-lg leading-none">x</button>
+            <h3 className="text-base font-semibold text-[#1C2B3A]">Filters</h3>
+            <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-[#4A5568] text-2xl leading-none">×</button>
           </div>
 
           {!isBuy && (
@@ -544,6 +557,7 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
             <button onClick={applyFilters} className="flex-1 text-white text-sm rounded-xl py-2.5 transition-opacity hover:opacity-90" style={{background:'#D3755A'}}>{onApply ? 'Add' : 'Show results'}</button>
           </div>
         </div>
+        </>
       )}
     </div>
   )

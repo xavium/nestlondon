@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { parseListingImages } from '@/lib/listingImages'
 import { createClient } from '@supabase/supabase-js'
 
 const TAGS_PROMPT = `Analyse this property photo and return a JSON object with these fields:
@@ -107,8 +108,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Analyse first 3 images
-    const images: string[] = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || [])
-    const toAnalyse = images.filter((u: string) => u?.startsWith('http')).slice(0, 3)
+    const images = parseListingImages(listing.images)
+    const toAnalyse = images.slice(0, 3)
 
     if (toAnalyse.length === 0) return NextResponse.json({ tags: null })
 

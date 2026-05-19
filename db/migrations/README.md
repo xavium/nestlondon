@@ -24,3 +24,12 @@ Track schema changes here. Migrations are documentation — they are NOT auto-ap
 | 0008 | `0008_joint_searches.sql` | Joint searches: tables for collaborative property search (members, invites, saved properties, threaded comments, reactions) |
 | 0009 | `0009_folder_sharing.sql` | Pivot from joint-search to per-folder sharing: extends saved_property_folders, adds folder_members/invites/comments/reactions, drops joint_* tables |
 | 0010 | `0010_listings_contact_phone.sql` | Adds optional contact_phone column to listings for agent-direct "Show phone number" reveal on listing pages |
+
+## 0011_listing_amenities_dedupe.sql
+
+Cleans up duplicate rows in `listing_amenities` (Overpass returns the same POI
+as node + way + relation, all of which used to get inserted separately) and
+adds a unique index on `(listing_id, category, lower(name), round(lat, 4),
+round(lng, 4))` to prevent re-occurrence.
+
+Run statements one at a time. Step 1 deletes duplicates; Step 2 adds the index.

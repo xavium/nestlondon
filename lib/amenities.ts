@@ -155,6 +155,13 @@ async function fetchFromOverpass(
     cafe: [], supermarket: [], restaurant: [], park: [], gym: [], gp: [],
   }
 
+  // Dedupe key: category|name|roundedLat|roundedLng. Overpass returns each
+  // POI as multiple OSM elements (node + way + relation) with the same name
+  // and near-identical coords. Rounding to 4 decimal places (~11m precision)
+  // is generous enough to merge them while preserving distinct nearby places
+  // of the same name (e.g. two Starbucks branches several blocks apart).
+  const seen = new Set<string>()
+
   for (const el of json.elements) {
     const cat = categorise(el.tags)
     if (!cat) continue
@@ -163,6 +170,10 @@ async function fetchFromOverpass(
     if (lat == null || lng == null) continue
     const name = el.tags?.name?.trim()
     if (!name) continue   // unnamed POIs aren't useful to surface
+
+    const dedupeKey = `${cat}|${name.toLowerCase()}|${lat.toFixed(4)}|${lng.toFixed(4)}`
+    if (seen.has(dedupeKey)) continue
+    seen.add(dedupeKey)
 
     const distance = haversineMeters(centreLat, centreLng, lat, lng)
     byCategory[cat].push({

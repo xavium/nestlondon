@@ -1,6 +1,6 @@
-import { Bed, Bath, Home, House, Building2, Hotel, LandPlot, Layers, Ruler } from 'lucide-react'
+import { Bed, Bath, Home, House, Building2, Hotel, LandPlot, Layers, Ruler, Trees } from 'lucide-react'
 
-type IconKey = 'bed' | 'bath' | 'home' | 'floor' | 'size'
+type IconKey = 'bed' | 'bath' | 'home' | 'floor' | 'size' | 'outside'
 
 const STATIC_ICONS: Record<IconKey, React.ComponentType<{ className?: string, strokeWidth?: number }>> = {
   bed: Bed,
@@ -8,6 +8,7 @@ const STATIC_ICONS: Record<IconKey, React.ComponentType<{ className?: string, st
   home: House, // fallback if no propertyType provided
   floor: Layers,
   size: Ruler,
+  outside: Trees,
 }
 
 function resolvePropertyTypeIcon(label: string): React.ComponentType<{ className?: string, strokeWidth?: number }> {

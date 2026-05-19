@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { parseListingImages } from '@/lib/listingImages'
 import NavAuthButton from '@/components/NavAuthButton'
 import Link from 'next/link'
 
@@ -110,7 +111,7 @@ export default function AdminListingsClient({
 
   function getImages(listing: Listing): string[] {
     try {
-      const imgs = typeof listing.images === 'string' ? JSON.parse(listing.images) : (listing.images || [])
+      const imgs = parseListingImages(listing.images)
       return Array.isArray(imgs) ? imgs.filter((u: string) => u?.startsWith('http')) : []
     } catch { return [] }
   }

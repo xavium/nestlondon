@@ -1,4 +1,5 @@
 import ContactOwnerPanel from '@/components/ContactOwnerPanel'
+import { parseListingImages } from '@/lib/listingImages'
 import { cookies } from 'next/headers'
 export const dynamic = 'force-dynamic'
 
@@ -248,9 +249,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   let images: string[] = []
   try {
-    const raw = listing.images
-    images = typeof raw === 'string' ? JSON.parse(raw) : (raw || [])
-    images = images.filter((u: string) => typeof u === 'string' && u.startsWith('https'))
+    images = parseListingImages(listing.images)
   } catch {}
 
   const sizeTextRaw: string | null = rawData?.size_text || null
