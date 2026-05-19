@@ -33,3 +33,15 @@ adds a unique index on `(listing_id, category, lower(name), round(lat, 4),
 round(lng, 4))` to prevent re-occurrence.
 
 Run statements one at a time. Step 1 deletes duplicates; Step 2 adds the index.
+
+## 0012_listing_images_cleanup.sql
+
+Backfills two known scraper bugs in `listings.images`:
+1. `&quot;)` artefacts from CSS `background-image: url(...)` parsing
+2. `/crop/<ratio>/` segments from Rightmove's image CDN (which 404)
+
+The code-side fix in `lib/listingImages.ts` already handles both at render
+time; this migration cleans the historical data so future reads don't need
+to re-parse them.
+
+Run statements one at a time.

@@ -182,7 +182,7 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           on the right (1/3 width). Falls back gracefully when fewer images
           are available — the small thumb slots stay empty rather than
           replicating the main photo. */}
-      <div className="relative h-56 overflow-hidden grid grid-cols-3 gap-1 bg-stone-100">
+      <div className="relative h-56 overflow-hidden grid grid-cols-3 grid-rows-1 gap-1 bg-stone-100">
         {/* Main photo — spans 2 columns */}
         <div className="col-span-2 relative overflow-hidden">
           {mainImg ? (
@@ -221,6 +221,19 @@ export default function ListingCard({ listing, distanceLabel, showHidden = false
           )}
           {viewed && (
             <div className="absolute top-2 right-2 bg-stone-200/90 text-stone-500 text-xs px-2 py-0.5 rounded-full">Viewed</div>
+          )}
+
+          {/* Photo counter pill — bottom-right of the main image. Shows
+              "current / total" so the user knows there's more to see.
+              Hidden when there's only one image (or zero). */}
+          {images.length > 1 && (
+            <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/55 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md z-20 pointer-events-none">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M3 7h3l2-2h8l2 2h3v12H3z" strokeLinejoin="round"/>
+                <circle cx="12" cy="13" r="3.5"/>
+              </svg>
+              {imgIndex + 1}/{images.length}
+            </div>
           )}
 
           {images.length > 1 && (

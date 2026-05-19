@@ -384,6 +384,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       if (f === 'Lower ground floor' && /lower ground floor|lower ground level|basement/.test(combined)) return false
       if (f === 'Ground floor' && /ground floor flat|ground floor apartment|ground floor property/.test(combined)) return false
       if (f === 'Renovation needed' && /in need of renovation|needs renovation|requires renovation|needs updating|in need of updating|modernisation required|requires modernisation|project property|in need of some tlc|needs some tlc/.test(combined)) return false
+      // Flat share: a single room rented within a shared flat (kitchen/bath
+      // shared with other tenants). Signals: 0 bedrooms + 'room' in
+      // property_type, or unambiguous description giveaways.
+      if (f === 'Flat share') {
+        const pt = (listing.property_type || '').toLowerCase()
+        if (listing.bedrooms === 0 && pt.includes('room')) return false
+        if (/\broom only\b|\bsingle room\b|\bshared kitchen\b|\bshared bathroom\b|\broom in (?:a |an |the )?(?:shared|house|flat|apartment)\b|\bhouseshare\b|\bflatshare\b|\bflat[\- ]share\b/.test(combined)) return false
+      }
     }
     // Style filter — match any selected style
     if (style) {

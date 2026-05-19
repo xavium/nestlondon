@@ -100,7 +100,11 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     { label: 'Character features', options: ['Fireplace', 'Bay windows', 'Sash windows', 'High ceilings', 'Period features', 'Exposed brick', 'Exposed beams', 'Parquet flooring', 'Wooden floors'] },
     { label: 'Lifestyle', options: ['Pets allowed', 'Bills included', 'Concierge', 'Lift', 'Gym', 'Swimming pool'] },
   ]
-  const EXCLUDE_OPTIONS = ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed', 'No floorplan']
+  // Exclusion list differs by listing type: 'Shared ownership' is a buy-only
+  // concept; 'Flat share' is a rent-only concept (shared rooms in a flat).
+  const EXCLUDE_OPTIONS = isBuy
+    ? ['New builds', 'Shared ownership', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed', 'No floorplan']
+    : ['New builds', 'Flat share', 'Retirement homes', 'Lower ground floor', 'Ground floor', 'Renovation needed', 'No floorplan']
 
   function toggleFeature(f: string) {
     setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f])

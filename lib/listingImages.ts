@@ -39,6 +39,11 @@ export function parseListingImages(raw: unknown): string[] {
 // Trim known junk that occasionally leaks through:
 //   - `&quot;...` and anything after (HTML-encoded quote)
 //   - trailing `"`, `'`, `)`, whitespace
+//   - Rightmove `/crop/<ratio>/` segment (e.g. `/crop/10:9-16:9/`) which
+//     404s for arbitrary aspect ratios. The un-cropped path serves fine.
 function cleanImageUrl(u: string): string {
-  return u.replace(/&quot;.*$/i, '').replace(/["')\s]+$/, '')
+  return u
+    .replace(/&quot;.*$/i, '')
+    .replace(/["')\s]+$/, '')
+    .replace(/\/crop\/[^/]+\//, '/')
 }
