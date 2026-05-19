@@ -3,6 +3,30 @@
 import { useEffect, useRef } from 'react'
 import { getViewedListings, markAsViewed } from '@/lib/viewed'
 import { ICON_BED_SVG, ICON_BATH_SVG, ICON_SIZE_SVG, ICON_OUTSIDE_SVG, propertyTypeIconSvg, normalisePropertyTypeLabel, extractSqftFromListing, hasOutsideSpace, buildCarouselHtml, attachCarousel } from '@/lib/popupIcons'
+import RoundelIcon from '@/components/RoundelIcon'
+
+// Maps a tube/rail line name (as used in TUBE_STATIONS) to the TfL mode string that
+// RoundelIcon understands. All 11 tube lines collapse to 'tube' since they share the
+// underground roundel; DLR / Overground / Elizabeth / Tram get their own.
+const LINE_TO_MODE: Record<string, string> = {
+  'Bakerloo': 'tube', 'Central': 'tube', 'Circle': 'tube',
+  'District': 'tube', 'Hammersmith & City': 'tube', 'Jubilee': 'tube',
+  'Metropolitan': 'tube', 'Northern': 'tube', 'Piccadilly': 'tube',
+  'Victoria': 'tube', 'Waterloo & City': 'tube',
+  'DLR': 'dlr', 'Overground': 'overground', 'Elizabeth': 'elizabeth', 'Tram': 'tram',
+}
+
+// Deduped list of modes for a station — used to render one roundel per mode.
+// Bank ['Central','Northern','Waterloo & City','DLR'] → ['tube','dlr']
+function stationModes(lines: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const line of lines) {
+    const mode = LINE_TO_MODE[line]
+    if (mode && !seen.has(mode)) { seen.add(mode); result.push(mode) }
+  }
+  return result
+}
 
 const LINE_COLOURS: Record<string, string> = {
   'Bakerloo': '#B36305', 'Central': '#E32017', 'Circle': '#FFD300',
@@ -657,15 +681,24 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
       <div className="px-5 py-4 border-t border-stone-100">
         <h3 className="text-xs font-semibold text-[#4A5568] uppercase tracking-wide mb-3">Nearest stations</h3>
         <div className="grid grid-cols-2 gap-3">
-          {nearestStations.map(station => (
+          {nearestStations.map(station => {
+            const modes = stationModes(station.lines)
+            return (
             <div key={station.name} className="flex items-start gap-2.5">
-              <div className="flex-shrink-0 mt-0.5">
-                <svg width="18" height="18" fill="none" stroke="#9B928E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                  <rect x="3" y="8" width="18" height="10" rx="2"/>
-                  <path d="M7 8V6a2 2 0 012-2h6a2 2 0 012 2v2"/>
-                  <circle cx="7.5" cy="15" r="1" fill="#9B928E" stroke="none"/>
-                  <circle cx="16.5" cy="15" r="1" fill="#9B928E" stroke="none"/>
-                </svg>
+              <div className="flex-shrink-0 mt-0.5 flex items-center gap-1">
+                {modes.length > 0
+                  ? modes.map(mode => <RoundelIcon key={mode} mode={mode} size={18} />)
+                  : (
+                    // Fallback for lines we haven't mapped (shouldn't happen with current data,
+                    // but defensive in case TUBE_STATIONS gains a new line type later).
+                    <svg width="18" height="18" fill="none" stroke="#9B928E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <rect x="3" y="8" width="18" height="10" rx="2"/>
+                      <path d="M7 8V6a2 2 0 012-2h6a2 2 0 012 2v2"/>
+                      <circle cx="7.5" cy="15" r="1" fill="#9B928E" stroke="none"/>
+                      <circle cx="16.5" cy="15" r="1" fill="#9B928E" stroke="none"/>
+                    </svg>
+                  )
+                }
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-medium text-[#374151] truncate">{station.name}</div>
@@ -677,7 +710,8 @@ export default function PropertyMap({ latitude, longitude, address, price, nearb
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
         <p className="text-xs text-stone-400 mt-3">Zoom in to see stations on map. Walk times are approximate.</p>
       </div>

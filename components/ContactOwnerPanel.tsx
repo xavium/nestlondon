@@ -6,6 +6,10 @@ import { createClient } from '@/lib/supabase'
 interface Props {
   listingId: string
   address: string
+  /** Phone number to expose via the "Show phone number" reveal button.
+   *  When null, the reveal section is hidden entirely. Gated upstream
+   *  in the listing page (agent-source listings only). */
+  contactPhone?: string | null
 }
 
 type Mode = 'enquiry' | 'viewing'
@@ -26,7 +30,7 @@ function getNextTwoWeeks() {
 
 const TIME_SLOTS = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM']
 
-export default function ContactOwnerPanel({ listingId, address }: Props) {
+export default function ContactOwnerPanel({ listingId, address, contactPhone }: Props) {
   const [mode, setMode] = useState<Mode>('enquiry')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -42,6 +46,9 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+  // Whether the phone number has been revealed for this session. Reveal is
+  // one-way per page-load — once shown, stays shown until reload.
+  const [phoneRevealed, setPhoneRevealed] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -80,6 +87,19 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
 
   function isSelected(date: string, time: string) {
     return !!selectedSlots.find(s => s.date === date && s.time === time)
+  }
+
+  async function handlePhoneReveal() {
+    setPhoneRevealed(true)
+    // Best-effort event log. Failure doesn't block the reveal — the button
+    // has already updated visually.
+    try {
+      await fetch('/api/listings/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId, event_type: 'phone_reveal' }),
+      })
+    } catch {}
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -167,6 +187,28 @@ export default function ContactOwnerPanel({ listingId, address }: Props) {
           Book a viewing
         </button>
       </div>
+
+      {contactPhone && loggedIn && (
+        <div className="mb-4">
+          {phoneRevealed ? (
+            <a href={'tel:' + contactPhone.replace(/\s+/g, '')}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-[#E8E2DA] bg-[#F5F0EB] text-sm font-medium text-[#1B2E4B] no-underline hover:bg-[#EDE5DC] transition-colors">
+              <svg className="w-4 h-4 text-[#D3755A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.5 5.5l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.72 21 3 14.28 3 6V5z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {contactPhone}
+            </a>
+          ) : (
+            <button type="button" onClick={handlePhoneReveal}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-[#E8E2DA] text-sm font-medium text-[#1B2E4B] hover:bg-[#F5F0EB] transition-colors">
+              <svg className="w-4 h-4 text-[#D3755A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.5 5.5l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.72 21 3 14.28 3 6V5z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Show phone number
+            </button>
+          )}
+        </div>
+      )}
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2 mb-4">{error}</div>}
 

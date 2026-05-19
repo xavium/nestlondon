@@ -7,7 +7,10 @@ const SVG_CLOSE = '</svg>'
 export const ICON_BED_SVG = SVG_OPEN + '<path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/>' + SVG_CLOSE
 export const ICON_BATH_SVG = SVG_OPEN + '<path d="M9 6 6.5 3.5a1.5 1.5 0 0 0-1-.5C4.683 3 4 3.683 4 4.5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><line x1="10" x2="8" y1="5" y2="7"/><line x1="2" x2="22" y1="12" y2="12"/><line x1="7" x2="7" y1="19" y2="21"/><line x1="17" x2="17" y1="19" y2="21"/>' + SVG_CLOSE
 export const ICON_SIZE_SVG = SVG_OPEN + '<path d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>' + SVG_CLOSE
-export const ICON_OUTSIDE_SVG = SVG_OPEN + '<path d="M12 22V12m0 0C12 7 7 4 7 4s1 5 5 8m0-8c0-5 5-8 5-8s-1 5-5 8"/>' + SVG_CLOSE
+// Aligned with TileIcon's 'Outside Space' entry — tree-style icon (Lucide-derived),
+// not the previous sprout. Keep these two in sync; they appear side-by-side via
+// the listing-page tiles and the map popup pill.
+export const ICON_OUTSIDE_SVG = SVG_OPEN + '<path d="M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1"/><circle cx="12" cy="8" r="2"/><path d="M12 10v12"/><path d="M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z"/><path d="M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z"/>' + SVG_CLOSE
 
 const ICON_BUILDING2_SVG = SVG_OPEN + '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>' + SVG_CLOSE
 const ICON_HOUSE_SVG = SVG_OPEN + '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' + SVG_CLOSE
@@ -59,23 +62,16 @@ export function extractSqftFromListing(listing: { raw_data?: any, description?: 
 }
 
 // Detect outdoor space from raw_data.photo_tags.features, key_features, description
-export function hasOutsideSpace(listing: { raw_data?: any, description?: string | null, key_features?: string[] | null }): string | null {
-  const rd = typeof listing.raw_data === 'string' ? (() => { try { return JSON.parse(listing.raw_data) } catch { return {} } })() : (listing.raw_data || {})
-  const haystack: string[] = []
-  if (Array.isArray(rd?.photo_tags?.features)) haystack.push(...rd.photo_tags.features)
-  if (Array.isArray(listing.key_features)) haystack.push(...listing.key_features)
-  if (Array.isArray(rd?.key_features)) haystack.push(...rd.key_features)
-  // Description is OK here — false positives ('garden flat' implies garden) are still positives
-  if (listing.description) haystack.push(listing.description)
+// Thin wrapper around the shared detector. Returns the joined types as a
+// single label when outside space is *confirmed* — never returns "Ask agent"
+// or similar placeholder; falsy means "don't render a pill".
+// Previously returned 'Garden' for any \bgarden\b match, which over-fired
+// on locations like 'Hatton Garden' in the description.
+import { detectOutsideSpace } from './outsideSpace'
 
-  const text = haystack.join(' ').toLowerCase()
-  if (/private garden|own garden|rear garden|south.facing garden|landscaped garden/.test(text)) return 'Garden'
-  if (/\bgarden\b/.test(text)) return 'Garden'
-  if (/\bterrace\b/.test(text) && !/terraced house|end of terrace/.test(text)) return 'Terrace'
-  if (/\bbalcony\b/.test(text)) return 'Balcony'
-  if (/\bpatio\b/.test(text)) return 'Patio'
-  if (/\broof terrace\b|\broof garden\b/.test(text)) return 'Roof terrace'
-  return null
+export function hasOutsideSpace(listing: { raw_data?: any, description?: string | null, key_features?: string[] | null }): string | null {
+  const r = detectOutsideSpace(listing)
+  return r.kind === 'confirmed' ? r.types.join(', ') : null
 }
 
 

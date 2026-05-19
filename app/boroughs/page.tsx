@@ -6,24 +6,27 @@ import NavAuthButton from '@/components/NavAuthButton'
 export default function BoroughsPage() {
   return (
     <div className="min-h-screen bg-[#F5EBE0]">
-      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
-            nest<span className="text-orange-700 italic">london</span>
-          </Link>
-          <Link href="/list" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">List your property</Link>
-          <div className="flex items-center flex-1">
-            <NavSearchBar
-              location=""
-              listingType="buy"
-              minBeds={null}
-              maxBeds={null}
-              minPrice={null}
-              maxPrice={null}
-              radius={null}
-            />
+      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50 shadow-md">
+        {/* Two-row layout: top row carries logo + nav links + auth; bottom row
+            is the full-width search bar. "Borough guides" link omitted because
+            this IS the borough guides page. */}
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
+              nest<span className="text-orange-700 italic">london</span>
+            </Link>
+            <Link href="/list" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">List your property</Link>
+            <div className="ml-auto"><NavAuthButton variant="light" /></div>
           </div>
-          <NavAuthButton variant="light" />
+          <NavSearchBar
+            location=""
+            listingType="buy"
+            minBeds={null}
+            maxBeds={null}
+            minPrice={null}
+            maxPrice={null}
+            radius={null}
+          />
         </div>
       </nav>
       <div className="bg-[#1B2E4B] text-white py-16 px-4 text-center">

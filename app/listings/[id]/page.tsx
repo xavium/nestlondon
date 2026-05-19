@@ -64,11 +64,17 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const { data: listing } = await queryClient
-    .from('listings')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle()
+  // Stage 1: fetch listing, price history, and current user in parallel.
+  // None of these depend on each other — all keyed by `id` or session cookie.
+  const [
+    { data: listing },
+    { data: priceHistoryRaw },
+    { data: { user: currentUser } },
+  ] = await Promise.all([
+    queryClient.from('listings').select('*').eq('id', id).maybeSingle(),
+    queryClient.from('price_history').select('price, changed_at').eq('listing_id', id).order('changed_at', { ascending: false }),
+    supabase.auth.getUser(),
+  ])
 
   if (!listing) notFound()
 
@@ -79,45 +85,76 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     redirect(`/listings/${listing.canonical_listing_id}`)
   }
 
-  // Price history for buy listings. Server-side fetch — fast and rendered statically.
-  // Rent listings won't have any rows (helper is buy-only), so we still fetch but expect empty.
-  const { data: priceHistoryRaw } = await queryClient
-    .from('price_history')
-    .select('price, changed_at')
-    .eq('listing_id', id)
-    .order('changed_at', { ascending: false })
   const priceHistory: Array<{ price: number; changed_at: string }> = (priceHistoryRaw || []).map((r: any) => ({
     price: Number(r.price),
     changed_at: r.changed_at,
   }))
 
-  // Nearby amenities (Overpass/OSM, cached in listing_amenities). The helper handles cache
-  // freshness and refresh internally. If lat/lng are missing or Overpass fails completely,
-  // returns empty categories and AmenitiesPanel renders nothing.
+  // Service-role client used by amenities helper and psqft comparison helper.
+  // Both bypass RLS to read cached aggregate tables (listing_amenities, sold_prices).
   const amenitiesServiceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-  const amenities = await getAmenitiesOrRefresh(
-    amenitiesServiceClient,
-    id,
-    listing.latitude,
-    listing.longitude,
-  )
 
-  // Sold price comparables (Land Registry). Buy listings only. Returns null gracefully
-  // for rents, missing postcodes, or sparse data — the UI component hides itself in that case.
-  const psqftComparison = await getPricePerSqftComparison(amenitiesServiceClient, {
-    id: listing.id,
-    postcode: listing.postcode,
-    address: listing.address,
-    property_type: listing.property_type,
-    price: listing.price,
-    listing_type: listing.listing_type,
-    raw_data: listing.raw_data,
-  })
+  // Stage 2: all four fetches depend on the listing but not on each other.
+  // Nearby + search are scoped to anon (RLS-respecting public reads); amenities + psqft
+  // use the service-role client (cache tables). Wrapped in IIFEs so Promise.all keeps
+  // the same shape regardless of whether the conditional branches fire.
+  const fromSearchEarly = sp.from ? decodeURIComponent(sp.from) : null
+  const [amenities, psqftComparison, nearbyListings, searchListings] = await Promise.all([
+    getAmenitiesOrRefresh(amenitiesServiceClient, id, listing.latitude, listing.longitude),
+    getPricePerSqftComparison(amenitiesServiceClient, {
+      id: listing.id,
+      postcode: listing.postcode,
+      address: listing.address,
+      property_type: listing.property_type,
+      price: listing.price,
+      listing_type: listing.listing_type,
+      raw_data: listing.raw_data,
+    }),
+    (async (): Promise<any[]> => {
+      if (!listing.latitude || !listing.longitude) return []
+      const { data: nearby } = await supabase
+        .from('listings')
+        .select('id,address,price,latitude,longitude,bedrooms,bathrooms,property_type,images,listing_type,description,raw_data')
+        .eq('is_active', true)
+        .is('canonical_listing_id', null)
+        .eq('listing_type', listing.listing_type || 'rent')
+        .neq('id', id)
+        .not('latitude', 'is', null)
+        .limit(500)
+      return nearby || []
+    })(),
+    (async (): Promise<any[]> => {
+      if (!fromSearchEarly) return []
+      try {
+        const sp2 = new URLSearchParams(fromSearchEarly)
+        const loc = sp2.get('location') || ''
+        const minB = sp2.get('minBeds') ? parseInt(sp2.get('minBeds')!) : null
+        const maxP = sp2.get('maxPrice') ? parseInt(sp2.get('maxPrice')!) : null
+        const minP = sp2.get('minPrice') ? parseInt(sp2.get('minPrice')!) : null
+        const furn = sp2.get('furnished') || null
+        const ptype = sp2.get('propertyType') || null
+        let q = supabase.from('listings').select('id,address,price,images,bedrooms,bathrooms,property_type,borough,latitude,longitude,listing_type,description,raw_data').eq('is_active', true).is('canonical_listing_id', null).eq('listing_type', listing.listing_type || 'rent').neq('id', id).limit(6)
+        if (loc) {
+          const locU = loc.trim().toUpperCase()
+          const isPC = /^[A-Z]{1,2}[0-9]{1,2}$/.test(locU)
+          if (isPC) q = q.eq('borough', locU)
+        }
+        if (minB) q = q.gte('bedrooms', minB)
+        if (minP) q = q.gte('price', minP)
+        if (maxP) q = q.lte('price', maxP)
+        if (furn) q = q.ilike('furnished', '%' + furn + '%')
+        if (ptype) q = q.ilike('property_type', '%' + ptype + '%')
+        const { data: sl } = await q
+        return sl || []
+      } catch {
+        return []
+      }
+    })(),
+  ])
 
-  const { data: { user: currentUser } } = await supabase.auth.getUser()
   const commuteAddress = currentUser?.user_metadata?.commute_address || null
   const commuteMode = currentUser?.user_metadata?.commute_mode || null
   // Multi-location commute. URL (from clicked search) wins; otherwise migrate from user metadata
@@ -148,20 +185,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const blockEnquiry = !!(currentUser && isOwnerOrAgent && !isOwnListing)
 
   const isAdminPreview = isAdminPreviewEarly
-
-  let nearbyListings: any[] = []
-  if (listing.latitude && listing.longitude) {
-    const { data: nearby } = await supabase
-      .from('listings')
-      .select('id,address,price,latitude,longitude,bedrooms,bathrooms,property_type,images,listing_type,description,raw_data')
-      .eq('is_active', true)
-      .is('canonical_listing_id', null)
-      .eq('listing_type', listing.listing_type || 'rent')
-      .neq('id', id)
-      .not('latitude', 'is', null)
-      .limit(500)
-    nearbyListings = nearby || []
-  }
 
   const rawData = typeof listing.raw_data === 'string' ? JSON.parse(listing.raw_data) : (listing.raw_data || {})
   const keyFeatures: string[] = (() => {
@@ -308,32 +331,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const isBuyListing = listing.listing_type === 'buy'
 
 
-  // Fetch listings from the user's search context
-  let searchListings: any[] = []
-  if (fromSearch) {
-    try {
-      const sp2 = new URLSearchParams(fromSearch)
-      const loc = sp2.get('location') || ''
-      const minB = sp2.get('minBeds') ? parseInt(sp2.get('minBeds')!) : null
-      const maxP = sp2.get('maxPrice') ? parseInt(sp2.get('maxPrice')!) : null
-      const minP = sp2.get('minPrice') ? parseInt(sp2.get('minPrice')!) : null
-      const furn = sp2.get('furnished') || null
-      const ptype = sp2.get('propertyType') || null
-      let q = supabase.from('listings').select('id,address,price,images,bedrooms,bathrooms,property_type,borough,latitude,longitude,listing_type,description,raw_data').eq('is_active', true).is('canonical_listing_id', null).eq('listing_type', listing.listing_type || 'rent').neq('id', id).limit(6)
-      if (loc) {
-        const locU = loc.trim().toUpperCase()
-        const isPC = /^[A-Z]{1,2}[0-9]{1,2}$/.test(locU)
-        if (isPC) q = q.eq('borough', locU)
-      }
-      if (minB) q = q.gte('bedrooms', minB)
-      if (minP) q = q.gte('price', minP)
-      if (maxP) q = q.lte('price', maxP)
-      if (furn) q = q.ilike('furnished', '%' + furn + '%')
-      if (ptype) q = q.ilike('property_type', '%' + ptype + '%')
-      const { data: sl } = await q
-      searchListings = sl || []
-    } catch {}
-  }
   const listingPrice: number = typeof listing.price === 'number' ? listing.price : parseInt(String(listing.price || '0'), 10)
 
   let cleanDescription = listing.description || ''
@@ -453,28 +450,32 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   return (
     <main className="min-h-screen bg-[#F5F0EB]">
       <ListingEventTracker listingId={listing.id} />
-      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
-          <div className="flex items-center flex-1">
-            <NavSearchBar
-              location={navLocation}
-              listingType={navType}
-              minBeds={navMinBeds}
-              maxBeds={navMaxBeds}
-              minPrice={navMinPrice}
-              maxPrice={navMaxPrice}
-              radius={navRadius}
-              furnished={navFurnished}
-              propertyType={navPropertyType}
-              features={navFeatures}
-              addedWithin={navAddedWithin}
-              availableFrom={navAvailableFrom}
-              commuteLocations={commuteLocations}
-            />
+      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50 shadow-md">
+        {/* Two-row layout: top row carries logo + nav links + auth; bottom row
+            is the full-width search bar. Replaces the previous one-row layout
+            that crammed all of these together. */}
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily: 'Georgia,serif'}}>nest<span className="text-orange-700 italic">london</span></Link>
+            <Link href="/list" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">List your property</Link>
+            <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">Borough guides</Link>
+            <div className="ml-auto"><NavAuthButton variant="light" /></div>
           </div>
-          <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline mr-2">Borough guides</Link>
-          <NavAuthButton variant="light" />
+          <NavSearchBar
+            location={navLocation}
+            listingType={navType}
+            minBeds={navMinBeds}
+            maxBeds={navMaxBeds}
+            minPrice={navMinPrice}
+            maxPrice={navMaxPrice}
+            radius={navRadius}
+            furnished={navFurnished}
+            propertyType={navPropertyType}
+            features={navFeatures}
+            addedWithin={navAddedWithin}
+            availableFrom={navAvailableFrom}
+            commuteLocations={commuteLocations}
+          />
         </div>
       </nav>
 
@@ -486,7 +487,26 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
         </Link>
 
         <div className="mb-4">
-          <h1 className="text-2xl font-semibold text-[#1C2B3A] mb-1" style={{fontFamily: 'Georgia, serif'}}>{listing.address}</h1>
+          {(() => {
+            // Resolve borough once and reuse for both the header pill and the
+            // BoroughGuideInline section further down. Prefer listing.borough
+            // (set by the borough classifier) and fall back to postcode lookup.
+            const _borough = (listing.borough && getBoroughByName(listing.borough))
+              || getBoroughByPostcode(listing.postcode || listing.address || '')
+            return (
+              <div className="flex items-baseline gap-2 flex-wrap mb-1">
+                <h1 className="text-2xl font-semibold text-[#1C2B3A]" style={{fontFamily: 'Georgia, serif'}}>{listing.address}</h1>
+                {_borough && (
+                  <Link
+                    href={'/boroughs/' + _borough.slug}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-[#D3755A] bg-[#FCF5EE] border border-[#E8C9B0] hover:bg-[#F8E8D9] transition-colors no-underline whitespace-nowrap"
+                  >
+                    {_borough.name}
+                  </Link>
+                )}
+              </div>
+            )
+          })()}
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-[#1C2B3A]" style={{fontFamily: 'Georgia, serif'}}>£{listing.price?.toLocaleString()}</span>
             {!isBuyListing && <span className="text-stone-400 text-sm">per month</span>}
@@ -777,7 +797,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               ) : blockEnquiry ? (
                 <ResidentAccountPrompt />
               ) : (
-                <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+                <ContactOwnerPanel
+                  listingId={listing.id}
+                  address={listing.address}
+                  contactPhone={listing.source === 'Agent' && listingRawData?.contact?.phone ? listingRawData.contact.phone : null}
+                />
               )
             ) : (
               <>
@@ -902,7 +926,11 @@ function ExternalLinkCard({ listing, isOwnListing, userRole, blockEnquiry }: { l
         ) : blockEnquiry ? (
           <ResidentAccountPrompt />
         ) : (
-          <ContactOwnerPanel listingId={listing.id} address={listing.address} />
+          <ContactOwnerPanel
+            listingId={listing.id}
+            address={listing.address}
+            contactPhone={null}
+          />
         )
       ) : listing.source_url ? (
         <>

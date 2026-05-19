@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SearchFilters, { type SearchFiltersHandle } from '@/components/SearchFilters'
+import SaveSearchButton from '@/components/SaveSearchButton'
 import { serializeCommuteLocations, type CommuteLocation } from '@/lib/commute'
 
 const LONDON_BOROUGHS = ['Barking and Dagenham','Barnet','Bexley','Brent','Bromley','Camden','City of London','Croydon','Ealing','Enfield','Greenwich','Hackney','Hammersmith and Fulham','Haringey','Harrow','Havering','Hillingdon','Hounslow','Islington','Kensington and Chelsea','Kingston upon Thames','Lambeth','Lewisham','Merton','Newham','Redbridge','Richmond upon Thames','Southwark','Sutton','Tower Hamlets','Waltham Forest','Wandsworth','Westminster']
@@ -171,69 +172,208 @@ export default function NavSearchBar({
   const priceActive = !!(minPrice || maxPrice)
   const bedsActive = minBeds !== null || maxBeds !== null
 
+  // Shared className for the pill-style field boxes (Zoopla-inspired). Each field
+  // is its own rounded box with its own border; gaps between fields rather than
+  // internal dividers. Active state lifts to brand orange.
+  // Sharper corners (rounded-md vs the previous rounded-xl) to better match the
+  // Zoopla pill style. h-11 keeps every pill exactly the same height.
+  const pillBase = 'flex items-center bg-white border rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors h-11'
+  const pillIdle = 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A] hover:text-[#3D3A38]'
+  const pillActive = 'border-[#D3755A] text-[#D3755A] font-medium'
+  const chevron = (
+    <svg className="w-3 h-3 ml-2 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  )
+
   return (
     <div ref={ref} className="flex-1 relative">
-      <div className="flex items-stretch bg-white border border-[#E8E2DA] rounded-xl shadow-sm overflow-visible" style={{minHeight: '44px'}}>
+      <div className="flex items-center gap-2">
 
-        {/* Location + radius */}
-        <div className="flex items-stretch flex-1 min-w-0">
-          <div className="flex items-center flex-1 px-3 gap-2 cursor-text" onClick={() => setActivePanel('location')}>
-            <svg className="w-3.5 h-3.5 text-[#9B928E] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" strokeWidth="1.5"/>
-              <path d="m21 21-4.35-4.35" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            <input
-              value={location}
-              onChange={handleLocationChange}
-              onFocus={() => setActivePanel('location')}
-              placeholder="Location"
-              className="text-sm text-[#3D3A38] bg-transparent outline-none placeholder-[#9B928E] w-full min-w-0"
-              autoComplete="off"
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
-            />
-          </div>
-          {/* Radius inside location section */}
-          <div className="flex items-center border-l border-[#E8E2DA]">
-            <button
-              onClick={() => setActivePanel(active === 'radius' ? null : 'radius')}
-              className={'text-xs px-3 py-1.5 whitespace-nowrap transition-colors ' + (radius ? 'text-[#D3755A] font-medium' : 'text-[#9B928E]')}
-            >
-              {radiusLabel}
-              <svg className="w-3 h-3 inline ml-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round"/></svg>
-            </button>
-          </div>
+        {/* Location (with embedded radius). Search icon + free-text input + radius
+            dropdown all share a single pill — they're a single "where" concern.
+            Submits on Enter or suggestion-click (handled below).
+            relative: anchors the suggestions/radius dropdowns directly below this pill. */}
+        <div className={pillBase + ' ' + (location ? pillActive : pillIdle) + ' flex-1 min-w-[200px] relative'}>
+          <svg className="w-4 h-4 flex-shrink-0 mr-2 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" strokeWidth="1.5"/>
+            <path d="m21 21-4.35-4.35" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <input
+            value={location}
+            onChange={handleLocationChange}
+            onFocus={() => setActivePanel('location')}
+            placeholder="Location"
+            className="text-sm text-[#3D3A38] bg-transparent outline-none placeholder-[#9B928E] w-full min-w-0"
+            autoComplete="off"
+            onKeyDown={e => e.key === 'Enter' && doSearch()}
+          />
+          {/* Location suggestions dropdown — anchored to this pill's left edge. */}
+          {active === 'location' && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-[#E8E2DA] rounded-md shadow-xl z-50 overflow-hidden w-72">
+              {suggestions.map(s => (
+                <button key={s} onClick={() => { setLocation(s); setSuggestions([]); setActive(null); doSearch({loc: s}) }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-[#3D3A38] hover:bg-[#F5EBE0] flex items-center gap-2.5">
+                  <svg className="w-3.5 h-3.5 text-[#9B928E] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/>
+                    <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="1.5"/>
+                  </svg>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="w-px bg-[#E8E2DA] self-stretch my-2" />
+        {/* Radius — now its own pill, sibling to Location. Same shape as
+            Beds/Price/Added: own `relative` wrapper, dropdown anchored to
+            `left: 0` of the wrapper. Defaults to "This area only" when no
+            radius is selected. */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setActivePanel(active === 'radius' ? null : 'radius')}
+            className={pillBase + ' ' + (radius ? pillActive : pillIdle)}
+          >
+            {radiusLabel}
+            {chevron}
+          </button>
 
-        {/* Price */}
-        <button
-          onClick={() => setActivePanel(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
-          className={'px-3 text-sm whitespace-nowrap transition-colors ' + (priceActive ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
-        >{priceLabel}</button>
-
-        <div className="w-px bg-[#E8E2DA] self-stretch my-2" />
+          {active === 'radius' && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              marginTop: 4,
+              background: 'white',
+              border: '1px solid #E8E2DA',
+              borderRadius: 6,
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+              zIndex: 50,
+              padding: 8,
+              width: 160,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0,
+            }}>
+              {RADIUS_OPTIONS.map(r => (
+                <button key={String(r)} onClick={() => { setRadius(r); setActive(null); doSearch({r}) }}
+                  className={'w-full text-left text-sm px-3 py-2 rounded-md transition-colors ' + (radius === r ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                  style={radius === r ? {background: '#D3755A'} : {}}
+                >{r === null ? 'This area only' : `Within ${r} mi`}</button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Beds */}
-        <button
-          onClick={() => setActivePanel(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
-          className={'px-3 text-sm whitespace-nowrap transition-colors ' + (bedsActive ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
-        >{bedsLabel}</button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setActivePanel(active === 'minBeds' || active === 'maxBeds' ? null : 'minBeds')}
+            className={pillBase + ' ' + (bedsActive ? pillActive : pillIdle)}
+          >
+            {bedsLabel}
+            {chevron}
+          </button>
 
-        <div className="w-px bg-[#E8E2DA] self-stretch my-2" />
+          {(active === 'minBeds' || active === 'maxBeds') && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-[#E8E2DA] rounded-md shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Min</div>
+                  {BED_OPTIONS.map(b => (
+                    <button key={String(b)} onClick={() => { setMinBeds(b); setActive('maxBeds') }}
+                      className={'w-full text-left text-sm px-3 py-1.5 rounded-md transition-colors ' + (minBeds === b ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                      style={minBeds === b ? {background: '#D3755A'} : {}}
+                    >{b === null ? 'No min' : b === 0 ? 'Studio' : b + ' bed'}</button>
+                  ))}
+                </div>
+                <div className="w-px bg-[#E8E2DA]" />
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Max</div>
+                  {BED_OPTIONS.map(b => (
+                    <button key={String(b)} onClick={() => { setMaxBeds(b); setActive(null); doSearch({maxB: b}) }}
+                      className={'w-full text-left text-sm px-3 py-1.5 rounded-md transition-colors ' + (maxBeds === b ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                      style={maxBeds === b ? {background: '#D3755A'} : {}}
+                    >{b === null ? 'No max' : b === 0 ? 'Studio' : b + ' bed'}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
-        <div className="w-px bg-[#E8E2DA] self-stretch my-2" />
+        {/* Price */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setActivePanel(active === 'minPrice' || active === 'maxPrice' ? null : 'minPrice')}
+            className={pillBase + ' ' + (priceActive ? pillActive : pillIdle)}
+          >
+            {priceLabel}
+            {chevron}
+          </button>
 
-        {/* Added within */}
-        <button
-          onClick={() => setActivePanel(active === 'addedWithin' ? null : 'addedWithin')}
-          className={'px-3 text-sm whitespace-nowrap transition-colors ' + (localAddedWithin ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
-        >{addedWithinLabel}</button>
+          {(active === 'minPrice' || active === 'maxPrice') && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-[#E8E2DA] rounded-md shadow-xl z-50 p-4 w-72" onClick={e => e.stopPropagation()}>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Min</div>
+                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {PRICE_OPTIONS.map(p => (
+                      <button key={String(p)} onClick={() => { setMinPrice(p); setActive('maxPrice') }}
+                        className={'text-left text-sm px-3 py-1.5 rounded-md transition-colors ' + (minPrice === p ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                        style={minPrice === p ? {background: '#D3755A'} : {}}
+                      >{p === null ? 'No min' : '£' + p.toLocaleString()}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="w-px bg-[#E8E2DA]" />
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Max</div>
+                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {PRICE_OPTIONS.map(p => (
+                      <button key={String(p)} onClick={() => { setMaxPrice(p); setActive(null); doSearch({maxP: p}) }}
+                        className={'text-left text-sm px-3 py-1.5 rounded-md transition-colors ' + (maxPrice === p ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                        style={maxPrice === p ? {background: '#D3755A'} : {}}
+                      >{p === null ? 'No max' : '£' + p.toLocaleString()}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
-        <div className="w-px bg-[#E8E2DA] self-stretch my-2" />
+        {/* Added within — hidden on narrow viewports (md and down). Less essential
+            than location/beds/price; collapses cleanly while preserving the row layout. */}
+        <div className="relative hidden md:block">
+          <button
+            type="button"
+            onClick={() => setActivePanel(active === 'addedWithin' ? null : 'addedWithin')}
+            className={pillBase + ' ' + (localAddedWithin ? pillActive : pillIdle)}
+          >
+            {addedWithinLabel}
+            {chevron}
+          </button>
 
-        {/* Filters */}
-        <div className="flex items-center px-2">
+          {active === 'addedWithin' && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-[#E8E2DA] rounded-md shadow-xl z-50 p-2 w-44">
+              {([null, 0.042, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
+                <button key={String(d)} onClick={() => { setLocalAddedWithin(d); setActive(null); doSearch() }}
+                  className={'w-full text-left text-sm px-3 py-2 rounded-md transition-colors ' + (localAddedWithin === d ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
+                  style={localAddedWithin === d ? {background: '#D3755A'} : {}}
+                >{d === null ? 'Any time' : d === 0.042 ? '1 hour' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : d + ' days'}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Filters — outlined button. SearchFilters renders its own trigger; we wrap
+            it in a pill-styled container so it visually matches the field boxes.
+            (SearchFilters' trigger restyle is in patch 2.) */}
+        <div className="flex items-center">
           <SearchFilters
             ref={filtersRef}
             location={location}
@@ -261,113 +401,11 @@ export default function NavSearchBar({
           />
         </div>
 
-        {/* Search button */}
-        <button
-          onClick={() => filtersRef.current ? filtersRef.current.applyNow() : doSearch()}
-          className="flex items-center gap-1.5 px-4 m-1.5 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90 flex-shrink-0"
-          style={{background: '#D3755A'}}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" strokeWidth="2"/>
-            <path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Search
-        </button>
+        {/* Save (primary action). SaveSearchButton reads URL params itself, so no
+            props needed. Styled here as the Zoopla-style heart+label primary button. */}
+        <SaveSearchButton />
       </div>
 
-      {/* Dropdowns */}
-      {active === 'location' && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 overflow-hidden w-72">
-          {suggestions.map(s => (
-            <button key={s} onClick={() => { setLocation(s); setSuggestions([]); setActive(null); doSearch({loc: s}) }}
-              className="w-full text-left px-4 py-2.5 text-sm text-[#3D3A38] hover:bg-[#F5EBE0] flex items-center gap-2.5">
-              <svg className="w-3.5 h-3.5 text-[#9B928E] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="1.5"/>
-                <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="1.5"/>
-              </svg>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {active === 'radius' && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-40">
-          {RADIUS_OPTIONS.map(r => (
-            <button key={String(r)} onClick={() => { setRadius(r); setActive(null); doSearch({r}) }}
-              className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (radius === r ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
-              style={radius === r ? {background: '#D3755A'} : {}}
-            >{r === null ? 'This area only' : `Within ${r} mi`}</button>
-          ))}
-        </div>
-      )}
-
-      {active === 'addedWithin' && (
-        <div className="absolute top-full left-1/2 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-2 w-44">
-          {([null, 0.042, 1, 3, 7, 14, 30, 90] as (number|null)[]).map(d => (
-            <button key={String(d)} onClick={() => { setLocalAddedWithin(d); setActive(null); doSearch() }}
-              className={'w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ' + (localAddedWithin === d ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
-              style={localAddedWithin === d ? {background: '#D3755A'} : {}}
-            >{d === null ? 'Any time' : d === 0.042 ? '1 hour' : d === 1 ? '24 hours' : d === 30 ? '1 month' : d === 90 ? '3 months' : d + ' days'}</button>
-          ))}
-        </div>
-      )}
-
-      {(active === 'minPrice' || active === 'maxPrice') && (
-        <div className="absolute top-full left-1/4 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-72" onClick={e => e.stopPropagation()}>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Min</div>
-              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                {PRICE_OPTIONS.map(p => (
-                  <button key={String(p)} onClick={() => { setMinPrice(p); setActive('maxPrice') }}
-                    className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minPrice === p ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
-                    style={minPrice === p ? {background: '#D3755A'} : {}}
-                  >{p === null ? 'No min' : '£' + p.toLocaleString()}</button>
-                ))}
-              </div>
-            </div>
-            <div className="w-px bg-[#E8E2DA]" />
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Max</div>
-              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                {PRICE_OPTIONS.map(p => (
-                  <button key={String(p)} onClick={() => { setMaxPrice(p); setActive(null); doSearch({maxP: p}) }}
-                    className={'text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxPrice === p ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
-                    style={maxPrice === p ? {background: '#D3755A'} : {}}
-                  >{p === null ? 'No max' : '£' + p.toLocaleString()}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(active === 'minBeds' || active === 'maxBeds') && (
-        <div className="absolute top-full right-1/4 mt-1 bg-white border border-[#E8E2DA] rounded-xl shadow-xl z-50 p-4 w-56" onClick={e => e.stopPropagation()}>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Min</div>
-              {BED_OPTIONS.map(b => (
-                <button key={String(b)} onClick={() => { setMinBeds(b); setActive('maxBeds') }}
-                  className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (minBeds === b ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
-                  style={minBeds === b ? {background: '#D3755A'} : {}}
-                >{b === null ? 'No min' : b === 0 ? 'Studio' : b + ' bed'}</button>
-              ))}
-            </div>
-            <div className="w-px bg-[#E8E2DA]" />
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-[#9B928E] uppercase tracking-wide mb-2">Max</div>
-              {BED_OPTIONS.map(b => (
-                <button key={String(b)} onClick={() => { setMaxBeds(b); setActive(null); doSearch({maxB: b}) }}
-                  className={'w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ' + (maxBeds === b ? 'text-white' : 'hover:bg-[#F5EBE0] text-[#3D3A38]')}
-                  style={maxBeds === b ? {background: '#D3755A'} : {}}
-                >{b === null ? 'No max' : b === 0 ? 'Studio' : b + ' bed'}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -460,40 +460,42 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <main className="min-h-screen bg-[#F5F0EB]">
-      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
-            nest<span className="text-orange-700 italic">london</span>
-          </Link>
-          <Link href="/list" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">List your property</Link>
-          <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">Borough guides</Link>
-          <div className="flex items-center flex-1">
-            <NavSearchBar
-              location={location}
-              listingType={listingType}
-              minBeds={minBeds}
-              maxBeds={maxBeds}
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-              radius={radius}
-              furnished={furnished}
-              propertyType={propertyType}
-              features={features}
-              addedWithin={addedWithin}
-              availableFrom={availableFrom}
-              style={style}
-              tenure={tenure}
-              chainFree={chainFree}
-              newBuild={newBuild}
-              leaseholdMin={leaseholdMin}
-              minBaths={minBaths}
-              maxBaths={maxBaths}
-              maxPricePerSqm={maxPricePerSqm}
-              minPricePerSqm={minPricePerSqm}
-              commuteLocations={commuteLocations}
-            />
+      <nav className="border-b border-[#1C2B3A]/10 bg-white relative z-50 shadow-md">
+        {/* Two-row layout: top row carries logo + nav links + auth; bottom row
+            is the full-width search bar. */}
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="text-xl font-light text-[#1C2B3A] flex-shrink-0 no-underline" style={{fontFamily:'Georgia,serif'}}>
+              nest<span className="text-orange-700 italic">london</span>
+            </Link>
+            <Link href="/list" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">List your property</Link>
+            <Link href="/boroughs" className="text-xs text-[#9B928E] hover:text-[#D3755A] transition-colors flex-shrink-0 no-underline">Borough guides</Link>
+            <div className="ml-auto"><NavAuthButton variant="light" /></div>
           </div>
-          <NavAuthButton variant="light" />
+          <NavSearchBar
+            location={location}
+            listingType={listingType}
+            minBeds={minBeds}
+            maxBeds={maxBeds}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            radius={radius}
+            furnished={furnished}
+            propertyType={propertyType}
+            features={features}
+            addedWithin={addedWithin}
+            availableFrom={availableFrom}
+            style={style}
+            tenure={tenure}
+            chainFree={chainFree}
+            newBuild={newBuild}
+            leaseholdMin={leaseholdMin}
+            minBaths={minBaths}
+            maxBaths={maxBaths}
+            maxPricePerSqm={maxPricePerSqm}
+            minPricePerSqm={minPricePerSqm}
+            commuteLocations={commuteLocations}
+          />
         </div>
       </nav>
       <div className="max-w-6xl mx-auto px-6 py-6">

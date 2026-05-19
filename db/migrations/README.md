@@ -20,5 +20,7 @@ Track schema changes here. Migrations are documentation — they are NOT auto-ap
 | 0004 | `0004_listing_amenities.sql` | Adds listing_amenities table for cached nearby POI data from Overpass/OSM |
 | 0005 | `0005_listing_dedupe.sql` | Adds canonical_listing_id, listing_sources, listing_merge_log for cross-source dedupe |
 | 0006 | `0006_sold_prices.sql` | Adds sold_prices table for HM Land Registry Price Paid Data, London postcodes only |
+| 0007 | `0007_listing_owner_user_id.sql` | Adds owner_user_id to listings; backfills from agent_id; tightens RLS on offers/listings/viewing_requests/listing_events |
 | 0008 | `0008_joint_searches.sql` | Joint searches: tables for collaborative property search (members, invites, saved properties, threaded comments, reactions) |
 | 0009 | `0009_folder_sharing.sql` | Pivot from joint-search to per-folder sharing: extends saved_property_folders, adds folder_members/invites/comments/reactions, drops joint_* tables |
+| 0010 | `0010_listings_contact_phone.sql` | Adds optional contact_phone column to listings for agent-direct "Show phone number" reveal on listing pages |

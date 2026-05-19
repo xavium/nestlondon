@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import SearchMapView from '@/components/SearchMapView'
-import SaveSearchButton from '@/components/SaveSearchButton'
 import ListingCard from '@/components/ListingCard'
 import { type CommuteLocation } from '@/lib/commute'
 
@@ -368,7 +367,6 @@ export function SearchResults({ filtered, allListings, allListingsForMap, radius
             }
           })()}
           {radiusLabel ? ` · ${radiusLabel}` : ''}
-          <SaveSearchButton />
         </p>
         <div className="flex items-center gap-2 flex-shrink-0">
           {hiddenCount > 0 && !showHidden && (

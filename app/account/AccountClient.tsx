@@ -290,6 +290,7 @@ function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
   onSignOut: () => void
   onDeleteAccount: () => void
 }) {
+  const isAgent = user.role?.startsWith('agent') ?? false
   const supabase = createClient()
   const inputClass = "w-full border border-[#E8E2DA] rounded-xl px-4 py-2.5 text-sm text-[#1B2E4B] outline-none focus:border-[#D3755A] transition-colors bg-white"
 
@@ -408,6 +409,11 @@ function AccountDetailsForm({ user, onSignOut, onDeleteAccount }: {
               <div>
                 <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Phone</label>
                 <input value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} placeholder="+44 7700 000000" type="tel" />
+                {isAgent && (
+                  <p className="text-xs text-[#9B928E] mt-1">
+                    Optional, but listings with a phone number get noticeably more enquiries. This number appears on your listings via a "Show phone number" reveal.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-xs text-[#9B928E] uppercase tracking-wide mb-1 block">Account type</label>

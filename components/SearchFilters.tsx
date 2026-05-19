@@ -195,11 +195,21 @@ const SearchFilters = forwardRef<SearchFiltersHandle, Props>(function SearchFilt
     <div ref={panelRef} className="relative">
       <button
         onClick={() => { if (!open) window.dispatchEvent(new Event('nestlondon:closeDropdowns')); setOpen(!open) }}
-        className={'flex items-center gap-1.5 text-sm px-3 whitespace-nowrap transition-colors ' + (activeCount > 0 ? 'text-[#D3755A] font-medium' : 'text-[#9B928E] hover:text-[#3D3A38]')}
+        className={'flex items-center gap-2 text-sm px-3 py-2 h-11 bg-white border rounded-md whitespace-nowrap transition-colors ' + (activeCount > 0 ? 'border-[#D3755A] text-[#D3755A] font-medium' : 'border-[#E8E2DA] text-[#9B928E] hover:border-[#D3755A] hover:text-[#3D3A38]')}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" strokeWidth="1.5" strokeLinecap="round"/><line x1="5" y1="12" x2="19" y2="12" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        {/* Sliders icon — matches the Zoopla "Filters" affordance */}
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <line x1="4" y1="6" x2="20" y2="6" strokeWidth="1.5" strokeLinecap="round"/>
+          <line x1="4" y1="12" x2="20" y2="12" strokeWidth="1.5" strokeLinecap="round"/>
+          <line x1="4" y1="18" x2="20" y2="18" strokeWidth="1.5" strokeLinecap="round"/>
+          <circle cx="9" cy="6" r="2" fill="white" strokeWidth="1.5"/>
+          <circle cx="15" cy="12" r="2" fill="white" strokeWidth="1.5"/>
+          <circle cx="9" cy="18" r="2" fill="white" strokeWidth="1.5"/>
+        </svg>
         Filters
-        {activeCount > 0 && <span className="bg-white text-[#D3755A] text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">{activeCount}</span>}
+        {activeCount > 0 && (
+          <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#D3755A] text-white text-[10px] font-medium">{activeCount}</span>
+        )}
       </button>
 
       {open && (
